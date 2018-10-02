@@ -30,9 +30,12 @@ class FastaBasedDataset(Dataset):
     Args:
         intervals_file: bed3+<columns> file containing intervals+labels
         fasta_file: file path; Genome sequence
-        label_dtype: label data type
         num_chr_fasta: if True, the tsv-loader will make sure that the chromosomes
           don't start with chr
+        label_dtype: label data type
+        seq_len: required sequence length
+        use_strand: reverse-complement fasta sequence if bed file defines negative strand
+        force_upper: Force uppercase output of sequences
     """
     output_schema = None
     type = 'Dataset'
@@ -71,14 +74,6 @@ class FastaBasedDataset(Dataset):
 
     def __init__(self, intervals_file, fasta_file, num_chr_fasta=False, label_dtype = None,
                  seq_len=None, use_strand=False, force_upper=True):
-        """
-        
-        :param intervals_file: 
-        :param fasta_file: 
-        :param num_chr_fasta: 
-        out_trafo (None, string or callable): Transform list-of-strings representation of sequence to other.
-        :param seq_len: 
-        """
 
         self.num_chr_fasta = num_chr_fasta
         self.intervals_file = intervals_file
@@ -125,6 +120,19 @@ class FastaBasedDataset(Dataset):
 
 
 class SeqDataset(FastaBasedDataset):
+    """
+    Args:
+        intervals_file: bed3+<columns> file containing intervals+labels
+        fasta_file: file path; Genome sequence
+        num_chr_fasta: if True, the tsv-loader will make sure that the chromosomes
+          don't start with chr
+        label_dtype: label data type
+        seq_len: required sequence length
+        use_strand: reverse-complement fasta sequence if bed file defines negative strand
+        num_axes: dimensionality of returned array (this value includes the sample axis)
+        seq_axis: axis along which the sequence is defined
+        alphabet_axis: axis along which the alphabet runs (e.g. A,C,G,T for DNA)
+    """
     defined_as = 'kipoi_dataloaders.SeqDataset'
     args = OrderedDict()
     args['intervals_file'] = DataLoaderArgument(
@@ -152,7 +160,7 @@ class SeqDataset(FastaBasedDataset):
         doc="1, axis along which the sequence is defined.",
         name='seq_axis', type='int', optional=True)
     args['alphabet_axis'] = DataLoaderArgument(
-        doc="2, axis alon which the alphabet runs (e.g. A,C,G,T for DNA).",
+        doc="2, axis along which the alphabet runs (e.g. A,C,G,T for DNA).",
         name='alphabet_axis', type='int', optional=True)
 
     def __init__(self, intervals_file, fasta_file, num_chr_fasta=False, label_dtype = None, seq_len=None,
