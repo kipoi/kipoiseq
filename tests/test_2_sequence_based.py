@@ -29,7 +29,11 @@ def test_fasta_based_dataset():
     ret_val = dl[0]
     assert isinstance(ret_val["inputs"], str)
     # test with set wrong seqlen:
-    dl = FastaBasedDataset(data_bpath + "sample_intervals.bed", data_bpath +"sample.fasta", seq_len=3)
+    dl = FastaBasedDataset(data_bpath + "sample_intervals.bed", data_bpath + "sample.fasta", seq_len=3)
+    with pytest.raises(Exception):
+        dl[0]
+    # test with short max_seqlen:
+    dl = FastaBasedDataset(data_bpath + "sample_intervals.bed", data_bpath + "sample.fasta", max_seq_len=1)
     with pytest.raises(Exception):
         dl[0]
     dl = FastaBasedDataset(data_bpath +"sample_intervals.bed", data_bpath +"sample.fasta", label_dtype="string")

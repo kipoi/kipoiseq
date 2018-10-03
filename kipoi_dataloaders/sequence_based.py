@@ -57,6 +57,9 @@ class FastaBasedDataset(Dataset):
     args['seq_len'] = DataLoaderArgument(
         doc="None, required sequence length.",
         name='seq_len', type='int', optional=True)
+    args['max_seq_len'] = DataLoaderArgument(
+        doc="None, maximum allowed sequence length.",
+        name='max_seq_len', type='int', optional=True)
     args['use_strand'] = DataLoaderArgument(
         doc="False, reverse-complement fasta sequence if bed file defines negative strand.",
         name='use_strand', type='bool', optional=True)
@@ -68,12 +71,12 @@ class FastaBasedDataset(Dataset):
     _yaml_path = None
     source = None
     source_dir = None
-    # TODO - enable postprocessing
+    # TODO - enable postprocessing - get the output schema from the model schema
     # TODO - the examples have to be set in the `DataLoaderArgument` objects
 
 
     def __init__(self, intervals_file, fasta_file, num_chr_fasta=False, label_dtype = None,
-                 seq_len=None, use_strand=False, force_upper=True):
+                 seq_len=None, max_seq_len = None, use_strand=False, force_upper=True):
 
         self.num_chr_fasta = num_chr_fasta
         self.intervals_file = intervals_file
@@ -81,6 +84,7 @@ class FastaBasedDataset(Dataset):
         self.seq_len = seq_len
         self.use_strand = use_strand
         self.force_upper = force_upper
+        self.max_seq_len = max_seq_len
 
         self.tsv = TsvReader(self.intervals_file,
                              num_chr=self.num_chr_fasta,
@@ -103,8 +107,10 @@ class FastaBasedDataset(Dataset):
         interval, labels = self.tsv[idx]
 
         if self.seq_len is not None:
-            # Intervals need to be 1000bp wide
             assert interval.stop - interval.start == self.seq_len
+
+        if self.max_seq_len is not None:
+            assert interval.stop - interval.start <= self.max_seq_len
 
         # Run the fasta extractor and transform if necessary
         seq = self.fasta_reader([interval])[0]
@@ -150,6 +156,9 @@ class SeqDataset(FastaBasedDataset):
     args['seq_len'] = DataLoaderArgument(
         doc="None, required sequence length.",
         name='seq_len', type='int', optional=True)
+    args['max_seq_len'] = DataLoaderArgument(
+        doc="None, maximum allowed sequence length.",
+        name='max_seq_len', type='int', optional=True)
     args['use_strand'] = DataLoaderArgument(
         doc="False, reverse-complement fasta sequence if bed file defines negative strand.",
         name='use_strand', type='bool', optional=True)
@@ -164,10 +173,10 @@ class SeqDataset(FastaBasedDataset):
         name='alphabet_axis', type='int', optional=True)
 
     def __init__(self, intervals_file, fasta_file, num_chr_fasta=False, label_dtype = None, seq_len=None,
-                 use_strand=False, num_axes=3, seq_axis=1, alphabet_axis=2):
+                 max_seq_len=None, use_strand=False, num_axes=3, seq_axis=1, alphabet_axis=2):
 
         super(SeqDataset, self).__init__(intervals_file, fasta_file, num_chr_fasta=num_chr_fasta,
-                                         label_dtype = label_dtype, seq_len=seq_len,
+                                         label_dtype = label_dtype, seq_len=seq_len, max_seq_len = max_seq_len,
                                          use_strand=use_strand, force_upper=True)
 
         self.num_axes = num_axes
