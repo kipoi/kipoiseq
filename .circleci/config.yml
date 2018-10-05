@@ -1,0 +1,146 @@
+version: 2
+
+variables:
+  update_conda: &update_conda
+    run:
+      name: Update conda
+      command: conda update --yes conda
+  install_git_lfs: &install_git_lfs
+    run:
+      name: Install git-lfs
+      command: |
+        conda install --yes -c conda-forge git-lfs
+        cp .circleci/gitconfig ~/.gitconfig
+  update_pytorch: &update_pytorch
+    run:
+      name: Update pytorch
+      command: |
+        conda install --yes pytorch-cpu -c pytorch
+  install_pip_deps: &install_pip_deps
+    run:
+      name: Install pip dependencies
+      command: |
+        pip install genomelake --no-deps
+        pip install pyfaidx
+  install_kipoi: &install_kipoi
+    run:
+      name: Install Kipoi
+      command: |
+        git clone git@github.com:kipoi/kipoi.git kipoi_pkg
+        cd kipoi_pkg
+        git checkout plugin  # test already the future version of Kipoi
+        pip install '.'
+        cd ..
+  install_kipoi_dataloaders: &install_kipoi_dataloaders
+    run:
+      name: Install Kipoi-dataloaders
+      command: pip install '.[develop]'
+  install_requests: &install_requests
+    run:
+      name: Install requirements for requests correctly
+      command: pip install requests
+  kipoi_ls: &kipoi_ls
+    run:
+      name: List kipoi packages
+      command: kipoi ls
+  run_tests: &run_tests
+    run:
+      name: Run tests
+      command: |
+        mkdir test-reports
+        py.test --cov=kipoi_dataloaders/ tests/ -n 4 --no-cov-on-fail --junitxml=test-reports/junit.xml
+  run_coveralls: &run_coveralls
+    run:
+      name: run coveralls
+      command: coveralls || true
+  store_test_results: &store_test_results
+    store_test_results:
+      path: test-reports
+  store_test_artifacts: &store_test_artifacts
+    store_artifacts:
+      path: test-reports
+      destination: test-reports
+
+
+jobs:
+
+  test-py36:
+    docker:
+      - image: kipoi/miniconda3:4.3.14
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - *update_conda
+      - *install_git_lfs
+      - *update_pytorch
+      - *install_pip_deps
+      - *install_kipoi
+      - *install_kipoi_dataloaders
+      - *kipoi_ls
+      - *run_tests
+      - *run_coveralls
+      - *store_test_results
+      - *store_test_artifacts
+
+  test-py27:
+    docker:
+      - image: kipoi/miniconda:4.3.14
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - *update_conda
+      - *install_git_lfs
+      - *update_pytorch
+      - *install_pip_deps
+      - *install_kipoi
+      - *install_kipoi_dataloaders
+      - *kipoi_ls
+      - *run_tests
+      - *store_test_results
+      - *store_test_artifacts
+
+  build-deploy-docs:
+    docker:
+      # - image: continuumio/miniconda3:4.3.14
+      - image: kipoi/miniconda3:4.3.14
+      # - image: continuumio/anaconda3:5.0.1
+      # - image: circleci/python:3.5
+    working_directory: ~/repo
+    steps:
+      - add_ssh_keys:
+          fingerprints:
+            - 08:c1:46:ae:ea:06:99:b6:64:ee:3f:e0:98:ac:30:ce
+      - checkout
+      - run:
+          name: Install pip - Kipoi
+          command: pip install -e .
+      - run:
+          name: Install build deps
+          command: pip install nbconvert mkdocs pydoc-markdown
+      - run:
+          name: Build docs
+          command: |
+            cd docs/
+            mkdir -p theme_dir/img/ipynb/
+            ./render_ipynb.bash
+            pydocmd build
+      - run:
+          name: Deploy docs
+          command: .circleci/deploy_docs.bash
+
+workflows:
+  version: 2
+
+  test:
+    jobs:
+      - test-py36
+      - test-py27
+      - build-deploy-docs:
+          requires:
+            - test-py36
+            - test-py27
+          filters:
+            branches:
+              only:
+                - master
+                - test_deployment_script
