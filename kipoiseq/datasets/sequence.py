@@ -162,6 +162,10 @@ class SeqStringDataset(SeqDatasetPrototype):
         }
 
 
+# TODO - check lzamparo's dataloader:
+# - https://github.com/kipoi/kipoiseq/issues/1#issuecomment-427412487
+# - https://raw.githubusercontent.com/lzamparo/bindspace_revisions/master/deepbind/src/dataloader.py
+
 class SeqDataset(SeqStringDataset):
     """
     Dataloader for a combination of fasta and tab-delimited input files such as bed files. The dataloader extracts

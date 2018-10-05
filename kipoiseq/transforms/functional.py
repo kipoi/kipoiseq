@@ -179,7 +179,7 @@ def fixed_len(seq, length, anchor="center", value="N"):
 
 
 # --------------------------------------------
-# TODO - what is this???
+# TODO - lookup what is this used for
 
 class TransformShape(object):
     def __init__(self, alphabet_axis, dummy_axis=None):

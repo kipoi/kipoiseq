@@ -51,12 +51,12 @@ class OneHot(object):
     """One-hot encode the sequence
     """
 
-    def __init__(self, alphabet, neutral_alphabet='N'):
+    def __init__(self, alphabet=['A', 'C', 'G', 'T'], neutral_alphabet='N'):
         self.alphabet = alphabet
         self.neutral_alphabet = neutral_alphabet
 
     def __call__(self, seq):
-        if self.alphabet == ["A", "C", "G", "T"] and self.neutral_alphabet == 'N':
+        if self.alphabet == ['A', 'C', 'G', 'T'] and self.neutral_alphabet == 'N':
             return F.one_hot_dna(seq)
         else:
             return F.one_hot(seq, self.alphabet, self.neutral_element)
