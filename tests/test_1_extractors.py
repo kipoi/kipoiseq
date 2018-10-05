@@ -1,4 +1,4 @@
-from kipoi_dataloaders.extractors import TsvExtractor, FastaStringExtractor
+from kipoiseq.extractors import TsvExtractor, FastaStringExtractor
 import pytest
 from pybedtools import Interval
 import numpy as np

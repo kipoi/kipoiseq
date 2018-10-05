@@ -4,31 +4,43 @@
 from setuptools import setup, find_packages
 
 
+# all_requirements = [
+#     "kipoi",
+#     # vep
+#     "pyvcf",
+#     "cyvcf2",
+#     "pybedtools",
+#     "pysam",  # required by pybedtools
+#     "intervaltree",
+#     "deepdish",
+#     "matplotlib",
+#     "seaborn",
+#     "shapely",
+#     "descartes",
+#     # TODO - which requirements to we need?
+#     "future",
+#     "numpy",
+#     "pandas",
+#     "tqdm",
+#     "related>=0.6.0",
+#     "enum34",
+#     "colorlog",
+#     "cookiecutter",
+#     # sometimes required
+#     "h5py",
+#     "urllib3>=1.21.1,<1.23",
+# ]
+
 requirements = [
     "kipoi",
-    # vep
-    "pyvcf",
-    "cyvcf2",
-    "pybedtools",
-    "pysam",  # required by pybedtools
-    "intervaltree",
-    "deepdish",
-    "matplotlib",
-    "seaborn",
-    "shapely",
-    "descartes",
-    # TODO - which requirements to we need?
-    "future",
+    "genomelake",
     "numpy",
     "pandas",
     "tqdm",
     "related>=0.6.0",
-    "enum34",
     "colorlog",
-    "cookiecutter",
     # sometimes required
     "h5py",
-    "urllib3>=1.21.1,<1.23",
 ]
 
 test_requirements = [
@@ -45,17 +57,18 @@ test_requirements = [
     "cython",
     # "genomelake",
     "keras",
-    "tensorflow"
+    "tensorflow",
+    "pybedtools"
 ]
 
 setup(
-    name='kipoi_datalaoders',
+    name='kipoiseq',
     version='0.0.1',
-    description="kipoi_datalaoders: data-laoders for Kipoi",
+    description="kipoiseq: sequence-based data-laoders for Kipoi",
     author="Kipoi team",
     author_email='avsec@in.tum.de',
-    url='https://github.com/kipoi/dataloaders',
-    long_description="kipoi_datalaoders: data-laoders for Kipoi",
+    url='https://github.com/kipoi/kipoiseq',
+    long_description="kipoiseq: sequence-based data-laoders for Kipoi",
     packages=find_packages(),
     install_requires=requirements,
     extras_require={

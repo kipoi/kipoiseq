@@ -1,7 +1,7 @@
 import pytest
-from kipoi_dataloaders.utils import resize_pybedtools_interval, get_onehot_shape
+from kipoiseq.utils import resize_pybedtools_interval, get_onehot_shape
 from pybedtools import Interval
-from kipoi_dataloaders import utils
+from kipoiseq import utils
 
 
 @pytest.mark.parametrize("how", ['start', 'end', 'center'])

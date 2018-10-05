@@ -3,7 +3,7 @@ import kipoi_veff
 import kipoi_veff.snv_predict as sp
 import pytest
 from kipoi_veff.utils.generic import ModelInfoExtractor
-from kipoi_dataloaders.datasets.sequence import SeqDataset
+from kipoiseq.datasets.sequence import SeqDataset
 import os
 from kipoi.pipeline import install_model_requirements
 

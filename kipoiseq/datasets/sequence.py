@@ -1,15 +1,17 @@
 from collections import OrderedDict
 
+import pandas as pd
 import numpy as np
 from kipoi.metadata import GenomicRanges
 from kipoi.specs import DataLoaderArgument, ArraySpecialType
 from kipoi.plugin import is_installed
 
 import copy
-from kipoi_dataloaders.extractors import TsvExtractor, FastaStringExtractor
-from kipoi_dataloaders.transforms import TransformShape, onehot_transform
-from kipoi_dataloaders.utils import resize_pybedtools_interval, get_alphabet, get_onehot_shape
-from kipoi_dataloaders.datasets.prototypes import SeqDatasetPrototype, args_prototype, get_seq_dataset_output_schema
+from pybedtools import BedTool, Interval
+from kipoiseq.extractors import TsvExtractor, FastaStringExtractor
+from kipoiseq.transforms import TransformShape, onehot_transform
+from kipoiseq.utils import resize_pybedtools_interval, get_alphabet, get_onehot_shape
+from kipoiseq.datasets.prototypes import SeqDatasetPrototype, args_prototype, get_seq_dataset_output_schema
 
 
 def parse_dtype(dtype):
@@ -21,6 +23,53 @@ def parse_dtype(dtype):
     if dtype not in dtypes:
         raise Exception("Datatype '{0}' not recognized. Allowed are: {1}".format(dtype, str(list(dtypes.keys()))))
     return dtypes[dtype]
+
+
+# TODO - this should be the dataset
+#   TODO - this should be called: Bed3Dataset
+class TsvExtractor:
+    """Reads a tsv file in the following format:
+    chr  start  stop  task1  task2 ...
+    Args:
+      tsv_file: tsv file type
+      label_dtype: data type of the labels
+    """
+
+    def __init__(self, tsv_file, num_chr=False, label_dtype=None):
+        self.tsv_file = tsv_file
+        self.num_chr = num_chr
+        self.label_dtype = label_dtype
+        df_peek = pd.read_table(self.tsv_file,
+                                header=None,
+                                nrows=1,
+                                sep='\t')
+        self.n_tasks = df_peek.shape[1] - 3
+        assert self.n_tasks >= 0
+        self.df = pd.read_table(self.tsv_file,
+                                header=None,
+                                dtype={i: d
+                                       for i, d in enumerate([str, int, int] +
+                                                             [self.label_dtype] * self.n_tasks)},
+                                sep='\t')
+        if self.num_chr and self.df.iloc[0][0].startswith("chr"):
+            self.df[0] = self.df[0].str.replace("^chr", "")
+        if not self.num_chr and not self.df.iloc[0][0].startswith("chr"):
+            self.df[0] = "chr" + self.df[0]
+
+    def __getitem__(self, idx):
+        """Returns (pybedtools.Interval, labels)
+        """
+        row = self.df.iloc[idx]
+        interval = Interval(row[0], row[1], row[2])
+
+        if self.n_tasks == 0:
+            labels = {}
+        else:
+            labels = row.iloc[3:].values.astype(self.label_dtype)
+        return interval, labels
+
+    def __len__(self):
+        return len(self.df)
 
 
 class SeqStringDataset(SeqDatasetPrototype):
@@ -41,7 +90,7 @@ class SeqStringDataset(SeqDatasetPrototype):
         auto_resize: Automatically resize the given bed input to the required_seq_len. Allowed arguments: 
             'start': keeps the start coordinate, 'end', 'center' accordingly.
     """
-    defined_as = 'kipoi_dataloaders.SeqStringDataset'
+    defined_as = 'kipoiseq.SeqStringDataset'
     # todo: use is_installed
     if is_installed("kipoi_veff"):
         from kipoi_veff.specs import VarEffectDataLoaderArgs
@@ -117,9 +166,9 @@ class SeqDataset(SeqStringDataset):
     """
     Dataloader for a combination of fasta and tab-delimited input files such as bed files. The dataloader extracts
     regions from the fasta file as defined in the tab-delimited `intervals_file` and converts them into one-hot encoded
-    format. Returned sequences are of the type np.array with the shape inferred from the arguments: `alphabet_axis` 
+    format. Returned sequences are of the type np.array with the shape inferred from the arguments: `alphabet_axis`
     and `dummy_axis`.
-    
+
     Arguments:
         intervals_file: bed3+<columns> file containing intervals+labels
         fasta_file: file path; Genome sequence
@@ -128,14 +177,14 @@ class SeqDataset(SeqStringDataset):
         label_dtype: label data type
         required_seq_len: required sequence length
         use_strand: reverse-complement fasta sequence if bed file defines negative strand
-        auto_resize: Automatically resize the given bed input to the required_seq_len. Allowed arguments: 
+        auto_resize: Automatically resize the given bed input to the required_seq_len. Allowed arguments:
             'start': keeps the start coordinate, 'end', 'center' accordingly.
         alphabet_axis: axis along which the alphabet runs (e.g. A,C,G,T for DNA)
         dummy_axis: defines in which dimension a dummy axis should be added. None if no dummy axis is required.
         alphabet: alphabet to use for the one-hot encoding. This defines the order of the one-hot encoding.
             Can either be a list or a string: 'DNA', 'RNA', 'AMINO_ACIDS'.
     """
-    defined_as = 'kipoi_dataloaders.SeqDataset'
+    defined_as = 'kipoiseq.SeqDataset'
     args = OrderedDict([(k, args_prototype[k]) for k in ["intervals_file", "fasta_file", "num_chr_fasta", "label_dtype",
                                                          "required_seq_len", "max_seq_len", "use_strand", "auto_resize",
                                                          "alphabet_axis", "dummy_axis", "alphabet"]])

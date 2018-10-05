@@ -1,8 +1,9 @@
 import pytest
 import numpy as np
 import copy
-from kipoi_dataloaders.transforms import onehot, onehot_transform, TransformShape
-from kipoi_dataloaders.utils import DNA
+from kipoiseq.transforms.functional import onehot, onehot_transform, TransformShape, resize_interval
+from kipoiseq.utils import DNA
+from pybedtools import Interval
 
 
 def test_onehot():
@@ -17,7 +18,7 @@ def test_onehot():
             assert dat[i, :].sum() == 0
 
 
-def test_onehot_trafo():
+def test_onehot_transform():
     seqs = ["ACGTN", "ACGTN"]
     dat = onehot_transform(seqs, DNA)
     assert len(dat.shape) == 3
@@ -76,3 +77,35 @@ def test_reshape_seq(alphabet_axis, dummy_axis):
     # Test if fails if input has wrong shape
     with pytest.raises(Exception):
         reshaper.reshape_batch(in_array[0, ...])
+
+
+@pytest.mark.parametrize("anchor", ['start', 'end', 'center'])
+@pytest.mark.parametrize("ilen", [3, 4])
+def test_resize_pybedtools_interval(anchor, ilen):
+    import pybedtools
+    dummy_start, dummy_end = 10, 20
+    dummy_centre = int((dummy_start + dummy_end) / 2)
+
+    dummy_inter = pybedtools.create_interval_from_list(['chr2', dummy_start, dummy_end, 'intname'])
+    ret_inter = resize_interval(dummy_inter, ilen, anchor)
+
+    # the original interval was left intact
+    assert dummy_inter.chrom == 'chr2'
+    assert dummy_inter.start == dummy_start
+    assert dummy_inter.end == dummy_end
+    assert dummy_inter.name == 'intname'
+
+    # metadata kept
+    assert ret_inter.chrom == dummy_inter.chrom
+    assert ret_inter.name == 'intname'
+
+    # desired output width
+    assert ret_inter.length == ilen
+
+    # correct anchor point
+    if anchor == "start":
+        assert ret_inter.start == dummy_start
+    elif anchor == "end":
+        assert ret_inter.end == dummy_end
+    elif anchor == "centre":
+        assert int((ret_inter.start + ret_inter.end) / 2) == dummy_centre

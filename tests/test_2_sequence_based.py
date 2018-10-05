@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from kipoi_dataloaders.datasets.sequence import SeqStringDataset, SeqDataset, parse_dtype
+from kipoiseq.datasets.sequence import SeqStringDataset, SeqDataset, parse_dtype
 
 data_bpath = "tests/data/"
 
