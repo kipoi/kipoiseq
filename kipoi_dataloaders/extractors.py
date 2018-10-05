@@ -2,11 +2,9 @@ import pandas as pd
 import numpy as np
 import pyfaidx
 from pybedtools import BedTool, Interval
-from .conversion import get_string_trafo
-from kipoi_dataloaders.utils import DNA, RNA, AMINO_ACIDS
-from six import string_types
 
-class TsvReader:
+
+class TsvExtractor:
     """Reads a tsv file in the following format:
     chr  start  stop  task1  task2 ...
     Args:
@@ -51,8 +49,9 @@ class TsvReader:
         return len(self.df)
 
 
-class FastaReader(object):
+class FastaStringExtractor(object):
     dtype = np.float32
+
     def __init__(self, datafile, use_strand=False, force_upper=False):
         """Fasta file extractor
 
@@ -78,14 +77,12 @@ class FastaReader(object):
             # reverse-complement seq the negative strand
             rc = self.use_strand and interval.strand == "-"
             # pyfaidx wants a 1-based interval
-            seq = str(self.fasta.get_seq(chrom, interval.start+1, interval.stop, rc=rc).seq)
+            seq = str(self.fasta.get_seq(chrom, interval.start + 1, interval.stop, rc=rc).seq)
             if self.force_upper:
                 seq = seq.upper()
 
             seqs.append(seq)
         return seqs
 
-
     def __call__(self, intervals):
         return self._extract(intervals)
-

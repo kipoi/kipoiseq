@@ -1,18 +1,21 @@
 import numpy as np
 from six import string_types
 
-def get_string_trafo(trafo):
+
+def get_string_transforms(trafo):
     if trafo is not None and isinstance(trafo, string_types):
-        if trafo in TRAFOS:
-            trafo = TRAFOS[trafo]
+        if trafo in TRANSFORMS:
+            trafo = TRANSFORMS[trafo]
     return trafo
+
 
 def onehot(seq, out, alphabet):
     for i, char in enumerate(seq):
         if char in alphabet:
             out[i, alphabet.index(char)] = 1
 
-def onehot_trafo(seqs, alphabet):
+
+def onehot_transform(seqs, alphabet):
     """
     Transforms list of string sequences to one-hot encoded arrays
     
@@ -22,43 +25,57 @@ def onehot_trafo(seqs, alphabet):
             e.g.: ["A", "C", "G", "T"] for DNA.
     """
     output_shape = (len(seqs), len(seqs[0]), len(alphabet))
-    out = np.zeros(output_shape)
+    out = np.zeros(output_shape, dtype=np.float32)
 
     for i, seq in enumerate(seqs):
-        onehot(seq, out[i,...], alphabet)
+        onehot(seq, out[i, ...], alphabet)
 
     return out
 
 
-class ReshapeSeq(object):
-    def __init__(self, num_axes, seq_axis, alphabet_axis):
+class TransformShape(object):
+    def __init__(self, alphabet_axis, dummy_axis=None):
         """
         Reshape input array as defined by parameters
         Arguments:
-            input: Input numpy array. Requires dimension order: (<samples>, <seq_axis>, <alphabet_axis>)
-            num_axes: total dimensionality of output array including the sample axis. Must be >=3.
-            seq_axis: index of the sequence axis. Cannot be 0.
             alphabet_axis: index of the alphabet axis. Cannot be 0.
-        
+            dummy_axis: index at which a dummy dimension should be added. If None no dummy axis is generated.
+
         returns:
             Reshaped sequence array 
         """
-        if num_axes <3 or seq_axis == 0 or alphabet_axis == 0 or seq_axis >= num_axes or alphabet_axis >= num_axes:
-            raise Exception("'num_axes' must be >= 3, seq_axis must be >0 and < {nax},"
-                            " alphabet_axis must be >0 and < {nax}".format(nax = num_axes))
+        num_axes = 3
+        dummy_axis_int = dummy_axis
+        if dummy_axis is not None:
+            num_axes += 1
+        else:
+            dummy_axis_int = -1
+
+        if alphabet_axis == 0 or dummy_axis_int == 0 or alphabet_axis >= num_axes or dummy_axis_int >= num_axes or \
+                        alphabet_axis == dummy_axis_int:
+            raise Exception("alphabet_axis must be >0 and < {nax},"
+                            " dummy_axis must either be None or >0 and < {nax}, and"
+                            " alphabet_axis must be !=  dummy_axis".format(nax=num_axes))
         self.num_axes = num_axes
-        self.seq_axis = seq_axis
+        self.dummy_axis = dummy_axis
         self.alphabet_axis = alphabet_axis
         # prepare the transformations to minimise calculation time on execution (since it may be applied to every
         # sample individually)
         self.trafos = []
-        if num_axes >= 3:
-            self.trafos.append(lambda x: x.__getitem__(tuple([Ellipsis] + [None]*(self.num_axes-3))))
-        if seq_axis != 1:
-            self.trafos.append(lambda x: np.swapaxes(x, 1, self.seq_axis))
-        if alphabet_axis != 2:
-            self.trafos.append(lambda x: np.swapaxes(x, 2, self.alphabet_axis))
 
+        # global_axis_offset is necessary as we want to count from the right to left since the transformation can be
+        # performed on batches or on single samples.
+        global_axis_offset = - num_axes
+        existing_alph_axis = 2
+        if num_axes >= 3:
+            self.trafos.append(lambda x: x.__getitem__(tuple([Ellipsis] + [None] * (self.num_axes - 3))))
+            if dummy_axis is not None:
+                self.trafos.append(lambda x: np.swapaxes(x, -1, dummy_axis + global_axis_offset))
+                if dummy_axis == existing_alph_axis:
+                    existing_alph_axis = num_axes - 1
+        if alphabet_axis != existing_alph_axis:
+            self.trafos.append(lambda x: np.swapaxes(x, existing_alph_axis + global_axis_offset,
+                                                     self.alphabet_axis + global_axis_offset))
 
     def _apply_fns(self, input):
         out = input
@@ -93,6 +110,4 @@ class ReshapeSeq(object):
         return self._apply_fns(input)
 
 
-
-
-TRAFOS = {"onehot_trafo": onehot_trafo}
+TRANSFORMS = {"onehot_trafo": onehot_transform}

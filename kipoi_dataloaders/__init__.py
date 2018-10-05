@@ -1,1 +1,1 @@
-from .sequence_based import SeqDataset
+from kipoi_dataloaders.datasets.sequence import SeqDataset
