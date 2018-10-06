@@ -1,3 +1,4 @@
+import numpy as np
 from pybedtools import Interval
 
 
@@ -30,3 +31,12 @@ def get_onehot_shape(alphabet_axis, dummy_axis, seq_len, alphabet):
     shape[alphabet_axis - 1] = len(alphabet)
     shape[seq_axis - 1] = seq_len
     return tuple(shape)
+
+
+def to_scalar(obj):
+    """Convert numpy scalar to native scalar
+    """
+    if isinstance(obj, np.generic):
+        return np.asscalar(obj)
+    else:
+        return obj

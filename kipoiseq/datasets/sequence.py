@@ -7,11 +7,12 @@ from kipoi.specs import DataLoaderArgument, ArraySpecialType
 from kipoi.plugin import is_installed
 
 import copy
+import pybedtools
 from pybedtools import BedTool, Interval
 from kipoiseq.extractors import FastaStringExtractor
 from kipoiseq.transforms import TransformShape
 from kipoiseq.transforms.functional import one_hot, resize_interval
-from kipoiseq.utils import get_alphabet, get_onehot_shape
+from kipoiseq.utils import get_alphabet, get_onehot_shape, to_scalar
 from kipoiseq.datasets.prototypes import SeqDatasetPrototype, args_prototype, get_seq_dataset_output_schema
 
 
@@ -28,27 +29,62 @@ def parse_dtype(dtype):
 
 class BedDataset:
     """Reads a tsv file in the following format:
+    ```
     chr  start  stop  task1  task2 ...
-    Args:
+    ```
+
+    # Arguments
       tsv_file: tsv file type
-      label_dtype: data type of the labels
+      bed_columns: number of columns corresponding to the bed file. All the columns
+        after that will be parsed as targets
+      num_chr: if specified, 'chr' in the chromosome name will be dropped
+      label_dtype: specific data type for labels
+      ambiguous_mask: if specified, rows containing only ambiguous_mask values will be skipped
+      incl_chromosomes: exclusive list of chromosome names to include in the final dataset.
+        if not None, only these will be present in the dataset
+      excl_chromosomes: list of chromosome names to omit from the dataset.
     """
 
-    def __init__(self, tsv_file, num_chr=False, label_dtype=None):
-        # TODO - add incl_chromosomes, excl_chromosomes
+    # bed types accorging to
+    # https://www.ensembl.org/info/website/upload/bed.html
+    bed_types = [str,  # chrom
+                 int,  # chromStart
+                 int,  # chromEnd
+                 str,  # name
+                 float,  # score
+                 str,  # strand
+                 int,  # thickStart
+                 int,  # thickEnd
+                 str,  # itemRbg
+                 int,  # blockCount
+                 int,  # blockSizes
+                 int]  # blockStarts
+
+    def __init__(self, tsv_file,
+                 bed_columns=3,
+                 label_dtype=None,
+                 num_chr=False,
+                 ambiguous_mask=None,
+                 incl_chromosomes=None,
+                 excl_chromosomes=None):
         self.tsv_file = tsv_file
+        self.bed_columns = bed_columns
         self.num_chr = num_chr
         self.label_dtype = label_dtype
+        self.ambiguous_mask = ambiguous_mask
+        self.incl_chromosomes = incl_chromosomes
+        self.excl_chromosomes = excl_chromosomes
+
         df_peek = pd.read_table(self.tsv_file,
                                 header=None,
                                 nrows=1,
                                 sep='\t')
-        self.n_tasks = df_peek.shape[1] - 3
+        self.n_tasks = df_peek.shape[1] - self.bed_columns
         assert self.n_tasks >= 0
         self.df = pd.read_table(self.tsv_file,
                                 header=None,
                                 dtype={i: d
-                                       for i, d in enumerate([str, int, int] +
+                                       for i, d in enumerate(self.bed_types[:self.bed_columns] +
                                                              [self.label_dtype] * self.n_tasks)},
                                 sep='\t')
         if self.num_chr and self.df.iloc[0][0].startswith("chr"):
@@ -56,20 +92,33 @@ class BedDataset:
         if not self.num_chr and not self.df.iloc[0][0].startswith("chr"):
             self.df[0] = "chr" + self.df[0]
 
+        if ambiguous_mask is not None:
+            # exclude regions where only ambigous labels are present
+            self.df = self.df[~np.all(self.df.iloc[:, self.bed_columns:] == ambiguous_mask, axis=1)]
+
+            # omit data outside chromosomes
+        if incl_chromosomes is not None:
+            self.df = self.df[self.df[0].isin(incl_chromosomes)]
+        if excl_chromosomes is not None:
+            self.df = self.df[~self.df[0].isin(excl_chromosomes)]
+
     def __getitem__(self, idx):
         """Returns (pybedtools.Interval, labels)
         """
         row = self.df.iloc[idx]
-        interval = Interval(row[0], row[1], row[2])
+        interval = pybedtools.create_interval_from_list([to_scalar(x) for x in row.iloc[:self.bed_columns]])
 
         if self.n_tasks == 0:
             labels = {}
         else:
-            labels = row.iloc[3:].values.astype(self.label_dtype)
+            labels = row.iloc[self.bed_columns:].values.astype(self.label_dtype)
         return interval, labels
 
     def __len__(self):
         return len(self.df)
+
+    def get_targets(self):
+        return self.df.iloc[:, self.bed_columns:].values.astype(self.label_dtype)
 
 
 class SeqStringDataset(SeqDatasetPrototype):
