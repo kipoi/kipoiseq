@@ -134,12 +134,12 @@ workflows:
     jobs:
       - test-py36
       - test-py27
-      - build-deploy-docs:
-          requires:
-            - test-py36
-            - test-py27
-          filters:
-            branches:
-              only:
-                - master
-                - test_deployment_script
+      # - build-deploy-docs:
+      #     requires:
+      #       - test-py36
+      #       - test-py27
+      #     filters:
+      #       branches:
+      #         only:
+      #           - master
+      #           - test_deployment_script
