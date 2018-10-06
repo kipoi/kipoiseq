@@ -1,21 +1,7 @@
-from kipoiseq.extractors import TsvExtractor, FastaStringExtractor
+from kipoiseq.extractors import FastaStringExtractor
 import pytest
-from pybedtools import Interval
 import numpy as np
-
-
-@pytest.mark.parametrize("tsv_file", ["tests/data/sample_intervals.bed", "tests/data/sample_intervals_nochr.bed"])
-@pytest.mark.parametrize("num_chr", [True, False])
-@pytest.mark.parametrize("label_dtype", [str, np.int64])
-def test_tsvreader(tsv_file, num_chr, label_dtype):
-    reader = TsvExtractor(tsv_file, num_chr, label_dtype)
-    interval, labels = reader[0]
-    assert isinstance(interval, Interval)
-    if not num_chr:
-        assert interval.chrom.startswith("chr")
-    assert isinstance(labels[0], label_dtype)
-    assert interval.start == 2
-    assert interval.end == 4
+from pybedtools import Interval
 
 
 comp = {"A": "T", "C": "G", "G": "C", "T": "A"}
@@ -31,12 +17,12 @@ def test_fastareader(use_strand, force_upper):
             if i == 1:
                 fasta_str = s.lstrip()
     fr = FastaStringExtractor(fp, use_strand, force_upper)
-    test_intervals = [Interval("chr1", 0, 2, strand="-"), Interval("chr1", 3, 4)]
-    seqs = fr(test_intervals)
-    assert len(seqs) == len(test_intervals)
-    for inter, seq in zip(test_intervals, seqs):
-        ref_seq = fasta_str[inter.start:inter.end]
-        if use_strand and inter.strand == "-":
+    intervals = Interval("chr1", 0, 2, strand="-"), Interval("chr1", 3, 4)
+
+    for interval in intervals:
+        seq = fr.extract(interval)
+        ref_seq = fasta_str[interval.start:interval.end]
+        if use_strand and interval.strand == "-":
             ref_seq = list(ref_seq)[::-1]
             ref_seq = "".join([comp[el] for el in ref_seq])
         if force_upper:

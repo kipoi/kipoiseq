@@ -3,37 +3,9 @@
 
 from setuptools import setup, find_packages
 
-
-# all_requirements = [
-#     "kipoi",
-#     # vep
-#     "pyvcf",
-#     "cyvcf2",
-#     "pybedtools",
-#     "pysam",  # required by pybedtools
-#     "intervaltree",
-#     "deepdish",
-#     "matplotlib",
-#     "seaborn",
-#     "shapely",
-#     "descartes",
-#     # TODO - which requirements to we need?
-#     "future",
-#     "numpy",
-#     "pandas",
-#     "tqdm",
-#     "related>=0.6.0",
-#     "enum34",
-#     "colorlog",
-#     "cookiecutter",
-#     # sometimes required
-#     "h5py",
-#     "urllib3>=1.21.1,<1.23",
-# ]
-
 requirements = [
     "kipoi",
-    "genomelake",
+    # "genomelake",
     "numpy",
     "pandas",
     "tqdm",
@@ -74,12 +46,11 @@ setup(
     extras_require={
         "develop": test_requirements,
     },
-    # entry_points={'console_scripts': ['kipoi_veff = kipoi_veff.cli:cli_main']},
     license="MIT license",
     zip_safe=False,
     keywords=["model zoo", "deep learning",
               "computational biology", "bioinformatics", "genomics"],
     test_suite='tests',
-    include_package_data=True,
+    include_package_data=False,
     tests_require=test_requirements
 )

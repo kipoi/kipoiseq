@@ -8,9 +8,10 @@ from kipoi.plugin import is_installed
 
 import copy
 from pybedtools import BedTool, Interval
-from kipoiseq.extractors import TsvExtractor, FastaStringExtractor
-from kipoiseq.transforms import TransformShape, onehot_transform
-from kipoiseq.utils import resize_pybedtools_interval, get_alphabet, get_onehot_shape
+from kipoiseq.extractors import FastaStringExtractor
+from kipoiseq.transforms import TransformShape
+from kipoiseq.transforms.functional import one_hot, resize_interval
+from kipoiseq.utils import get_alphabet, get_onehot_shape
 from kipoiseq.datasets.prototypes import SeqDatasetPrototype, args_prototype, get_seq_dataset_output_schema
 
 
@@ -25,9 +26,7 @@ def parse_dtype(dtype):
     return dtypes[dtype]
 
 
-# TODO - this should be the dataset
-#   TODO - this should be called: Bed3Dataset
-class TsvExtractor:
+class BedDataset:
     """Reads a tsv file in the following format:
     chr  start  stop  task1  task2 ...
     Args:
@@ -36,6 +35,7 @@ class TsvExtractor:
     """
 
     def __init__(self, tsv_file, num_chr=False, label_dtype=None):
+        # TODO - add incl_chromosomes, excl_chromosomes
         self.tsv_file = tsv_file
         self.num_chr = num_chr
         self.label_dtype = label_dtype
@@ -87,7 +87,7 @@ class SeqStringDataset(SeqDatasetPrototype):
         max_seq_len: maximum allowed sequence length
         use_strand: reverse-complement fasta sequence if bed file defines negative strand
         force_upper: Force uppercase output of sequences
-        auto_resize: Automatically resize the given bed input to the required_seq_len. Allowed arguments: 
+        auto_resize: Automatically resize the given bed input to the required_seq_len. Allowed arguments:
             'start': keeps the start coordinate, 'end', 'center' accordingly.
     """
     defined_as = 'kipoiseq.SeqStringDataset'
@@ -115,10 +115,10 @@ class SeqStringDataset(SeqDatasetPrototype):
         self.max_seq_len = max_seq_len
         self.auto_resize = auto_resize
 
-        self.tsv = TsvExtractor(self.intervals_file,
-                                num_chr=self.num_chr_fasta,
-                                label_dtype=parse_dtype(label_dtype))
-        self.fasta_reader = None
+        self.tsv = BedDataset(self.intervals_file,
+                              num_chr=self.num_chr_fasta,
+                              label_dtype=parse_dtype(label_dtype))
+        self.fasta_extractors = None
 
         # correct the output schema
         self.output_schema_params = copy.copy(self.output_schema_params)
@@ -133,16 +133,16 @@ class SeqStringDataset(SeqDatasetPrototype):
         return len(self.tsv)
 
     def __getitem__(self, idx):
-        if self.fasta_reader is None:
-            self.fasta_reader = FastaStringExtractor(self.fasta_file, use_strand=self.use_strand,
-                                                     force_upper=self.force_upper)
+        if self.fasta_extractors is None:
+            self.fasta_extractors = FastaStringExtractor(self.fasta_file, use_strand=self.use_strand,
+                                                         force_upper=self.force_upper)
 
         interval, labels = self.tsv[idx]
 
         if self.required_seq_len is not None:
             if not interval.stop - interval.start == self.required_seq_len:
                 if self.auto_resize is not None:
-                    interval = resize_pybedtools_interval(interval, self.auto_resize, self.required_seq_len)
+                    interval = resize_interval(interval, self.auto_resize, self.required_seq_len)
                 else:
                     raise Exception("Sequence interval in intervals_file does not match required model sequence "
                                     "length. Update intervals_file or use the 'auto_resize' argument.")
@@ -151,7 +151,7 @@ class SeqStringDataset(SeqDatasetPrototype):
             assert interval.stop - interval.start <= self.max_seq_len
 
         # Run the fasta extractor and transform if necessary
-        seq = self.fasta_reader([interval])
+        seq = self.fasta_extractors.extract(interval)
 
         return {
             "inputs": np.array(seq),
@@ -209,6 +209,8 @@ class SeqDataset(SeqStringDataset):
         self.reshaper = TransformShape(alphabet_axis, dummy_axis)
         self.alphabet = get_alphabet(alphabet)
 
+        # TODO - re-use one-hot from above
+
         # correct the output schema
         self.output_schema_params = copy.copy(self.output_schema_params)
 
@@ -221,6 +223,8 @@ class SeqDataset(SeqStringDataset):
 
     def __getitem__(self, idx):
         ret = super(SeqDataset, self).__getitem__(idx)
-        ret["inputs"] = onehot_transform([ret["inputs"][0]], alphabet=self.alphabet)[0]
+
+        # TODO - abandon inheritence and use special transforms instead?
+        ret["inputs"] = one_hot(ret["inputs"], alphabet=self.alphabet)
         ret["inputs"] = self.reshaper.reshape_single_sample(ret["inputs"])
         return ret

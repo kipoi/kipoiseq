@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 from genomelake.util import one_hot_encode_sequence
+from kipoiseq.utils import DNA
 from copy import deepcopy
 import numpy as np
 from six import string_types
@@ -22,7 +23,7 @@ def one_hot2token(arr):
     return arr.argmax(axis=2)
 
 
-def one_hot2string(arr, alphabet):
+def one_hot2string(arr, alphabet=DNA):
     """Convert a one-hot encoded array back to string
     """
     tokens = one_hot2token(arr)
@@ -31,7 +32,7 @@ def one_hot2string(arr, alphabet):
     return [''.join([indexToLetter[x] for x in row]) for row in tokens]
 
 
-def tokenize(seq, alphabet, neutral_alphabet=[]):
+def tokenize(seq, alphabet=DNA, neutral_alphabet=["N"]):
     """Convert sequence to integers
 
     # Arguments
@@ -59,7 +60,7 @@ def tokenize(seq, alphabet, neutral_alphabet=[]):
     return np.array([alphabet_dict[seq[(i * nchar):((i + 1) * nchar)]] for i in range(len(seq) // nchar)])
 
 
-def token2one_hot(tokens, alphabet_size, neutral_element=0):
+def token2one_hot(tokens, alphabet_size=4, neutral_value=.25):
     """
     Note: everything out of the alphabet is transformed into `np.zeros(alphabet_size)`
     """
@@ -67,13 +68,13 @@ def token2one_hot(tokens, alphabet_size, neutral_element=0):
 
     tokens_range = np.arange(len(tokens))
     arr[tokens_range[tokens >= 0], tokens[tokens >= 0]] = 1
-    if neutral_element != 0:
-        arr[tokens_range[tokens < 0], :] = neutral_element
+    if neutral_value != 0:
+        arr[tokens_range[tokens < 0], :] = neutral_value
     return arr
 
 
-def one_hot(seq, alphabet, neutral_alphabet=['N']):
-    return token2one_hot(tokenize(seq, alphabet, neutral_alphabet), len(alphabet))
+def one_hot(seq, alphabet=DNA, neutral_alphabet=['N'], neutral_value=.25):
+    return token2one_hot(tokenize(seq, alphabet, neutral_alphabet), len(alphabet), neutral_value)
 
 
 def one_hot_dna(seq):
@@ -173,89 +174,16 @@ def fixed_len(seq, length, anchor="center", value="N"):
     assert isinstance(length, int)
 
     # pad and subset
-    out_seq = pad(seq, length, value=value, anchor=anchor)
-    out_seq = trim(out_seq, length, anchor=anchor)
-    return out_seq
+    if len(seq) < length:
+        return pad(seq, length, value=value, anchor=anchor)
+    elif len(seq) > length:
+        return trim(seq, length, anchor=anchor)
+    else:
+        return seq
 
 
 # --------------------------------------------
 # TODO - lookup what is this used for
-
-class TransformShape(object):
-    def __init__(self, alphabet_axis, dummy_axis=None):
-        """Reshape input array as defined by parameters
-
-        # Arguments
-            alphabet_axis: index of the alphabet axis. Cannot be 0.
-            dummy_axis: index at which a dummy dimension should be added. If None no dummy axis is generated.
-
-        # Returns
-            Reshaped sequence array
-        """
-        num_axes = 3
-        dummy_axis_int = dummy_axis
-        if dummy_axis is not None:
-            num_axes += 1
-        else:
-            dummy_axis_int = -1
-
-        if alphabet_axis == 0 or dummy_axis_int == 0 or alphabet_axis >= num_axes or dummy_axis_int >= num_axes or \
-                alphabet_axis == dummy_axis_int:
-            raise Exception("alphabet_axis must be >0 and < {nax},"
-                            " dummy_axis must either be None or >0 and < {nax}, and"
-                            " alphabet_axis must be !=  dummy_axis".format(nax=num_axes))
-        self.num_axes = num_axes
-        self.dummy_axis = dummy_axis
-        self.alphabet_axis = alphabet_axis
-        # prepare the transformations to minimise calculation time on execution (since it may be applied to every
-        # sample individually)
-        self.transforms = []
-
-        # global_axis_offset is necessary as we want to count from the right to left since the transformation can be
-        # performed on batches or on single samples.
-        global_axis_offset = - num_axes
-        existing_alph_axis = 2
-        if num_axes >= 3:
-            self.transforms.append(lambda x: x.__getitem__(tuple([Ellipsis] + [None] * (self.num_axes - 3))))
-            if dummy_axis is not None:
-                self.transforms.append(lambda x: np.swapaxes(x, -1, dummy_axis + global_axis_offset))
-                if dummy_axis == existing_alph_axis:
-                    existing_alph_axis = num_axes - 1
-        if alphabet_axis != existing_alph_axis:
-            self.transforms.append(lambda x: np.swapaxes(x, existing_alph_axis + global_axis_offset,
-                                                         self.alphabet_axis + global_axis_offset))
-
-    def _apply_fns(self, input):
-        out = input
-        for fn in self.transforms:
-            out = fn(out)
-        return out
-
-    def reshape_single_sample(self, input):
-        """
-        Reshape input array of single sample
-        Arguments:
-            input: Input numpy array. Requires dimension order: (<seq_axis>, <alphabet_axis>)
-
-        returns:
-            Reshaped sequence array
-        """
-        if len(input.shape) != 2:
-            raise Exception("Input array must have dimensions: (<seq_axis>, <alphabet_axis>)")
-        return self._apply_fns(input)
-
-    def reshape_batch(self, input):
-        """
-        Reshape input array of a batch of samples
-        Arguments:
-            input: Input numpy array. Requires dimension order: (<samples>, <seq_axis>, <alphabet_axis>)
-
-        returns:
-            Reshaped sequence array
-        """
-        if len(input.shape) != 3:
-            raise Exception("Input array must have dimensions: (<samples>, <seq_axis>, <alphabet_axis>)")
-        return self._apply_fns(input)
 
 
 def resize_interval(interval, width, anchor='center'):

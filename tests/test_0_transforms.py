@@ -1,31 +1,13 @@
 import pytest
 import numpy as np
 import copy
-from kipoiseq.transforms.functional import onehot, onehot_transform, TransformShape, resize_interval
+from kipoiseq.transforms.functional import resize_interval
+from kipoiseq.transforms import TransformShape
 from kipoiseq.utils import DNA
 from pybedtools import Interval
 
 
-def test_onehot():
-    seq = "ACGTN"
-    dat = np.zeros((len(seq), 4))
-    onehot(seq, dat, DNA)
-    for i, letter in enumerate(seq):
-        if letter in DNA:
-            assert dat[i, :].sum() == 1
-            assert dat[i, DNA.index(letter)].sum() == 1
-        else:
-            assert dat[i, :].sum() == 0
-
-
-def test_onehot_transform():
-    seqs = ["ACGTN", "ACGTN"]
-    dat = onehot_transform(seqs, DNA)
-    assert len(dat.shape) == 3
-    assert dat.shape[0] == 2
-    assert dat.shape[1] == len(seqs[0])
-    assert dat.shape[2] == len(DNA)
-
+# --------------------------------------------
 
 @pytest.mark.parametrize("alphabet_axis", list(range(0, 5)))
 @pytest.mark.parametrize("dummy_axis", [None] + list(range(0, 5)))
@@ -81,7 +63,7 @@ def test_reshape_seq(alphabet_axis, dummy_axis):
 
 @pytest.mark.parametrize("anchor", ['start', 'end', 'center'])
 @pytest.mark.parametrize("ilen", [3, 4])
-def test_resize_pybedtools_interval(anchor, ilen):
+def test_resize_interval(anchor, ilen):
     import pybedtools
     dummy_start, dummy_end = 10, 20
     dummy_centre = int((dummy_start + dummy_end) / 2)

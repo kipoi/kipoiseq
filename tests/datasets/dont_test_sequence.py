@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
-
-from kipoiseq.datasets.sequence import SeqStringDataset, SeqDataset, parse_dtype
+from pybedtools import Interval
+from kipoiseq.datasets.sequence import SeqStringDataset, SeqDataset, parse_dtype, BedDataset
 
 data_bpath = "tests/data/"
 
@@ -56,3 +56,17 @@ def test_seq_dataset():
     ret_val = dl[0]
     assert isinstance(ret_val["inputs"], np.ndarray)
     assert ret_val["inputs"].shape == (2, 4)
+
+
+@pytest.mark.parametrize("tsv_file", ["tests/data/sample_intervals.bed", "tests/data/sample_intervals_nochr.bed"])
+@pytest.mark.parametrize("num_chr", [True, False])
+@pytest.mark.parametrize("label_dtype", [str, np.int64])
+def test_tsvreader(tsv_file, num_chr, label_dtype):
+    reader = BedDataset(tsv_file, num_chr, label_dtype)
+    interval, labels = reader[0]
+    assert isinstance(interval, Interval)
+    if not num_chr:
+        assert interval.chrom.startswith("chr")
+    assert isinstance(labels[0], label_dtype)
+    assert interval.start == 2
+    assert interval.end == 4

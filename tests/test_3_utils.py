@@ -1,23 +1,7 @@
 import pytest
-from kipoiseq.utils import resize_pybedtools_interval, get_onehot_shape
+from kipoiseq.utils import get_onehot_shape
 from pybedtools import Interval
 from kipoiseq import utils
-
-
-@pytest.mark.parametrize("how", ['start', 'end', 'center'])
-@pytest.mark.parametrize("ilen", [3, 4])
-def test_resize_pybedtools_interval(how, ilen):
-    dummy_start, dummy_end = 10, 20
-    dummy_centre = int((dummy_start + dummy_end) / 2)
-    dummy_inter = Interval("chr1", dummy_start, dummy_end)
-    ret_inter = resize_pybedtools_interval(dummy_inter, how, ilen)
-    assert ret_inter.length == ilen
-    if how == "start":
-        assert ret_inter.start == dummy_start
-    elif how == "end":
-        assert ret_inter.end == dummy_end
-    elif how == "centre":
-        assert int((ret_inter.start + ret_inter.end) / 2) == dummy_centre
 
 
 def test_get_alphabets():

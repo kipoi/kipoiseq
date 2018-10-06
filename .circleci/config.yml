@@ -28,10 +28,9 @@ variables:
       command: |
         git clone git@github.com:kipoi/kipoi.git kipoi_pkg
         cd kipoi_pkg
-        git checkout plugin  # test already the future version of Kipoi
         pip install '.'
         cd ..
-  install_kipoi_dataloaders: &install_kipoi_dataloaders
+  install_kipoieff: &install_kipoieff
     run:
       name: Install Kipoi-dataloaders
       command: pip install '.[develop]'
@@ -48,7 +47,7 @@ variables:
       name: Run tests
       command: |
         mkdir test-reports
-        py.test --cov=kipoi_dataloaders/ tests/ -n 4 --no-cov-on-fail --junitxml=test-reports/junit.xml
+        py.test --cov=kipoieff/ tests/ -n 4 --no-cov-on-fail --junitxml=test-reports/junit.xml
   run_coveralls: &run_coveralls
     run:
       name: run coveralls
@@ -75,7 +74,7 @@ jobs:
       - *update_pytorch
       - *install_pip_deps
       - *install_kipoi
-      - *install_kipoi_dataloaders
+      - *install_kipoieff
       - *kipoi_ls
       - *run_tests
       - *run_coveralls
@@ -93,7 +92,7 @@ jobs:
       - *update_pytorch
       - *install_pip_deps
       - *install_kipoi
-      - *install_kipoi_dataloaders
+      - *install_kipoieff
       - *kipoi_ls
       - *run_tests
       - *store_test_results
