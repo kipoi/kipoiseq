@@ -30,9 +30,9 @@ variables:
         cd kipoi_pkg
         pip install '.'
         cd ..
-  install_kipoieff: &install_kipoieff
+  install_kipoiseq: &install_kipoiseq
     run:
-      name: Install Kipoi-dataloaders
+      name: Install kipoiseq
       command: pip install '.[develop]'
   install_requests: &install_requests
     run:
@@ -47,7 +47,7 @@ variables:
       name: Run tests
       command: |
         mkdir test-reports
-        py.test --cov=kipoieff/ tests/ -n 4 --no-cov-on-fail --junitxml=test-reports/junit.xml
+        py.test --cov=kipoiseq/ tests/ -n 4 --no-cov-on-fail --junitxml=test-reports/junit.xml
   run_coveralls: &run_coveralls
     run:
       name: run coveralls
@@ -74,7 +74,7 @@ jobs:
       - *update_pytorch
       - *install_pip_deps
       - *install_kipoi
-      - *install_kipoieff
+      - *install_kipoiseq
       - *kipoi_ls
       - *run_tests
       - *run_coveralls
@@ -92,7 +92,7 @@ jobs:
       - *update_pytorch
       - *install_pip_deps
       - *install_kipoi
-      - *install_kipoieff
+      - *install_kipoiseq
       - *kipoi_ls
       - *run_tests
       - *store_test_results
