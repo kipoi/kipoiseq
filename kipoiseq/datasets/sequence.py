@@ -1,19 +1,31 @@
 from collections import OrderedDict
-
 import pandas as pd
 import numpy as np
+from copy import deepcopy
+
 from kipoi.metadata import GenomicRanges
 from kipoi.specs import DataLoaderArgument, ArraySpecialType
 from kipoi.plugin import is_installed
+from kipoi.data import Dataset, kipoi_dataloader
+from kipoi.specs import Author, Dependencies
 
-import copy
-import pybedtools
-from pybedtools import BedTool, Interval
+
 from kipoiseq.extractors import FastaStringExtractor
-from kipoiseq.transforms import TransformShape
+from kipoiseq.transforms import SwapAxes, DummyAxis, Compose, OneHot
 from kipoiseq.transforms.functional import one_hot, resize_interval
 from kipoiseq.utils import get_alphabet, get_onehot_shape, to_scalar
-from kipoiseq.datasets.prototypes import SeqDatasetPrototype, args_prototype, get_seq_dataset_output_schema
+
+import pybedtools
+from pybedtools import BedTool, Interval
+
+# general dependencies
+deps = Dependencies(conda=['bioconda::genomelake', 'bioconda::pybedtools', 'bioconda::pyfaidx', 'numpy', 'pandas'],
+                    pip=['kipoiseq'])
+package_authors = [Author(name='Ziga Avsec', github='avsecz'),
+                   Author(name='Roman Kreuzhuber', github='krrome')]
+
+# Object exported on import *
+__all__ = ['BedDataset', 'SeqDataset', 'SeqStringDataset']
 
 
 def parse_dtype(dtype):
@@ -27,7 +39,14 @@ def parse_dtype(dtype):
     return dtypes[dtype]
 
 
-class BedDataset:
+def parse_alphabet(alphabet):
+    if isinstance(alphabet, str):
+        return list(alphabet)
+    else:
+        return alphabet
+
+
+class BedDataset(object):
     """Reads a tsv file in the following format:
     ```
     chr  start  stop  task1  task2 ...
@@ -61,8 +80,8 @@ class BedDataset:
                  int]  # blockStarts
 
     def __init__(self, tsv_file,
-                 bed_columns=3,
                  label_dtype=None,
+                 bed_columns=3,
                  num_chr=False,
                  ambiguous_mask=None,
                  incl_chromosomes=None,
@@ -121,83 +140,93 @@ class BedDataset:
         return self.df.iloc[:, self.bed_columns:].values.astype(self.label_dtype)
 
 
-class SeqStringDataset(SeqDatasetPrototype):
+@kipoi_dataloader(override={"dependencies": deps, 'info.authors': package_authors})
+class SeqStringDataset(Dataset):
     """
-    Dataloader for a combination of fasta and tab-delimited input files such as bed files. The dataloader extracts
-    regions from the fasta file as defined in the tab-delimited `intervals_file`. Returned sequences are of the type
-    np.array([<str>]).
-    Arguments:
-        intervals_file: bed3+<columns> file containing intervals+labels
-        fasta_file: file path; Genome sequence
-        num_chr_fasta: if True, the tsv-loader will make sure that the chromosomes
-          don't start with chr
-        label_dtype: label data type
-        required_seq_len: required sequence length
-        max_seq_len: maximum allowed sequence length
-        use_strand: reverse-complement fasta sequence if bed file defines negative strand
-        force_upper: Force uppercase output of sequences
-        auto_resize: Automatically resize the given bed input to the required_seq_len. Allowed arguments:
-            'start': keeps the start coordinate, 'end', 'center' accordingly.
+    info:
+        doc: >
+           Dataloader for a combination of fasta and tab-delimited input files such as bed files. The dataloader extracts
+           regions from the fasta file as defined in the tab-delimited `intervals_file`. Returned sequences are of the type
+           np.array([str]).
+    args:
+        intervals_file:
+            doc: bed3+<columns> file path containing intervals + (optionally) labels
+            example:
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/kipoi_dataloader/tests/data/sample_intervals.bed
+              md5: ecc4cf3885318a108adcc1e491463d36
+        fasta_file:
+            doc: Reference genome FASTA file path.
+            example:
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/kipoi_dataloader/tests/data/sample.5kb.fa
+              md5: 6cefc8f443877490ab7bcb66b0872e30
+        num_chr_fasta:
+            doc: True, the the dataloader will make sure that the chromosomes don't start with chr.
+        label_dtype:
+            doc: None, datatype of the task labels taken from the intervals_file. Allowed - string', 'int', 'float', 'bool'
+        auto_resize_len:
+            doc: None, required sequence length.
+        # max_seq_len:
+        #     doc: maximum allowed sequence length
+        use_strand:
+            doc: reverse-complement fasta sequence if bed file defines negative strand
+        force_upper:
+            doc: Force uppercase output of sequences
+    output_schema:
+        inputs:
+            name: seq
+            shape: ()
+            doc: DNA sequence as string
+            special_type: DNAStringSeq
+            associated_metadata: ranges
+        targets:
+            shape: (None,)
+            doc: (optional) values following the bed-entry - chr  start  end  target1   target2 ....
+        metadata:
+            ranges:
+                type: GenomicRanges
+                doc: Ranges describing inputs.seq
     """
-    defined_as = 'kipoiseq.SeqStringDataset'
-    # todo: use is_installed
-    if is_installed("kipoi_veff"):
-        from kipoi_veff.specs import VarEffectDataLoaderArgs
-        postprocessing = OrderedDict([('variant_effects', VarEffectDataLoaderArgs(bed_input=["intervals_file"]))])
-    args = OrderedDict([(k, args_prototype[k]) for k in ["intervals_file", "fasta_file", "num_chr_fasta", "label_dtype",
-                                                         "required_seq_len", "max_seq_len", "use_strand", "force_upper",
-                                                         "auto_resize"]])
 
-    output_schema_params = {"inputs_special_type": ArraySpecialType.DNAStringSeq}
-    output_schema = get_seq_dataset_output_schema(**output_schema_params)
-
-    def __init__(self, intervals_file, fasta_file, num_chr_fasta=False, label_dtype=None,
-                 required_seq_len=None, max_seq_len=None, use_strand=False, force_upper=True,
-                 auto_resize=None):
+    def __init__(self,
+                 intervals_file,
+                 fasta_file,
+                 num_chr_fasta=False,
+                 label_dtype=None,
+                 auto_resize_len=None,
+                 # max_seq_len=None,
+                 use_strand=False,
+                 force_upper=True):
 
         self.num_chr_fasta = num_chr_fasta
         self.intervals_file = intervals_file
         self.fasta_file = fasta_file
-        self.required_seq_len = required_seq_len
+        self.auto_resize_len = auto_resize_len
         self.use_strand = use_strand
         self.force_upper = force_upper
-        self.max_seq_len = max_seq_len
-        self.auto_resize = auto_resize
+        # self.max_seq_len = max_seq_len
 
-        self.tsv = BedDataset(self.intervals_file,
+        self.bed = BedDataset(self.intervals_file,
                               num_chr=self.num_chr_fasta,
                               label_dtype=parse_dtype(label_dtype))
         self.fasta_extractors = None
 
-        # correct the output schema
-        self.output_schema_params = copy.copy(self.output_schema_params)
-
-        self.output_schema_params['inputs_shape'] = (1,)
-        if self.tsv.n_tasks != 0:
-            self.output_schema_params['targets_shape'] = (self.tsv.n_tasks,)
-
-        self.output_schema = get_seq_dataset_output_schema(**self.output_schema_params)
-
     def __len__(self):
-        return len(self.tsv)
+        return len(self.bed)
 
     def __getitem__(self, idx):
         if self.fasta_extractors is None:
             self.fasta_extractors = FastaStringExtractor(self.fasta_file, use_strand=self.use_strand,
                                                          force_upper=self.force_upper)
 
-        interval, labels = self.tsv[idx]
+        interval, labels = self.bed[idx]
 
-        if self.required_seq_len is not None:
-            if not interval.stop - interval.start == self.required_seq_len:
-                if self.auto_resize is not None:
-                    interval = resize_interval(interval, self.auto_resize, self.required_seq_len)
-                else:
-                    raise Exception("Sequence interval in intervals_file does not match required model sequence "
-                                    "length. Update intervals_file or use the 'auto_resize' argument.")
+        if self.auto_resize_len:
+            # automatically resize the sequence to cerat
+            interval = resize_interval(interval, self.auto_resize_len, anchor='center')
 
-        if self.max_seq_len is not None:
-            assert interval.stop - interval.start <= self.max_seq_len
+        # QUESTION: @kromme - why to we need max_seq_len?
+        # if self.max_seq_len is not None:
+        #     assert interval.stop - interval.start <= self.max_seq_len
 
         # Run the fasta extractor and transform if necessary
         seq = self.fasta_extractors.extract(interval)
@@ -210,70 +239,126 @@ class SeqStringDataset(SeqDatasetPrototype):
             }
         }
 
+    @classmethod
+    def default_shape(cls):
+        # correct the output schema - TODO - required?
+        # self.output_schema_params = deepcopy(self.output_schema_params)
+        # self.output_schema_params['inputs_shape'] = (1,)
+        # if self.bed.n_tasks != 0:
+        #     self.output_schema_params['targets_shape'] = (self.bed.n_tasks,)
+
+        # self.output_schema = get_seq_dataset_output_schema(**self.output_schema_params)
+        pass
+
 
 # TODO - check lzamparo's dataloader:
 # - https://github.com/kipoi/kipoiseq/issues/1#issuecomment-427412487
 # - https://raw.githubusercontent.com/lzamparo/bindspace_revisions/master/deepbind/src/dataloader.py
 
-class SeqDataset(SeqStringDataset):
+# TODO - properly deal with samples outside
+
+
+@kipoi_dataloader(override={"dependencies": deps, 'info.authors': package_authors})
+class SeqDataset(Dataset):
     """
-    Dataloader for a combination of fasta and tab-delimited input files such as bed files. The dataloader extracts
-    regions from the fasta file as defined in the tab-delimited `intervals_file` and converts them into one-hot encoded
-    format. Returned sequences are of the type np.array with the shape inferred from the arguments: `alphabet_axis`
-    and `dummy_axis`.
-
-    Arguments:
-        intervals_file: bed3+<columns> file containing intervals+labels
-        fasta_file: file path; Genome sequence
-        num_chr_fasta: if True, the tsv-loader will make sure that the chromosomes
-          don't start with chr
-        label_dtype: label data type
-        required_seq_len: required sequence length
-        use_strand: reverse-complement fasta sequence if bed file defines negative strand
-        auto_resize: Automatically resize the given bed input to the required_seq_len. Allowed arguments:
-            'start': keeps the start coordinate, 'end', 'center' accordingly.
-        alphabet_axis: axis along which the alphabet runs (e.g. A,C,G,T for DNA)
-        dummy_axis: defines in which dimension a dummy axis should be added. None if no dummy axis is required.
-        alphabet: alphabet to use for the one-hot encoding. This defines the order of the one-hot encoding.
-            Can either be a list or a string: 'DNA', 'RNA', 'AMINO_ACIDS'.
+    info:
+        doc: >
+            Dataloader for a combination of fasta and tab-delimited input files such as bed files. The dataloader extracts
+            regions from the fasta file as defined in the tab-delimited `intervals_file` and converts them into one-hot encoded
+            format. Returned sequences are of the type np.array with the shape inferred from the arguments: `alphabet_axis`
+            and `dummy_axis`.
+    args:
+        intervals_file:
+            doc: bed3+<columns> file path containing intervals + (optionally) labels
+            example:
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/kipoi_dataloader/tests/data/sample_intervals.bed
+              md5: ecc4cf3885318a108adcc1e491463d36
+        fasta_file:
+            doc: Reference genome FASTA file path.
+            example:
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/kipoi_dataloader/tests/data/sample.5kb.fa
+              md5: 6cefc8f443877490ab7bcb66b0872e30
+        num_chr_fasta:
+            doc: True, the the dataloader will make sure that the chromosomes don't start with chr.
+        label_dtype:
+            doc: None, datatype of the task labels taken from the intervals_file. Allowed - string', 'int', 'float', 'bool'
+        auto_resize_len:
+            doc: None, required sequence length.
+            example: 3
+        use_strand:
+            doc: reverse-complement fasta sequence if bed file defines negative strand
+        alphabet_axis:
+            doc: axis along which the alphabet runs (e.g. A,C,G,T for DNA)
+        dummy_axis:
+            doc: defines in which dimension a dummy axis should be added. None if no dummy axis is required.
+        alphabet:
+            doc: >
+                alphabet to use for the one-hot encoding. This defines the order of the one-hot encoding.
+                Can either be a list or a string: 'DNA', 'RNA', 'AMINO_ACIDS'.
+    output_schema:
+        inputs:
+            name: seq
+            shape: (None, 4)
+            doc: One-hot encoded DNA sequence
+            special_type: DNASeq
+            associated_metadata: ranges
+        targets:
+            shape: (None,)
+            doc: (optional) values following the bed-entry - chr  start  end  target1   target2 ....
+        metadata:
+            ranges:
+                type: GenomicRanges
+                doc: Ranges describing inputs.seq
     """
-    defined_as = 'kipoiseq.SeqDataset'
-    args = OrderedDict([(k, args_prototype[k]) for k in ["intervals_file", "fasta_file", "num_chr_fasta", "label_dtype",
-                                                         "required_seq_len", "max_seq_len", "use_strand", "auto_resize",
-                                                         "alphabet_axis", "dummy_axis", "alphabet"]])
 
-    output_schema_params = {"inputs_special_type": ArraySpecialType.DNASeq}
-    output_schema = get_seq_dataset_output_schema(**output_schema_params)
-
-    def __init__(self, intervals_file, fasta_file, num_chr_fasta=False, label_dtype=None, required_seq_len=None,
-                 max_seq_len=None, use_strand=False, auto_resize=None, alphabet_axis=2, dummy_axis=None,
-                 alphabet="DNA"):
-        super(SeqDataset, self).__init__(intervals_file, fasta_file, num_chr_fasta=num_chr_fasta,
-                                         label_dtype=label_dtype, required_seq_len=required_seq_len,
-                                         max_seq_len=max_seq_len, auto_resize=auto_resize,
-                                         use_strand=use_strand, force_upper=True)
-
+    def __init__(self,
+                 intervals_file,
+                 fasta_file,
+                 num_chr_fasta=False,
+                 label_dtype=None,
+                 auto_resize_len=None,
+                 # max_seq_len=None,
+                 use_strand=False,
+                 alphabet_axis=1,
+                 dummy_axis=None,
+                 alphabet="ACGT"):
+        # transform parameters
         self.alphabet_axis = alphabet_axis
         self.dummy_axis = dummy_axis
-        self.reshaper = TransformShape(alphabet_axis, dummy_axis)
-        self.alphabet = get_alphabet(alphabet)
+        self.alphabet = parse_alphabet(alphabet)
 
-        # TODO - re-use one-hot from above
+        # core dataset
+        self.seq_string_dataset = SeqStringDataset(intervals_file, fasta_file, num_chr_fasta=num_chr_fasta,
+                                                   label_dtype=label_dtype, auto_resize_len=auto_resize_len,
+                                                   use_strand=use_strand, force_upper=True)
 
-        # correct the output schema
-        self.output_schema_params = copy.copy(self.output_schema_params)
+        # how to transform the input
+        self.input_tranform = Compose([
+            OneHot(self.alphabet),  # one-hot-encode
+            DummyAxis(self.dummy_axis),  # optionally inject the dummy axis
+            SwapAxes(1, self.alphabet_axis),  # put the alphabet axis elsewhere
+        ])
 
-        self.output_schema_params['inputs_shape'] = get_onehot_shape(self.alphabet_axis, self.dummy_axis,
-                                                                     self.required_seq_len, self.alphabet)
-        if self.tsv.n_tasks != 0:
-            self.output_schema_params['targets_shape'] = (self.tsv.n_tasks,)
-
-        self.output_schema = get_seq_dataset_output_schema(**self.output_schema_params)
+    def __len__(self):
+        return len(self.seq_string_dataset)
 
     def __getitem__(self, idx):
-        ret = super(SeqDataset, self).__getitem__(idx)
-
-        # TODO - abandon inheritence and use special transforms instead?
-        ret["inputs"] = one_hot(ret["inputs"], alphabet=self.alphabet)
-        ret["inputs"] = self.reshaper.reshape_single_sample(ret["inputs"])
+        ret = self.seq_string_dataset[idx]
+        ret['inputs'] = self.input_tranform(str(ret["inputs"]))
         return ret
+
+    # TODO - compute the output shape based on the default value of parameters
+    #         - executed in kipoi_dataloader
+    # TODO - how to specify the shape properly when using differnet default parameters?
+    #         - example: Basset dataloader
+    @classmethod
+    def default_shape(cls):
+        # setup output schema
+        # self.output_schema_params = deepcopy(self.output_schema_params)
+
+        # self.output_schema_params['inputs_shape'] = get_onehot_shape(self.alphabet_axis, self.dummy_axis,
+        #                                                              self.auto_resize_len, self.alphabet)
+        # if self.bed.n_tasks != 0:
+        #     self.output_schema_params['targets_shape'] = (self.bed.n_tasks,)
+        # self.output_schema = get_seq_dataset_output_schema(**self.output_schema_params)
+        pass

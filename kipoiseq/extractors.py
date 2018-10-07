@@ -1,5 +1,7 @@
 import abc
 
+__all__ = ["BaseExtractor", "FastaStringExtractor", "BigWigExtractor"]
+
 
 class BaseExtractor(object):
     __metaclass__ = abc.ABCMeta

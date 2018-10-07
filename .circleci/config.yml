@@ -115,7 +115,8 @@ jobs:
           command: pip install -e .
       - run:
           name: Install build deps
-          command: pip install nbconvert mkdocs pydoc-markdown
+          # use custom pydoc-markdown
+          command: pip install nbconvert mkdocs git+https://github.com/avsecz/pydoc-markdown@master
       - run:
           name: Build docs
           command: |
@@ -134,12 +135,12 @@ workflows:
     jobs:
       - test-py36
       - test-py27
-      # - build-deploy-docs:
-      #     requires:
-      #       - test-py36
-      #       - test-py27
-      #     filters:
-      #       branches:
-      #         only:
-      #           - master
-      #           - test_deployment_script
+      - build-deploy-docs:
+          requires:
+            - test-py36
+            - test-py27
+          filters:
+            branches:
+              only:
+                - master
+                - test_deployment_script
