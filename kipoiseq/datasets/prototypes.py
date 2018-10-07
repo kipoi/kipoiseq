@@ -47,31 +47,3 @@ args_prototype['alphabet'] = DataLoaderArgument(
     doc="'DNA', Alphabet to use for the one-hot encoding. This defines the order of the one-hot encoding."
         " Can either be a list or a string: 'DNA', 'RNA', 'AMINO_ACIDS'.",
     name='alphabet', type='string', optional=True)
-
-
-def get_seq_dataset_output_schema(inputs_special_type=None, inputs_shape=tuple(), targets_shape=tuple()):
-    schema_prototype = DataLoaderSchema(
-        inputs={"shape": inputs_shape, "name": "seq", "associated_metadata": ['ranges'],
-                "special_type": inputs_special_type},
-        targets={"shape": targets_shape},
-        metadata=OrderedDict([('ranges', {"doc": 'Ranges describing inputs.seq',
-                                          "type": MetadataType.GENOMIC_RANGES,
-                                          "name": 'ranges'})]))
-    return schema_prototype
-
-
-def iter_wrap(obj):
-    yield obj
-
-
-class SeqDatasetPrototype(Dataset):
-    type = 'Dataset'
-    defined_as = None
-    info = None
-    args_prototype = OrderedDict()
-    dependencies = None
-    output_schema = None
-    postprocessing = OrderedDict()
-    _yaml_path = None
-    source = None
-    source_dir = None

@@ -6,6 +6,8 @@ from setuptools import setup, find_packages
 requirements = [
     "kipoi",
     # "genomelake",
+    "pybedtools",
+    "pyfaidx",
     "numpy",
     "pandas",
     "tqdm",
