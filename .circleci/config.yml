@@ -108,7 +108,7 @@ jobs:
     steps:
       - add_ssh_keys:
           fingerprints:
-            - 08:c1:46:ae:ea:06:99:b6:64:ee:3f:e0:98:ac:30:ce
+            - e3:44:16:ec:72:df:ae:59:82:c2:ee:57:4a:52:71:aa
       - checkout
       - run:
           name: Install pip Kipoi
