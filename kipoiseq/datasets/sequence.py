@@ -24,6 +24,9 @@ deps = Dependencies(conda=['bioconda::genomelake', 'bioconda::pybedtools', 'bioc
 package_authors = [Author(name='Ziga Avsec', github='avsecz'),
                    Author(name='Roman Kreuzhuber', github='krrome')]
 
+# Object exported on import *
+__all__ = ['BedDataset', 'SeqStringDataset', 'SeqDataset']
+
 
 def parse_dtype(dtype):
     dtypes = {'int': int, 'string': str, 'float': float, 'bool': bool}
@@ -38,7 +41,7 @@ def parse_dtype(dtype):
 
 def parse_alphabet(alphabet):
     if isinstance(alphabet, str):
-        return alphabet.split('')
+        return list(alphabet)
     else:
         return alphabet
 
@@ -148,10 +151,14 @@ class SeqStringDataset(Dataset):
     args:
         intervals_file:
             doc: bed3+<columns> file path containing intervals + (optionally) labels
-            example: example_files/intervals_files_ENCSR000EMT_chr21_10000.tsv
+            example:
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/sample_intervals.bed
+              md5: ecc4cf3885318a108adcc1e491463d36
         fasta_file:
             doc: Reference genome FASTA file path.
-            example: example_files/chr21.fa
+            example:
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/sample.5kb.fa
+              md5: 6cefc8f443877490ab7bcb66b0872e30
         num_chr_fasta:
             doc: True, the the dataloader will make sure that the chromosomes don't start with chr.
         label_dtype:
@@ -271,10 +278,14 @@ class SeqDataset(Dataset):
     args:
         intervals_file:
             doc: bed3+<columns> file path containing intervals + (optionally) labels
-            example: example_files/intervals_files_ENCSR000EMT_chr21_10000.tsv
+            example:
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/sample_intervals.bed
+              md5: ecc4cf3885318a108adcc1e491463d36
         fasta_file:
             doc: Reference genome FASTA file path.
-            example: example_files/chr21.fa
+            example:
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/sample.5kb.fa
+              md5: 6cefc8f443877490ab7bcb66b0872e30
         num_chr_fasta:
             doc: True, the the dataloader will make sure that the chromosomes don't start with chr.
         label_dtype:
@@ -347,7 +358,7 @@ class SeqDataset(Dataset):
 
     def __getitem__(self, idx):
         ret = self.seq_string_dataset[idx]
-        ret['inputs'] = self.input_tranform(ret["inputs"])
+        ret['inputs'] = self.input_tranform(str(ret["inputs"]))
         return ret
 
     # TODO - compute the output shape based on the default value of parameters

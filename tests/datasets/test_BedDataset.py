@@ -99,3 +99,17 @@ def test_more_columns(tmpdir):
 
     with pytest.raises(Exception):
         bt = BedDataset(bed_file)
+
+
+@pytest.mark.parametrize("tsv_file", ["tests/data/sample_intervals.bed", "tests/data/sample_intervals_nochr.bed"])
+@pytest.mark.parametrize("num_chr", [True, False])
+@pytest.mark.parametrize("label_dtype", [str, np.int64])
+def test_tsvreader(tsv_file, num_chr, label_dtype):
+    ds = BedDataset(tsv_file, label_dtype=label_dtype, num_chr=num_chr)
+    interval, labels = ds[0]
+    assert isinstance(interval, Interval)
+    if not num_chr:
+        assert interval.chrom.startswith("chr")
+    assert isinstance(labels[0], label_dtype)
+    assert interval.start == 2
+    assert interval.end == 4
