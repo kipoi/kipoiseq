@@ -40,20 +40,3 @@ def to_scalar(obj):
         return np.asscalar(obj)
     else:
         return obj
-
-
-from pydocmd.preprocessor import Preprocessor
-
-
-class YamlPreprocessor(Preprocessor):
-
-    def preprocess_section(self, section):
-        """
-        Preprocess the contents of *section*.
-        """
-        if "output_schema:" in section and "args:" in section and "doc:" in section:
-            # display the raw yaml file
-            section.content = "```yaml\n" + section + '```'
-        else:
-            # run the normal pre-processor
-            super(YamlPreprocessor, self).preprocess_section(section)
