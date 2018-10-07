@@ -104,3 +104,4 @@ venv.bak/
 .mypy_cache/
 /*.fai
 /tests/data/sample.fasta.fai
+**/downloaded/**

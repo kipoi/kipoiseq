@@ -25,7 +25,7 @@ package_authors = [Author(name='Ziga Avsec', github='avsecz'),
                    Author(name='Roman Kreuzhuber', github='krrome')]
 
 # Object exported on import *
-__all__ = ['BedDataset', 'SeqStringDataset', 'SeqDataset']
+__all__ = ['BedDataset', 'SeqDataset', 'SeqStringDataset']
 
 
 def parse_dtype(dtype):
@@ -152,18 +152,18 @@ class SeqStringDataset(Dataset):
         intervals_file:
             doc: bed3+<columns> file path containing intervals + (optionally) labels
             example:
-              url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/sample_intervals.bed
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/kipoi_dataloader/tests/data/sample_intervals.bed
               md5: ecc4cf3885318a108adcc1e491463d36
         fasta_file:
             doc: Reference genome FASTA file path.
             example:
-              url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/sample.5kb.fa
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/kipoi_dataloader/tests/data/sample.5kb.fa
               md5: 6cefc8f443877490ab7bcb66b0872e30
         num_chr_fasta:
             doc: True, the the dataloader will make sure that the chromosomes don't start with chr.
         label_dtype:
             doc: None, datatype of the task labels taken from the intervals_file. Allowed - string', 'int', 'float', 'bool'
-        required_seq_len:
+        auto_resize_len:
             doc: None, required sequence length.
         # max_seq_len:
         #     doc: maximum allowed sequence length
@@ -171,10 +171,6 @@ class SeqStringDataset(Dataset):
             doc: reverse-complement fasta sequence if bed file defines negative strand
         force_upper:
             doc: Force uppercase output of sequences
-        auto_resize:
-            doc: >
-                 Automatically resize the given bed input to the required_seq_len. Allowed arguments:
-                 'start': keeps the start coordinate, 'end', 'center' accordingly.
     output_schema:
         inputs:
             name: seq
@@ -196,20 +192,18 @@ class SeqStringDataset(Dataset):
                  fasta_file,
                  num_chr_fasta=False,
                  label_dtype=None,
-                 required_seq_len=None,
+                 auto_resize_len=None,
                  # max_seq_len=None,
                  use_strand=False,
-                 force_upper=True,
-                 auto_resize=None):
+                 force_upper=True):
 
         self.num_chr_fasta = num_chr_fasta
         self.intervals_file = intervals_file
         self.fasta_file = fasta_file
-        self.required_seq_len = required_seq_len
+        self.auto_resize_len = auto_resize_len
         self.use_strand = use_strand
         self.force_upper = force_upper
         # self.max_seq_len = max_seq_len
-        self.auto_resize = auto_resize
 
         self.bed = BedDataset(self.intervals_file,
                               num_chr=self.num_chr_fasta,
@@ -226,13 +220,9 @@ class SeqStringDataset(Dataset):
 
         interval, labels = self.bed[idx]
 
-        if self.required_seq_len is not None:
-            if not interval.stop - interval.start == self.required_seq_len:
-                if self.auto_resize is not None:
-                    interval = resize_interval(interval, self.auto_resize, self.required_seq_len)
-                else:
-                    raise Exception("Sequence interval in intervals_file does not match required model sequence "
-                                    "length. Update intervals_file or use the 'auto_resize' argument.")
+        if self.auto_resize_len:
+            # automatically resize the sequence to cerat
+            interval = resize_interval(interval, self.auto_resize_len, anchor='center')
 
         # QUESTION: @kromme - why to we need max_seq_len?
         # if self.max_seq_len is not None:
@@ -265,6 +255,8 @@ class SeqStringDataset(Dataset):
 # - https://github.com/kipoi/kipoiseq/issues/1#issuecomment-427412487
 # - https://raw.githubusercontent.com/lzamparo/bindspace_revisions/master/deepbind/src/dataloader.py
 
+# TODO - properly deal with samples outside
+
 
 @kipoi_dataloader(override={"dependencies": deps, 'info.authors': package_authors})
 class SeqDataset(Dataset):
@@ -279,25 +271,22 @@ class SeqDataset(Dataset):
         intervals_file:
             doc: bed3+<columns> file path containing intervals + (optionally) labels
             example:
-              url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/sample_intervals.bed
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/kipoi_dataloader/tests/data/sample_intervals.bed
               md5: ecc4cf3885318a108adcc1e491463d36
         fasta_file:
             doc: Reference genome FASTA file path.
             example:
-              url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/sample.5kb.fa
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/kipoi_dataloader/tests/data/sample.5kb.fa
               md5: 6cefc8f443877490ab7bcb66b0872e30
         num_chr_fasta:
             doc: True, the the dataloader will make sure that the chromosomes don't start with chr.
         label_dtype:
             doc: None, datatype of the task labels taken from the intervals_file. Allowed - string', 'int', 'float', 'bool'
-        required_seq_len:
+        auto_resize_len:
             doc: None, required sequence length.
+            example: 3
         use_strand:
             doc: reverse-complement fasta sequence if bed file defines negative strand
-        auto_resize:
-            doc: >
-                 Automatically resize the given bed input to the required_seq_len. Allowed arguments:
-                 'start': keeps the start coordinate, 'end', 'center' accordingly.
         alphabet_axis:
             doc: axis along which the alphabet runs (e.g. A,C,G,T for DNA)
         dummy_axis:
@@ -327,10 +316,9 @@ class SeqDataset(Dataset):
                  fasta_file,
                  num_chr_fasta=False,
                  label_dtype=None,
-                 required_seq_len=None,
+                 auto_resize_len=None,
                  # max_seq_len=None,
                  use_strand=False,
-                 auto_resize=None,
                  alphabet_axis=1,
                  dummy_axis=None,
                  alphabet="ACGT"):
@@ -341,9 +329,7 @@ class SeqDataset(Dataset):
 
         # core dataset
         self.seq_string_dataset = SeqStringDataset(intervals_file, fasta_file, num_chr_fasta=num_chr_fasta,
-                                                   label_dtype=label_dtype, required_seq_len=required_seq_len,
-                                                   # max_seq_len=max_seq_len,
-                                                   auto_resize=auto_resize,
+                                                   label_dtype=label_dtype, auto_resize_len=auto_resize_len,
                                                    use_strand=use_strand, force_upper=True)
 
         # how to transform the input
@@ -371,7 +357,7 @@ class SeqDataset(Dataset):
         # self.output_schema_params = deepcopy(self.output_schema_params)
 
         # self.output_schema_params['inputs_shape'] = get_onehot_shape(self.alphabet_axis, self.dummy_axis,
-        #                                                              self.required_seq_len, self.alphabet)
+        #                                                              self.auto_resize_len, self.alphabet)
         # if self.bed.n_tasks != 0:
         #     self.output_schema_params['targets_shape'] = (self.bed.n_tasks,)
         # self.output_schema = get_seq_dataset_output_schema(**self.output_schema_params)
