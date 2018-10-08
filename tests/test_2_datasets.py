@@ -1,8 +1,8 @@
 import pytest
 
 
-@pytest.mark.parametrize("alphabet_axis", list(range(-1, 4)))
-@pytest.mark.parametrize("dummy_axis", [None] + list(range(-1, 4)))
+@pytest.mark.parametrize("alphabet_axis", list(range(0, 4)))
+@pytest.mark.parametrize("dummy_axis", [None] + list(range(0, 4)))
 def test_seq_dataset_reshape(alphabet_axis, dummy_axis):
     from kipoiseq.datasets.sequence import SeqDataset
     seq_len, alphabet_len = 3, 4
