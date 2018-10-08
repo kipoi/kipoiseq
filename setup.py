@@ -4,7 +4,7 @@
 from setuptools import setup, find_packages
 
 requirements = [
-    "kipoi>=0.4.1",
+    "kipoi>=0.4.2",
     # "genomelake",
     "pybedtools",
     "pyfaidx",
