@@ -73,13 +73,16 @@ def test_seq_dataset(intervals_file, fasta_file):
 
 
 # download example files
-def test_examples_exist():
-    ex = SeqStringDataset.init_example()
-    out = ex.load_all()
-    assert len(out['inputs']) == len(ex)
-    assert len(ex) == 4
+@pytest.mark.parametrize("cls", [SeqStringDataset, SeqDataset])
+def test_examples_exist(cls):
+    ex = cls.init_example()
+    example_kwargs = cls.example_kwargs
+    bed_fh = open(example_kwargs['intervals_file'], "r")
+    bed_entries = len([el for el in bed_fh])
+    bed_fh.close()
 
-    ex = SeqDataset.init_example()
-    out = ex.load_all()
-    assert len(out['inputs']) == len(ex)
-    assert len(ex) == 4
+    dl_entries = 0
+    for out in ex:
+        dl_entries += 1
+    assert dl_entries == len(ex)
+    assert len(ex) == bed_entries
