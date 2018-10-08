@@ -14,7 +14,7 @@ All dataloaders in `kipoiseq.datasets` decorated with `@kipoi_dataloader` (SeqDa
 default_dataloader:
   defined_as: kipoiseq.datasets.SeqDataset
   default_args:
-    auto_resize_len: 1000 # always resize to 1kb
+    auto_resize_len: 1000 # override default args in SeqDataset
     
 dependencies:
   pip:
