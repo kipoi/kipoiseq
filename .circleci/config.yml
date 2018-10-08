@@ -47,7 +47,7 @@ variables:
       name: Run tests
       command: |
         mkdir test-reports
-        py.test --cov=kipoiseq/ tests/ --no-cov-on-fail --junitxml=test-reports/junit.xml
+        py.test --cov=kipoiseq/ tests/ -n 1 --no-cov-on-fail --junitxml=test-reports/junit.xml
   run_coveralls: &run_coveralls
     run:
       name: run coveralls
