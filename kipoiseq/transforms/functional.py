@@ -60,11 +60,11 @@ def tokenize(seq, alphabet=DNA, neutral_alphabet=["N"]):
     return np.array([alphabet_dict[seq[(i * nchar):((i + 1) * nchar)]] for i in range(len(seq) // nchar)])
 
 
-def token2one_hot(tokens, alphabet_size=4, neutral_value=.25):
+def token2one_hot(tokens, alphabet_size=4, neutral_value=.25, dtype=None):
     """
     Note: everything out of the alphabet is transformed into `np.zeros(alphabet_size)`
     """
-    arr = np.zeros((len(tokens), alphabet_size))
+    arr = np.zeros((len(tokens), alphabet_size), dtype=dtype)
 
     tokens_range = np.arange(len(tokens))
     arr[tokens_range[tokens >= 0], tokens[tokens >= 0]] = 1
@@ -73,18 +73,18 @@ def token2one_hot(tokens, alphabet_size=4, neutral_value=.25):
     return arr
 
 
-def one_hot(seq, alphabet=DNA, neutral_alphabet=['N'], neutral_value=.25):
-    return token2one_hot(tokenize(seq, alphabet, neutral_alphabet), len(alphabet), neutral_value)
+def one_hot(seq, alphabet=DNA, neutral_alphabet=['N'], neutral_value=.25, dtype=None):
+    return token2one_hot(tokenize(seq, alphabet, neutral_alphabet), len(alphabet), neutral_value, dtype=dtype)
 
 
-def one_hot_dna(seq):
+def one_hot_dna(seq, dtype=None):
     """One-hot encode DNA sequence
     """
     # TODO - include one you use genomelake again
     # out = np.zeros((len(seq), 4), dtype=np.float32)
     # one_hot_encode_sequence(seq, out)
     # return out
-    return one_hot(seq, alphabet=DNA, neutral_alphabet=['N'], neutral_value=.25)
+    return one_hot(seq, alphabet=DNA, neutral_alphabet=['N'], neutral_value=.25, dtype=dtype)
 
 # sequence trimming
 

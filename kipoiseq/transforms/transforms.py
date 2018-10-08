@@ -89,13 +89,14 @@ class OneHot(object):
     """One-hot encode the sequence
     """
 
-    def __init__(self, alphabet=DNA, neutral_alphabet='N', neutral_value=0.25):
+    def __init__(self, alphabet=DNA, neutral_alphabet='N', neutral_value=0.25, dtype=None):
         self.alphabet = alphabet
         self.neutral_alphabet = neutral_alphabet
         self.neutral_value = neutral_value
+        self.dtype = dtype
 
     def __call__(self, seq):
         if self.alphabet == DNA and self.neutral_alphabet == 'N' and self.neutral_value == 0.25:
-            return F.one_hot_dna(seq)
+            return F.one_hot_dna(seq, self.dtype)
         else:
-            return F.one_hot(seq, self.alphabet, self.neutral_value)
+            return F.one_hot(seq, self.alphabet, self.neutral_value, self.dtype)
