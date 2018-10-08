@@ -338,20 +338,20 @@ class SeqDataset(Dataset):
                                                    use_strand=use_strand, force_upper=True)
 
         # set the transform parameters correctly
-        existing_alph_axis = 1
+        existing_alphabet_axis = 1
         if dummy_axis is not None and dummy_axis < 2:
             # dummy axis is added somewhere in the middle, so the alphabet axis is at the end now
-            existing_alph_axis = 2
+            existing_alphabet_axis = 2
 
         # check if no swapping needed
-        if existing_alph_axis == self.alphabet_axis:
+        if existing_alphabet_axis == self.alphabet_axis:
             self.alphabet_axis = None
 
         # how to transform the input
         self.input_tranform = Compose([
             OneHot(self.alphabet),  # one-hot-encode
             DummyAxis(self.dummy_axis),  # optionally inject the dummy axis
-            SwapAxes(existing_alph_axis, self.alphabet_axis),  # put the alphabet axis elsewhere
+            SwapAxes(existing_alphabet_axis, self.alphabet_axis),  # put the alphabet axis elsewhere
         ])
 
     def __len__(self):
