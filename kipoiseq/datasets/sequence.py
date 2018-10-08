@@ -322,6 +322,11 @@ class SeqDataset(Dataset):
                  alphabet_axis=1,
                  dummy_axis=None,
                  alphabet="ACGT"):
+
+        # make sure the alphabet axis and the dummy axis are valid:
+        assert alphabet_axis >= 0 and (alphabet_axis < 2 or (alphabet_axis <= 2 and dummy_axis is not None))
+        assert dummy_axis is None or (dummy_axis >= 0 and dummy_axis <= 2 and alphabet_axis != dummy_axis)
+
         # transform parameters
         self.alphabet_axis = alphabet_axis
         self.dummy_axis = dummy_axis
@@ -332,11 +337,21 @@ class SeqDataset(Dataset):
                                                    label_dtype=label_dtype, auto_resize_len=auto_resize_len,
                                                    use_strand=use_strand, force_upper=True)
 
+        # set the transform parameters correctly
+        existing_alph_axis = 1
+        if dummy_axis is not None and dummy_axis < 2:
+            # dummy axis is added somewhere in the middle, so the alphabet axis is at the end now
+            existing_alph_axis = 2
+
+        # check if no swapping needed
+        if existing_alph_axis == self.alphabet_axis:
+            self.alphabet_axis = None
+
         # how to transform the input
         self.input_tranform = Compose([
             OneHot(self.alphabet),  # one-hot-encode
             DummyAxis(self.dummy_axis),  # optionally inject the dummy axis
-            SwapAxes(1, self.alphabet_axis),  # put the alphabet axis elsewhere
+            SwapAxes(existing_alph_axis, self.alphabet_axis),  # put the alphabet axis elsewhere
         ])
 
     def __len__(self):
