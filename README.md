@@ -57,5 +57,5 @@ it = dl.batch_train_iter(32, num_workers=8)
 ## How to write your own dataloaders
 - Read the pytorch [Data Loading and Processing Tutorial](https://pytorch.org/tutorials/beginner/data_loading_tutorial.html) to become more familiar with transforms and datasets
 - Read the code for `SeqDataset` in [kipoiseq/datasets/sequence.py](https://github.com/kipoi/kipoiseq/blob/master/kipoiseq/datasets/sequence.py)
-  - you can skip the `@kipoi_dataloader` and the long yaml doc-string
+  - you can skip the `@kipoi_dataloader` and the long yaml doc-string. These are only required if you want to use dataloaders in Kipoi's model.yaml files.
 - Explore the available transforms ([functional](http://kipoi.org/kipoiseq/transforms/functional/), [class-based](http://kipoi.org/kipoiseq/transforms/transforms/)) or extractors ([kipoiseq](https://github.com/kipoi/kipoiseq/blob/master/kipoiseq/extractors.py), [genomelake](https://github.com/kundajelab/genomelake/blob/master/genomelake/extractors.py))
