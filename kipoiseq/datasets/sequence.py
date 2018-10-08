@@ -293,7 +293,6 @@ class SeqDataset(Dataset):
             doc: None, datatype of the task labels taken from the intervals_file. Allowed - string', 'int', 'float', 'bool'
         auto_resize_len:
             doc: None, required sequence length.
-            example: 3
         use_strand:
             doc: reverse-complement fasta sequence if bed file defines negative strand
         alphabet_axis:
@@ -348,7 +347,7 @@ class SeqDataset(Dataset):
 
         # how to transform the input
         self.input_tranform = Compose([
-            OneHot(self.alphabet),  # one-hot-encode
+            OneHot(self.alphabet, dtype=self.dtype),  # one-hot-encode
             DummyAxis(self.dummy_axis),  # optionally inject the dummy axis
             SwapAxes(1, self.alphabet_axis),  # put the alphabet axis elsewhere
         ])
