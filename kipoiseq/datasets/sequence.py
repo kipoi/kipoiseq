@@ -8,6 +8,7 @@ from kipoi.specs import DataLoaderArgument, ArraySpecialType
 from kipoi.plugin import is_installed
 from kipoi.data import Dataset, kipoi_dataloader
 from kipoi.specs import Author, Dependencies
+from six import string_types
 
 
 from kipoiseq.extractors import FastaStringExtractor
@@ -45,6 +46,13 @@ def parse_alphabet(alphabet):
         return list(alphabet)
     else:
         return alphabet
+
+def parse_type(dtype):
+    if isinstance(dtype, string_types):
+        if dtype in dir(np):
+            return getattr(np, dtype)
+    else:
+        return dtype
 
 
 class BedDataset(object):
@@ -296,6 +304,9 @@ class SeqDataset(Dataset):
             doc: >
                 alphabet to use for the one-hot encoding. This defines the order of the one-hot encoding.
                 Can either be a list or a string: 'DNA', 'RNA', 'AMINO_ACIDS'.
+        dtype:
+            doc: defines the numpy dtype of the returned array. 
+                
     output_schema:
         inputs:
             name: seq
@@ -322,11 +333,13 @@ class SeqDataset(Dataset):
                  use_strand=False,
                  alphabet_axis=1,
                  dummy_axis=None,
-                 alphabet="ACGT"):
+                 alphabet="ACGT",
+                 dtype=None):
         # transform parameters
         self.alphabet_axis = alphabet_axis
         self.dummy_axis = dummy_axis
         self.alphabet = parse_alphabet(alphabet)
+        self.dtype = parse_type(dtype)
 
         # core dataset
         self.seq_string_dataset = SeqStringDataset(intervals_file, fasta_file, num_chr_fasta=num_chr_fasta,
