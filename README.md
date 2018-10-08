@@ -8,7 +8,7 @@
 
 Standard set of data-loaders for training and making predictions for DNA sequence-based models.
 
-All dataloaders in `kipoiseq.datasets` decorated with `@kipoi_dataloader` are compatible Kipoi models and can be directly used when specifying a new model in `model.yaml`:
+All dataloaders in `kipoiseq.datasets` decorated with `@kipoi_dataloader` (SeqDataset and SeqStringDataset) are compatible Kipoi models and can be directly used when specifying a new model in `model.yaml`:
 ```yaml
 ...
 default_dataloader:
