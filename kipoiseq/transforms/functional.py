@@ -66,7 +66,7 @@ def token2one_hot(tokens, alphabet_size=4, neutral_value=.25, dtype=None):
     """
     arr = np.zeros((len(tokens), alphabet_size), dtype=dtype)
 
-    tokens_range = np.arange(len(tokens))
+    tokens_range = np.arange(len(tokens), dtype=int)
     arr[tokens_range[tokens >= 0], tokens[tokens >= 0]] = 1
     if neutral_value != 0:
         arr[tokens_range[tokens < 0], :] = neutral_value
