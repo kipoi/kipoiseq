@@ -2,7 +2,7 @@ from __future__ import division
 from __future__ import absolute_import
 from __future__ import print_function
 
-from genomelake.util import one_hot_encode_sequence
+# from genomelake.util import one_hot_encode_sequence  # TODO include once the pip install works for genomelake
 from kipoiseq.utils import DNA
 from copy import deepcopy
 import numpy as np
@@ -80,9 +80,11 @@ def one_hot(seq, alphabet=DNA, neutral_alphabet=['N'], neutral_value=.25):
 def one_hot_dna(seq):
     """One-hot encode DNA sequence
     """
-    out = np.zeros((len(seq), 4), dtype=np.float32)
-    one_hot_encode_sequence(seq, out)
-    return out
+    # TODO - include one you use genomelake again
+    # out = np.zeros((len(seq), 4), dtype=np.float32)
+    # one_hot_encode_sequence(seq, out)
+    # return out
+    return one_hot(seq, alphabet=DNA, neutral_alphabet=['N'], neutral_value=.25)
 
 # sequence trimming
 

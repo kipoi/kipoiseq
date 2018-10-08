@@ -19,7 +19,8 @@ import pybedtools
 from pybedtools import BedTool, Interval
 
 # general dependencies
-deps = Dependencies(conda=['bioconda::genomelake', 'bioconda::pybedtools', 'bioconda::pyfaidx', 'numpy', 'pandas'],
+# bioconda::genomelake', TODO - add genomelake again once it gets released with pyfaidx to bioconda
+deps = Dependencies(conda=['bioconda::pybedtools', 'bioconda::pyfaidx', 'numpy', 'pandas'],
                     pip=['kipoiseq'])
 package_authors = [Author(name='Ziga Avsec', github='avsecz'),
                    Author(name='Roman Kreuzhuber', github='krrome')]

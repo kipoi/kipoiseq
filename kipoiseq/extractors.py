@@ -1,6 +1,6 @@
 import abc
 
-__all__ = ["BaseExtractor", "FastaStringExtractor", "BigWigExtractor"]
+__all__ = ["BaseExtractor", "FastaStringExtractor"]  # "BigWigExtractor"]
 
 
 class BaseExtractor(object):
@@ -58,25 +58,25 @@ class FastaStringExtractor(BaseExtractor):
         return self.fasta.close()
 
 
-class BigWigExtractor(BaseExtractor):
-    """Big-wig file extractor
+# class BigWigExtractor(BaseExtractor):
+#     """Big-wig file extractor
 
-    NOTE: The extractor is not thread-save.
-    If you with to use it with multiprocessing,
-    create a new extractor object in each process.
+#     NOTE: The extractor is not thread-save.
+#     If you with to use it with multiprocessing,
+#     create a new extractor object in each process.
 
-    # Arguments
-      bigwig_file: path to the bigwig file
-    """
+#     # Arguments
+#       bigwig_file: path to the bigwig file
+#     """
 
-    def __init__(self, bigwig_file):
-        from genomelake.extractors import BigwigExtractor
+#     def __init__(self, bigwig_file):
+#         from genomelake.extractors import BigwigExtractor
 
-        self.bigwig_file = bigwig_file
-        self.batch_extractor = BigwigExtractor(self.bigwig_file)
+#         self.bigwig_file = bigwig_file
+#         self.batch_extractor = BigwigExtractor(self.bigwig_file)
 
-    def extract(self, interval):
-        return self.batch_extractor([interval])[0]
+#     def extract(self, interval):
+#         return self.batch_extractor([interval])[0]
 
-    def close(self):
-        return self.batch_extractor.close()
+#     def close(self):
+#         return self.batch_extractor.close()

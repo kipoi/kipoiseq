@@ -112,7 +112,7 @@ jobs:
       - checkout
       - run:
           name: Install pip Kipoi
-          command: pip install git+https://github.com/kipoi/kipoi@master genomelake
+          command: pip install git+https://github.com/kipoi/kipoi@master
       - run:
           name: Install pip kipoiseq
           command: pip install -e .
