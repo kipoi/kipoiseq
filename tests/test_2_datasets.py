@@ -1,13 +1,16 @@
 import pytest
 
+@pytest.fixture
+def example_kwargs():
+    return SeqDataset.example_kwargs
 
 @pytest.mark.parametrize("alphabet_axis", list(range(0, 4)))
 @pytest.mark.parametrize("dummy_axis", [None] + list(range(0, 4)))
-def test_seq_dataset_reshape(alphabet_axis, dummy_axis):
+def test_seq_dataset_reshape(alphabet_axis, dummy_axis, example_kwargs):
     from kipoiseq.datasets.sequence import SeqDataset
     seq_len, alphabet_len = 3, 4
 
-    kwargs = SeqDataset.example_kwargs
+    kwargs = example_kwargs
     kwargs['auto_resize_len'] = seq_len
     kwargs['alphabet_axis'] = alphabet_axis
     kwargs['dummy_axis'] = dummy_axis
