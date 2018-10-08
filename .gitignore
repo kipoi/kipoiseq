@@ -105,3 +105,4 @@ venv.bak/
 /*.fai
 /tests/data/sample.fasta.fai
 **/downloaded/**
+/docs/mkdocs.yml

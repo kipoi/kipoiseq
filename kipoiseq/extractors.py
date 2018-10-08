@@ -21,20 +21,20 @@ class BaseExtractor(object):
 
 
 class FastaStringExtractor(BaseExtractor):
+    """Fasta file extractor
+
+    NOTE: The extractor is not thread-save.
+    If you with to use it with multiprocessing,
+    create a new extractor object in each process.
+
+    # Arguments
+      fasta_file (str): path to the fasta_file
+      use_strand (bool): if True, the extracted sequence
+        is reverse complemented in case interval.strand == "-"
+      force_upper (bool): Force uppercase output
+    """
 
     def __init__(self, fasta_file, use_strand=False, force_upper=False):
-        """Fasta file extractor
-
-        NOTE: The extractor is not thread-save.
-        If you with to use it with multiprocessing,
-        create a new extractor object in each process.
-
-        # Arguments
-          fasta_file (str): path to the fasta_file
-          use_strand (bool): if True, the extracted sequence
-            is reverse complemented in case interval.strand == "-"
-          force_upper (bool): Force uppercase output
-        """
         from pyfaidx import Fasta
 
         self.fasta_file = fasta_file
