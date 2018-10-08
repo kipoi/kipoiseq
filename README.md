@@ -28,7 +28,7 @@ dependencies:
 pip install kipoiseq
 ```
 
-## Usage
+## Getting started
 
 ```python
 from kipoiseq.datasets import SeqDataset
@@ -54,7 +54,9 @@ it = dl.batch_train_iter(32, num_workers=8)
 # returns a tuple: (inputs, targets), can be used directly with keras' `model.fit_generator`
 ```
 
-- [docs](https://kipoi.org/kipoiseq/)
+More info:
+- Follow the getting-started [colab notebook](https://colab.research.google.com/github/kipoi/kipoiseq/blob/master/notebooks/getting-started.ipynb).
+- See [docs](https://kipoi.org/kipoiseq/)
 
 ## How to write your own data-loaders
 - Read the pytorch [Data Loading and Processing Tutorial](https://pytorch.org/tutorials/beginner/data_loading_tutorial.html) to become more familiar with transforms and datasets
