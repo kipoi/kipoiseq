@@ -161,8 +161,8 @@ class SeqStringDataset(Dataset):
         intervals_file:
             doc: bed3+<columns> file path containing intervals + (optionally) labels
             example:
-              url: https://raw.githubusercontent.com/kipoi/kipoiseq/kipoi_dataloader/tests/data/sample_intervals.bed
-              md5: ecc4cf3885318a108adcc1e491463d36
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/kipoi_dataloader/tests/data/example_intervals.bed
+              md5: d05d66eea63de5ac956973274e23daea
         fasta_file:
             doc: Reference genome FASTA file path.
             example:
@@ -280,8 +280,8 @@ class SeqDataset(Dataset):
         intervals_file:
             doc: bed3+<columns> file path containing intervals + (optionally) labels
             example:
-              url: https://raw.githubusercontent.com/kipoi/kipoiseq/kipoi_dataloader/tests/data/sample_intervals.bed
-              md5: ecc4cf3885318a108adcc1e491463d36
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/kipoi_dataloader/tests/data/example_intervals.bed
+              md5: d05d66eea63de5ac956973274e23daea
         fasta_file:
             doc: Reference genome FASTA file path.
             example:
