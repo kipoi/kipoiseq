@@ -86,4 +86,3 @@ def test_examples_exist(cls):
         dl_entries += 1
     assert dl_entries == len(ex)
     assert len(ex) == bed_entries
-
