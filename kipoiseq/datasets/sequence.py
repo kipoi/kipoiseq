@@ -194,6 +194,10 @@ class SeqStringDataset(Dataset):
             ranges:
                 type: GenomicRanges
                 doc: Ranges describing inputs.seq
+    postprocessing:
+        variant_effects:
+          bed_input:
+            - intervals_file
     """
 
     def __init__(self,
@@ -320,6 +324,10 @@ class SeqDataset(Dataset):
             ranges:
                 type: GenomicRanges
                 doc: Ranges describing inputs.seq
+    postprocessing:
+        variant_effects:
+          bed_input:
+            - intervals_file
     """
 
     def __init__(self,
