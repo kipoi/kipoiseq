@@ -15,6 +15,7 @@ requirements = [
     "related>=0.6.0",
     # sometimes required
     "h5py",
+    "gffutils"
 ]
 
 test_requirements = [
