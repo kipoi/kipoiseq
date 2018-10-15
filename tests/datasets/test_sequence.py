@@ -23,7 +23,7 @@ def intervals_file():
 def test_min_props():
     # minimal set of properties that need to be specified on the object
     min_set_props = ["output_schema", "type", "defined_as", "info", "args", "dependencies", "postprocessing",
-                     "_yaml_path", "source", "source_dir"]
+                     "source", "source_dir"]
 
     for Dl in [SeqStringDataset, SeqDataset]:
         props = dir(Dl)
