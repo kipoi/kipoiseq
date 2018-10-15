@@ -161,13 +161,13 @@ class SeqStringDataset(Dataset):
         intervals_file:
             doc: bed3+<columns> file path containing intervals + (optionally) labels
             example:
-              url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/example_intervals.bed
-              md5: d05d66eea63de5ac956973274e23daea
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/intervals_51bp.tsv
+              md5: f2b00724ff519eb7459d0a1ffa2eea51
         fasta_file:
             doc: Reference genome FASTA file path.
             example:
-              url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/sample.5kb.fa
-              md5: 6cefc8f443877490ab7bcb66b0872e30
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/hg38_chr22_32000000_32300000.fa
+              md5: 01320157a250a3d2eea63e89ecf79eba
         num_chr_fasta:
             doc: True, the the dataloader will make sure that the chromosomes don't start with chr.
         label_dtype:
@@ -284,13 +284,13 @@ class SeqDataset(Dataset):
         intervals_file:
             doc: bed3+<columns> file path containing intervals + (optionally) labels
             example:
-              url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/example_intervals.bed
-              md5: d05d66eea63de5ac956973274e23daea
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/intervals_51bp.tsv
+              md5: f2b00724ff519eb7459d0a1ffa2eea51
         fasta_file:
             doc: Reference genome FASTA file path.
             example:
-              url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/sample.5kb.fa
-              md5: 6cefc8f443877490ab7bcb66b0872e30
+              url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/hg38_chr22_32000000_32300000.fa
+              md5: 01320157a250a3d2eea63e89ecf79eba
         num_chr_fasta:
             doc: True, the the dataloader will make sure that the chromosomes don't start with chr.
         label_dtype:
