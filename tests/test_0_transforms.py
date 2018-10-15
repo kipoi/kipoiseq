@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 import copy
 from kipoiseq.transforms.functional import resize_interval
+from kipoiseq.transforms.transforms import SplitSplicingSeq
 from kipoiseq.utils import DNA
 from pybedtools import Interval
 
@@ -91,3 +92,25 @@ def test_resize_interval(anchor, ilen):
         assert ret_inter.end == dummy_end
     elif anchor == "centre":
         assert int((ret_inter.start + ret_inter.end) / 2) == dummy_centre
+
+        
+def test_SplitSplicingSeq():
+    split = SplitSplicingSeq(exon_cut_l=0,
+                             exon_cut_r=0,
+                             intron5prime_cut=3,
+                             intron3prime_cut=3,
+                             acceptor_intron_len=2,
+                             acceptor_exon_len=3,
+                             donor_exon_len=3,
+                             donor_intron_len=2
+                            )
+    
+    #seq = 'TAAAG GTAGTAGA GTCCC'
+    seq = 'TAAAGGTAGTAGAGTCCC'
+    splited = split(seq, 5, 5)
+    assert splited['intron5prime'] == 'TA'
+    assert splited['acceptor'] == 'AGGTA'
+    assert splited['exon'] == 'GTAGTAGA'
+    assert splited['donor'] == 'AGAGT'
+    assert splited['intron3prime'] == 'CC'
+    
