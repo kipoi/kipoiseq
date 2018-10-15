@@ -7,6 +7,8 @@ import gffutils
 from pyfaidx import Fasta
 import pickle
 
+from future.utils import implements_iterator # py27 compatible
+
 # general dependencies
 # bioconda::genomelake', TODO - add genomelake again once it gets released with pyfaidx to bioconda
 deps = Dependencies(conda=['bioconda::pyfaidx', 'numpy', 'pandas'],
@@ -166,6 +168,7 @@ def generate_exons(gtf_file,
 
             
 @kipoi_dataloader(override={"dependencies": deps, 'info.authors': package_authors})
+@implements_iterator
 class SpliceDataset(SampleIterator):
     """
     info:
