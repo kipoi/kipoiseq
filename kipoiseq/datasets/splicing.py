@@ -13,7 +13,7 @@ deps = Dependencies(conda=['bioconda::pyfaidx', 'numpy', 'pandas'],
                     pip=['kipoiseq', 'kipoi'])
 package_authors = [Author(name='Jun Cheng', github='s6juncheng')]
 
-__all__ = ['ExonInterval', 'generateExons', 'SpliceDataset']
+__all__ = ['ExonInterval', 'generate_exons', 'SpliceDataset']
 
 
 class ExonInterval(gffutils.Feature):
@@ -116,7 +116,7 @@ class ExonInterval(gffutils.Feature):
         return seq
 
 
-def generateExons(gtf_file,
+def generate_exons(gtf_file,
                   overhang=(100, 100),  # overhang from the exon
                   gtf_db_path=":memory:",
                   out_file=None,
@@ -226,8 +226,8 @@ class SpliceDataset(SampleIterator):
             with open(gtf_file, 'rb') as f:
                 self.exons = pickle.load(f)
         except (FileNotFoundError, pickle.UnpicklingError, ModuleNotFoundError):
-            self.exons = generateExons(gtf_file=gtf_file, 
-                                       overhang=(intron5prime_len, intron3prime_len), 
+            self.exons = generate_exons(gtf_file=gtf_file, 
+                                        overhang=(intron5prime_len, intron3prime_len), 
                                        **kwargs)
         import six
         if isinstance(fasta_file, six.string_types):
