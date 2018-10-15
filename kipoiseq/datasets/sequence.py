@@ -162,7 +162,7 @@ class SeqStringDataset(Dataset):
             doc: bed3+<columns> file path containing intervals + (optionally) labels
             example:
               url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/intervals_51bp.tsv
-              md5: f2b00724ff519eb7459d0a1ffa2eea51
+              md5: a76e47b3df87fd514860cf27fdc10eb4
         fasta_file:
             doc: Reference genome FASTA file path.
             example:
@@ -285,7 +285,7 @@ class SeqDataset(Dataset):
             doc: bed3+<columns> file path containing intervals + (optionally) labels
             example:
               url: https://raw.githubusercontent.com/kipoi/kipoiseq/master/tests/data/intervals_51bp.tsv
-              md5: f2b00724ff519eb7459d0a1ffa2eea51
+              md5: a76e47b3df87fd514860cf27fdc10eb4
         fasta_file:
             doc: Reference genome FASTA file path.
             example:
