@@ -268,7 +268,4 @@ class SpliceDataset(SampleIterator):
             }
         }
     
-    def next(self):
-        ''' Compatible with python 2
-        '''
-        return self.__next__()
+    next = __next__
