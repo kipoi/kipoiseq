@@ -70,7 +70,7 @@ class ExonInterval(gffutils.Feature):
                 'end': self.end}
 
     @classmethod
-    def from_Feature(cls,
+    def from_feature(cls,
                      feature,
                      overhang=(0, 0)):
         # convert gffutils.Feature to ExonInterval
@@ -159,7 +159,7 @@ def generate_exons(gtf_file,
                     isLast = True
                 elif (gene.strand == "+" and exon.start == gene.start) or (gene.strand == "-" and exon.end == gene.end):
                     overhang = (0, overhang[1])
-            exon = ExonInterval.from_Feature(exon, overhang)
+            exon = ExonInterval.from_feature(exon, overhang)
             exon.isLast = isLast
             overhang = default_overhang
             yield exon
