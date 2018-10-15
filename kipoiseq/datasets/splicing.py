@@ -7,8 +7,6 @@ import gffutils
 from pyfaidx import Fasta
 import pickle
 
-from future.utils import implements_iterator # py27 compatible
-
 # general dependencies
 # bioconda::genomelake', TODO - add genomelake again once it gets released with pyfaidx to bioconda
 deps = Dependencies(conda=['bioconda::pyfaidx', 'numpy', 'pandas'],
@@ -17,11 +15,22 @@ package_authors = [Author(name='Jun Cheng', github='s6juncheng')]
 
 __all__ = ['ExonInterval', 'generate_exons', 'SpliceDataset']
 
-
+#-------- python 2.7 compatible
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
+    
+try:
+    ModuleNotFoundError
+except NameError:
+    ModuleNotFoundError = ImportError
+#--------
+    
 class ExonInterval(gffutils.Feature):
 
     def __init__(self, order=-1, **kwargs):
-        super().__init__(**kwargs)
+        super(ExonInterval, self).__init__(**kwargs)
         self.order = order
         self.name = self.attributes["exon_id"][0]
         self.transcript_id = self.attributes["transcript_id"][0]
@@ -168,7 +177,6 @@ def generate_exons(gtf_file,
 
             
 @kipoi_dataloader(override={"dependencies": deps, 'info.authors': package_authors})
-@implements_iterator
 class SpliceDataset(SampleIterator):
     """
     info:
@@ -259,3 +267,8 @@ class SpliceDataset(SampleIterator):
                 'transcriptID': exon.transcript_id
             }
         }
+    
+    def next(self):
+        ''' Compatible with python 2
+        '''
+        return self.__next__()
