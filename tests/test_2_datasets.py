@@ -37,4 +37,3 @@ def test_seq_dataset_reshape(alphabet_axis, dummy_axis, example_kwargs):
             assert reshaped.shape[i] == alphabet_len
         else:
             assert reshaped.shape[i] == seq_len
-

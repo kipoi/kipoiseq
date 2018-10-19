@@ -47,6 +47,7 @@ def parse_alphabet(alphabet):
     else:
         return alphabet
 
+
 def parse_type(dtype):
     if isinstance(dtype, string_types):
         if dtype in dir(np):
@@ -107,8 +108,12 @@ class BedDataset(object):
                                 header=None,
                                 nrows=1,
                                 sep='\t')
-        self.n_tasks = df_peek.shape[1] - self.bed_columns
-        assert self.n_tasks >= 0
+        found_columns = df_peek.shape[1]
+        self.n_tasks = found_columns - self.bed_columns
+        if self.n_tasks < 0:
+            raise ValueError("BedDataset requires at least {} bed columns. Found only {} columns".
+                             format(self.bed_columns, found_columns))
+
         self.df = pd.read_table(self.tsv_file,
                                 header=None,
                                 dtype={i: d
@@ -176,8 +181,8 @@ class SeqStringDataset(Dataset):
             doc: None, required sequence length.
         # max_seq_len:
         #     doc: maximum allowed sequence length
-        use_strand:
-            doc: reverse-complement fasta sequence if bed file defines negative strand
+        # use_strand:
+        #     doc: reverse-complement fasta sequence if bed file defines negative strand
         force_upper:
             doc: Force uppercase output of sequences
     output_schema:
@@ -207,19 +212,26 @@ class SeqStringDataset(Dataset):
                  label_dtype=None,
                  auto_resize_len=None,
                  # max_seq_len=None,
-                 use_strand=False,
+                 # use_strand=False,
                  force_upper=True):
 
         self.num_chr_fasta = num_chr_fasta
         self.intervals_file = intervals_file
         self.fasta_file = fasta_file
         self.auto_resize_len = auto_resize_len
-        self.use_strand = use_strand
+        # self.use_strand = use_strand
         self.force_upper = force_upper
         # self.max_seq_len = max_seq_len
 
+        # if use_strand:
+        #     # require a 6-column bed-file if strand is used
+        #     bed_columns = 6
+        # else:
+        #     bed_columns = 3
+
         self.bed = BedDataset(self.intervals_file,
                               num_chr=self.num_chr_fasta,
+                              bed_columns=3,
                               label_dtype=parse_dtype(label_dtype))
         self.fasta_extractors = None
 
@@ -228,7 +240,7 @@ class SeqStringDataset(Dataset):
 
     def __getitem__(self, idx):
         if self.fasta_extractors is None:
-            self.fasta_extractors = FastaStringExtractor(self.fasta_file, use_strand=self.use_strand,
+            self.fasta_extractors = FastaStringExtractor(self.fasta_file, use_strand=False,  # self.use_strand,
                                                          force_upper=self.force_upper)
 
         interval, labels = self.bed[idx]
@@ -297,8 +309,8 @@ class SeqDataset(Dataset):
             doc: None, datatype of the task labels taken from the intervals_file. Allowed - string', 'int', 'float', 'bool'
         auto_resize_len:
             doc: None, required sequence length.
-        use_strand:
-            doc: reverse-complement fasta sequence if bed file defines negative strand
+        # use_strand:
+        #     doc: reverse-complement fasta sequence if bed file defines negative strand
         alphabet_axis:
             doc: axis along which the alphabet runs (e.g. A,C,G,T for DNA)
         dummy_axis:
@@ -309,7 +321,7 @@ class SeqDataset(Dataset):
                 Can either be a list or a string: 'DNA', 'RNA', 'AMINO_ACIDS'.
         dtype:
             doc: defines the numpy dtype of the returned array. 
-                
+
     output_schema:
         inputs:
             name: seq
@@ -337,7 +349,7 @@ class SeqDataset(Dataset):
                  label_dtype=None,
                  auto_resize_len=None,
                  # max_seq_len=None,
-                 use_strand=False,
+                 # use_strand=False,
                  alphabet_axis=1,
                  dummy_axis=None,
                  alphabet="ACGT",
@@ -356,7 +368,8 @@ class SeqDataset(Dataset):
         # core dataset
         self.seq_string_dataset = SeqStringDataset(intervals_file, fasta_file, num_chr_fasta=num_chr_fasta,
                                                    label_dtype=label_dtype, auto_resize_len=auto_resize_len,
-                                                   use_strand=use_strand, force_upper=True)
+                                                   # use_strand=use_strand,
+                                                   force_upper=True)
 
         # set the transform parameters correctly
         existing_alphabet_axis = 1
