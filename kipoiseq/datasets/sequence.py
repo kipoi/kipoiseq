@@ -8,6 +8,7 @@ from kipoi.specs import DataLoaderArgument, ArraySpecialType
 from kipoi.plugin import is_installed
 from kipoi.data import Dataset, kipoi_dataloader
 from kipoi.specs import Author, Dependencies
+from kipoi.utils import default_kwargs
 from six import string_types
 
 
@@ -47,6 +48,7 @@ def parse_alphabet(alphabet):
     else:
         return alphabet
 
+
 def parse_type(dtype):
     if isinstance(dtype, string_types):
         if dtype in dir(np):
@@ -71,6 +73,7 @@ class BedDataset(object):
       incl_chromosomes: exclusive list of chromosome names to include in the final dataset.
         if not None, only these will be present in the dataset
       excl_chromosomes: list of chromosome names to omit from the dataset.
+      ignore_targets: if True, target variables are ignored
     """
 
     # bed types accorging to
@@ -94,7 +97,8 @@ class BedDataset(object):
                  num_chr=False,
                  ambiguous_mask=None,
                  incl_chromosomes=None,
-                 excl_chromosomes=None):
+                 excl_chromosomes=None,
+                 ignore_targets=False):
         self.tsv_file = tsv_file
         self.bed_columns = bed_columns
         self.num_chr = num_chr
@@ -102,6 +106,7 @@ class BedDataset(object):
         self.ambiguous_mask = ambiguous_mask
         self.incl_chromosomes = incl_chromosomes
         self.excl_chromosomes = excl_chromosomes
+        self.ignore_targets = ignore_targets
 
         df_peek = pd.read_table(self.tsv_file,
                                 header=None,
@@ -136,7 +141,7 @@ class BedDataset(object):
         row = self.df.iloc[idx]
         interval = pybedtools.create_interval_from_list([to_scalar(x) for x in row.iloc[:self.bed_columns]])
 
-        if self.n_tasks == 0:
+        if self.ignore_targets or self.n_tasks == 0:
             labels = {}
         else:
             labels = row.iloc[self.bed_columns:].values.astype(self.label_dtype)
@@ -180,6 +185,8 @@ class SeqStringDataset(Dataset):
             doc: reverse-complement fasta sequence if bed file defines negative strand
         force_upper:
             doc: Force uppercase output of sequences
+        ignore_targets:
+            doc: if True, don't return any target variables
     output_schema:
         inputs:
             name: seq
@@ -208,7 +215,8 @@ class SeqStringDataset(Dataset):
                  auto_resize_len=None,
                  # max_seq_len=None,
                  use_strand=False,
-                 force_upper=True):
+                 force_upper=True,
+                 ignore_targets=False):
 
         self.num_chr_fasta = num_chr_fasta
         self.intervals_file = intervals_file
@@ -220,7 +228,8 @@ class SeqStringDataset(Dataset):
 
         self.bed = BedDataset(self.intervals_file,
                               num_chr=self.num_chr_fasta,
-                              label_dtype=parse_dtype(label_dtype))
+                              label_dtype=parse_dtype(label_dtype),
+                              ignore_targets=ignore_targets)
         self.fasta_extractors = None
 
     def __len__(self):
@@ -253,15 +262,12 @@ class SeqStringDataset(Dataset):
         }
 
     @classmethod
-    def default_shape(cls):
-        # correct the output schema - TODO - required?
-        # self.output_schema_params = deepcopy(self.output_schema_params)
-        # self.output_schema_params['inputs_shape'] = (1,)
-        # if self.bed.n_tasks != 0:
-        #     self.output_schema_params['targets_shape'] = (self.bed.n_tasks,)
-
-        # self.output_schema = get_seq_dataset_output_schema(**self.output_schema_params)
-        pass
+    def get_output_schema(cls):
+        kwargs = default_kwargs(cls)
+        ignore_targets = kwargs['ignore_targets']
+        if ignore_targets:
+            cls.output_schema.targets = None
+        return cls.output_schema
 
 
 # TODO - check lzamparo's dataloader:
@@ -308,8 +314,10 @@ class SeqDataset(Dataset):
                 alphabet to use for the one-hot encoding. This defines the order of the one-hot encoding.
                 Can either be a list or a string: 'DNA', 'RNA', 'AMINO_ACIDS'.
         dtype:
-            doc: defines the numpy dtype of the returned array. 
-                
+            doc: defines the numpy dtype of the returned array.
+        ignore_targets:
+            doc: if True, don't return any target variables
+
     output_schema:
         inputs:
             name: seq
@@ -341,7 +349,9 @@ class SeqDataset(Dataset):
                  alphabet_axis=1,
                  dummy_axis=None,
                  alphabet="ACGT",
+                 ignore_targets=False,
                  dtype=None):
+        # TODO - add disable target loading to manage the Basenji case
 
         # make sure the alphabet axis and the dummy axis are valid:
         assert alphabet_axis >= 0 and (alphabet_axis < 2 or (alphabet_axis <= 2 and dummy_axis is not None))
@@ -356,13 +366,19 @@ class SeqDataset(Dataset):
         # core dataset
         self.seq_string_dataset = SeqStringDataset(intervals_file, fasta_file, num_chr_fasta=num_chr_fasta,
                                                    label_dtype=label_dtype, auto_resize_len=auto_resize_len,
-                                                   use_strand=use_strand, force_upper=True)
+                                                   use_strand=use_strand, force_upper=True,
+                                                   ignore_targets=ignore_targets)
+
+        if dummy_axis is not None and alphabet_axis == dummy_axis:
+            raise ValueError("dummy_axis can't be the same as dummy_axis")
 
         # set the transform parameters correctly
-        existing_alphabet_axis = 1
         if dummy_axis is not None and dummy_axis < 2:
             # dummy axis is added somewhere in the middle, so the alphabet axis is at the end now
             existing_alphabet_axis = 2
+        else:
+            # alphabet axis stayed the same
+            existing_alphabet_axis = 1
 
         # check if no swapping needed
         if existing_alphabet_axis == self.alphabet_axis:
@@ -383,18 +399,47 @@ class SeqDataset(Dataset):
         ret['inputs'] = self.input_tranform(str(ret["inputs"]))
         return ret
 
-    # TODO - compute the output shape based on the default value of parameters
-    #         - executed in kipoi_dataloader
-    # TODO - how to specify the shape properly when using differnet default parameters?
-    #         - example: Basset dataloader
     @classmethod
-    def default_shape(cls):
-        # setup output schema
-        # self.output_schema_params = deepcopy(self.output_schema_params)
+    def get_output_schema(cls):
+        """Get the output schema. Overrides the default `cls.output_schema`
+        """
 
-        # self.output_schema_params['inputs_shape'] = get_onehot_shape(self.alphabet_axis, self.dummy_axis,
-        #                                                              self.auto_resize_len, self.alphabet)
-        # if self.bed.n_tasks != 0:
-        #     self.output_schema_params['targets_shape'] = (self.bed.n_tasks,)
-        # self.output_schema = get_seq_dataset_output_schema(**self.output_schema_params)
-        pass
+        # override the parent method
+        kwargs = default_kwargs(cls)
+        n_channels = len(kwargs['alphabet'])
+        seqlen = kwargs['auto_resize_len']
+        dummy_axis = kwargs['dummy_axis']
+        alphabet_axis = kwargs['alphabet_axis']
+        ignore_targets = kwargs['ignore_targets']
+
+        if ignore_targets:
+            cls.output_schema.targets = None
+
+        if dummy_axis is not None and alphabet_axis == dummy_axis:
+            raise ValueError("dummy_axis can't be the same as dummy_axis")
+
+        # default
+        input_shape = (seqlen, n_channels)
+
+        if dummy_axis is not None and dummy_axis < 2:
+            # dummy axis is added somewhere in the middle, so the alphabet axis is at the end now
+            existing_alphabet_axis = 2
+        else:
+            existing_alphabet_axis = 1
+
+        if existing_alphabet_axis == alphabet_axis:
+            alphabet_axis = None
+
+        # inject the dummy axis
+        if dummy_axis is not None:
+            input_shape = input_shape[:dummy_axis] + (1,) + input_shape[dummy_axis:]
+
+        # swap axes
+        if alphabet_axis is not None:
+            sh = list(input_shape)
+            sh[alphabet_axis], sh[existing_alphabet_axis] = sh[existing_alphabet_axis], sh[alphabet_axis]
+            input_shape = tuple(sh)
+
+        # now, modify the input schema
+        cls.output_schema.inputs.shape = input_shape
+        return cls.output_schema
