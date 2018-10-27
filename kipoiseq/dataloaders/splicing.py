@@ -276,12 +276,28 @@ class MMSpliceDl(SampleIterator):
 
 
 # TODO - implement
+# class SpliceDonorSeqDl(SampleIterator):
+#     def __init__(self,
+#                  gtf_file,
+#                  fasta_file,
+#                  n_upstream=10,
+#                  n_downstream=10,
+#                  seq_transform=None):
+#         raise NotImplementedError
 
-class SpliceDonorSeqDl(SampleIterator):
-    # TODO
-    pass
 
-
-class SpliceAcceptorSeqDl(SampleIterator):
-    # TODO
-    pass
+# class SpliceAcceptorSeqDl(SampleIterator):
+#
+#     def __init__(self,
+#                  gtf_file,
+#                  fasta_file,
+#                  n_upstream=40,
+#                  n_downstream=10,
+#                  seq_transform=None):
+#         raise NotImplementedError
+#     # seq_transform: ?
+#     #   name: sdasd
+#     #   args:
+#     #     a: 1
+#     #     b: 3
+#     #
