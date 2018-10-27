@@ -22,17 +22,6 @@ def to_scalar(obj):
         return obj
 
 
-def parse_dtype(dtype):
-    dtypes = {'int': int, 'string': str, 'float': float, 'bool': bool}
-    if dtype is None:
-        return None
-    if dtype in list(dtypes.values()):
-        return dtype
-    if dtype not in dtypes:
-        raise Exception("Datatype '{0}' not recognized. Allowed are: {1}".format(dtype, str(list(dtypes.keys()))))
-    return dtypes[dtype]
-
-
 def parse_alphabet(alphabet):
     if isinstance(alphabet, str):
         return list(alphabet)
@@ -40,9 +29,11 @@ def parse_alphabet(alphabet):
         return alphabet
 
 
-def parse_type(dtype):
+def parse_dtype(dtype):
     if isinstance(dtype, string_types):
-        if dtype in dir(np):
-            return getattr(np, dtype)
+        try:
+            return eval(dtype)
+        except Exception as e:
+            raise ValueError("Unable to parse dtype: {}. \nException: {}".format(dtype, e))
     else:
         return dtype

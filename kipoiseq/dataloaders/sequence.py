@@ -40,7 +40,7 @@ class BedDataset(object):
       bed_columns: number of columns corresponding to the bed file. All the columns
         after that will be parsed as targets
       num_chr: if specified, 'chr' in the chromosome name will be dropped
-      label_dtype: specific data type for labels
+      label_dtype: specific data type for labels, Example: `float` or `np.float32`
       ambiguous_mask: if specified, rows containing only ambiguous_mask values will be skipped
       incl_chromosomes: exclusive list of chromosome names to include in the final dataset.
         if not None, only these will be present in the dataset
@@ -153,7 +153,7 @@ class IntervalSeqStringDl(Dataset):
         num_chr_fasta:
             doc: True, the the dataloader will make sure that the chromosomes don't start with chr.
         label_dtype:
-            doc: None, datatype of the task labels taken from the intervals_file. Allowed - string', 'int', 'float', 'bool'
+            doc: None, datatype of the task labels taken from the intervals_file. Example - str, int, float, np.float32
         auto_resize_len:
             doc: None, required sequence length.
         # max_seq_len:
@@ -280,7 +280,7 @@ class IntervalSeqDl(Dataset):
         num_chr_fasta:
             doc: True, the the dataloader will make sure that the chromosomes don't start with chr.
         label_dtype:
-            doc: None, datatype of the task labels taken from the intervals_file. Allowed - string', 'int', 'float', 'bool'
+            doc: 'None, datatype of the task labels taken from the intervals_file. Example: str, int, float, np.float32'
         auto_resize_len:
             doc: None, required sequence length.
         # use_strand:
@@ -294,7 +294,7 @@ class IntervalSeqDl(Dataset):
                 alphabet to use for the one-hot encoding. This defines the order of the one-hot encoding.
                 Can either be a list or a string: 'ACGT' or ['A, 'C', 'G', 'T']. Default: 'ACGT'
         dtype:
-            doc: defines the numpy dtype of the returned array.
+            doc: 'defines the numpy dtype of the returned array. Example: int, np.int32, np.float32, float'
         ignore_targets:
             doc: if True, don't return any target variables
 

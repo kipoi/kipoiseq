@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import numpy as np
 from kipoiseq.transforms import functional as F
-from kipoiseq.utils import DNA, parse_alphabet, parse_type
+from kipoiseq.utils import DNA, parse_alphabet, parse_dtype
 
 
 class Compose(object):
@@ -146,18 +146,19 @@ class ReorderedOneHot(object):
                  alphabet_axis=1,
                  dummy_axis=None):
         # make sure the alphabet axis and the dummy axis are valid:
+        if dummy_axis is not None:
+            if alphabet_axis == dummy_axis:
+                raise ValueError("dummy_axis can't be the same as dummy_axis")
+            if not (dummy_axis >= 0 and dummy_axis <= 2):
+                raise ValueError("dummy_axis can be either 0,1 or 2")
         assert alphabet_axis >= 0 and (alphabet_axis < 2 or (alphabet_axis <= 2 and dummy_axis is not None))
-        assert dummy_axis is None or (dummy_axis >= 0 and dummy_axis <= 2 and alphabet_axis != dummy_axis)
 
         self.alphabet_axis = alphabet_axis
         self.dummy_axis = dummy_axis
         self.alphabet = parse_alphabet(alphabet)
-        self.dtype = parse_type(dtype)
+        self.dtype = parse_dtype(dtype)
         self.neutral_alphabet = neutral_alphabet
         self.neutral_value = neutral_value
-
-        if dummy_axis is not None and alphabet_axis == dummy_axis:
-            raise ValueError("dummy_axis can't be the same as dummy_axis")
 
         # set the transform parameters correctly
         if dummy_axis is not None and dummy_axis < 2:
