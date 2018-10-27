@@ -346,7 +346,7 @@ class IntervalSeqDl(Dataset):
 
     def __getitem__(self, idx):
         ret = self.seq_dl[idx]
-        ret['inputs'] = self.input_tranform(str(ret["inputs"]))
+        ret['inputs'] = self.input_transform(str(ret["inputs"]))
         return ret
 
     @classmethod
