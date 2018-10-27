@@ -9,13 +9,11 @@ from kipoi.plugin import is_installed
 from kipoi.data import Dataset, kipoi_dataloader
 from kipoi.specs import Author, Dependencies
 from kipoi.utils import default_kwargs
-from six import string_types
-
 
 from kipoiseq.extractors import FastaStringExtractor
-from kipoiseq.transforms import SwapAxes, DummyAxis, Compose, OneHot
-from kipoiseq.transforms.functional import one_hot, resize_interval
-from kipoiseq.utils import get_alphabet, get_onehot_shape, to_scalar
+from kipoiseq.transforms import SwapAxes, DummyAxis, Compose, OneHot, ReorderedOneHot
+from kipoiseq.transforms.functional import resize_interval
+from kipoiseq.utils import to_scalar
 
 import pybedtools
 from pybedtools import BedTool, Interval
@@ -29,32 +27,6 @@ package_authors = [Author(name='Ziga Avsec', github='avsecz'),
 
 # Object exported on import *
 __all__ = ['BedDataset', 'SeqDataset', 'SeqStringDataset']
-
-
-def parse_dtype(dtype):
-    dtypes = {'int': int, 'string': str, 'float': float, 'bool': bool}
-    if dtype is None:
-        return None
-    if dtype in list(dtypes.values()):
-        return dtype
-    if dtype not in dtypes:
-        raise Exception("Datatype '{0}' not recognized. Allowed are: {1}".format(dtype, str(list(dtypes.keys()))))
-    return dtypes[dtype]
-
-
-def parse_alphabet(alphabet):
-    if isinstance(alphabet, str):
-        return list(alphabet)
-    else:
-        return alphabet
-
-
-def parse_type(dtype):
-    if isinstance(dtype, string_types):
-        if dtype in dir(np):
-            return getattr(np, dtype)
-    else:
-        return dtype
 
 
 class BedDataset(object):
@@ -270,11 +242,7 @@ class SeqStringDataset(Dataset):
         return cls.output_schema
 
 
-# TODO - check lzamparo's dataloader:
-# - https://github.com/kipoi/kipoiseq/issues/1#issuecomment-427412487
-# - https://raw.githubusercontent.com/lzamparo/bindspace_revisions/master/deepbind/src/dataloader.py
-
-# TODO - properly deal with samples outside
+# TODO - properly deal with samples outside of the genome
 
 
 @kipoi_dataloader(override={"dependencies": deps, 'info.authors': package_authors})
@@ -312,7 +280,7 @@ class SeqDataset(Dataset):
         alphabet:
             doc: >
                 alphabet to use for the one-hot encoding. This defines the order of the one-hot encoding.
-                Can either be a list or a string: 'DNA', 'RNA', 'AMINO_ACIDS'.
+                Can either be a list or a string: 'ACGT' or ['A, 'C', 'G', 'T']. Default: 'ACGT'
         dtype:
             doc: defines the numpy dtype of the returned array.
         ignore_targets:
@@ -351,45 +319,16 @@ class SeqDataset(Dataset):
                  alphabet="ACGT",
                  ignore_targets=False,
                  dtype=None):
-        # TODO - add disable target loading to manage the Basenji case
-
-        # make sure the alphabet axis and the dummy axis are valid:
-        assert alphabet_axis >= 0 and (alphabet_axis < 2 or (alphabet_axis <= 2 and dummy_axis is not None))
-        assert dummy_axis is None or (dummy_axis >= 0 and dummy_axis <= 2 and alphabet_axis != dummy_axis)
-
-        # transform parameters
-        self.alphabet_axis = alphabet_axis
-        self.dummy_axis = dummy_axis
-        self.alphabet = parse_alphabet(alphabet)
-        self.dtype = parse_type(dtype)
-
-        # core dataset
+        # core dataset, not using the one-hot encoding params
         self.seq_string_dataset = SeqStringDataset(intervals_file, fasta_file, num_chr_fasta=num_chr_fasta,
                                                    label_dtype=label_dtype, auto_resize_len=auto_resize_len,
                                                    use_strand=use_strand, force_upper=True,
                                                    ignore_targets=ignore_targets)
 
-        if dummy_axis is not None and alphabet_axis == dummy_axis:
-            raise ValueError("dummy_axis can't be the same as dummy_axis")
-
-        # set the transform parameters correctly
-        if dummy_axis is not None and dummy_axis < 2:
-            # dummy axis is added somewhere in the middle, so the alphabet axis is at the end now
-            existing_alphabet_axis = 2
-        else:
-            # alphabet axis stayed the same
-            existing_alphabet_axis = 1
-
-        # check if no swapping needed
-        if existing_alphabet_axis == self.alphabet_axis:
-            self.alphabet_axis = None
-
-        # how to transform the input
-        self.input_tranform = Compose([
-            OneHot(self.alphabet, dtype=self.dtype),  # one-hot-encode
-            DummyAxis(self.dummy_axis),  # optionally inject the dummy axis
-            SwapAxes(existing_alphabet_axis, self.alphabet_axis),  # put the alphabet axis elsewhere
-        ])
+        self.input_transform = ReorderedOneHot(alphabet=alphabet,
+                                               dtype=dtype,
+                                               alphabet_axis=alphabet_axis,
+                                               dummy_axis=dummy_axis)
 
     def __len__(self):
         return len(self.seq_string_dataset)
@@ -404,42 +343,21 @@ class SeqDataset(Dataset):
         """Get the output schema. Overrides the default `cls.output_schema`
         """
 
-        # override the parent method
+        # get the default kwargs
         kwargs = default_kwargs(cls)
-        n_channels = len(kwargs['alphabet'])
-        seqlen = kwargs['auto_resize_len']
-        dummy_axis = kwargs['dummy_axis']
-        alphabet_axis = kwargs['alphabet_axis']
-        ignore_targets = kwargs['ignore_targets']
 
-        if ignore_targets:
+        # figure out the input shape
+        mock_input_transform = ReorderedOneHot(alphabet=kwargs['alphabet'],
+                                               dtype=kwargs['dtype'],
+                                               alphabet_axis=kwargs['alphabet_axis'],
+                                               dummy_axis=kwargs['dummy_axis'])
+        input_shape = mock_input_transform.get_output_shape(kwargs['auto_resize_len'])
+
+        # modify it
+        cls.output_schema.inputs.shape = input_shape
+
+        # (optionally) get rid of the target shape
+        if kwargs['ignore_targets']:
             cls.output_schema.targets = None
 
-        if dummy_axis is not None and alphabet_axis == dummy_axis:
-            raise ValueError("dummy_axis can't be the same as dummy_axis")
-
-        # default
-        input_shape = (seqlen, n_channels)
-
-        if dummy_axis is not None and dummy_axis < 2:
-            # dummy axis is added somewhere in the middle, so the alphabet axis is at the end now
-            existing_alphabet_axis = 2
-        else:
-            existing_alphabet_axis = 1
-
-        if existing_alphabet_axis == alphabet_axis:
-            alphabet_axis = None
-
-        # inject the dummy axis
-        if dummy_axis is not None:
-            input_shape = input_shape[:dummy_axis] + (1,) + input_shape[dummy_axis:]
-
-        # swap axes
-        if alphabet_axis is not None:
-            sh = list(input_shape)
-            sh[alphabet_axis], sh[existing_alphabet_axis] = sh[existing_alphabet_axis], sh[alphabet_axis]
-            input_shape = tuple(sh)
-
-        # now, modify the input schema
-        cls.output_schema.inputs.shape = input_shape
         return cls.output_schema

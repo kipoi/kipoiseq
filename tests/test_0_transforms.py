@@ -2,65 +2,12 @@ import pytest
 import numpy as np
 import copy
 from kipoiseq.transforms.functional import resize_interval
-from kipoiseq.transforms.transforms import SplitSplicingSeq
+from kipoiseq.transforms.transforms import SplitSplicingSeq, ReorderedOneHot
 from kipoiseq.utils import DNA
 from pybedtools import Interval
 
 
 # --------------------------------------------
-
-@pytest.mark.parametrize("alphabet_axis", list(range(0, 5)))
-@pytest.mark.parametrize("dummy_axis", [None] + list(range(0, 5)))
-def dont_test_reshape_seq(alphabet_axis, dummy_axis):
-    from kipoiseq.transforms import TransformShape
-    n_samples, seq_len, alphabet_len = 20, 1000, 4
-    in_array = np.zeros((n_samples, seq_len, alphabet_len))
-
-    dummy_axis_int = dummy_axis
-    if dummy_axis is None:
-        dummy_axis_int = -1
-
-    if (alphabet_axis == dummy_axis_int) or (alphabet_axis == 0) or (dummy_axis_int == 0) or \
-            (alphabet_axis >= 4) or (dummy_axis_int >= 4) or ((alphabet_axis >= 3) and (dummy_axis is None)):
-        with pytest.raises(Exception):
-            reshaper = TransformShape(alphabet_axis, dummy_axis)
-        return None
-
-    reshaper = TransformShape(alphabet_axis, dummy_axis)
-    num_axes = 3
-    if dummy_axis is not None:
-        num_axes += 1
-
-    # Test batch reshaping
-    reshaped = reshaper.reshape_batch(in_array)
-    assert len(reshaped.shape) == num_axes
-    for i in range(len(reshaped.shape)):
-        if i == 0:
-            assert reshaped.shape[i] == n_samples
-        elif i == dummy_axis:
-            assert reshaped.shape[i] == 1
-        elif i == alphabet_axis:
-            assert reshaped.shape[i] == alphabet_len
-        else:
-            assert reshaped.shape[i] == seq_len
-
-    # test the single sample works
-    reshaped = reshaper.reshape_single_sample(in_array[0, ...])
-    for i in range(len(reshaped.shape)):
-        i2 = i + 1
-        if i2 == 0:
-            assert reshaped.shape[i] == n_samples
-        elif i2 == dummy_axis:
-            assert reshaped.shape[i] == 1
-        elif i2 == alphabet_axis:
-            assert reshaped.shape[i] == alphabet_len
-        else:
-            assert reshaped.shape[i] == seq_len
-
-    # Test if fails if input has wrong shape
-    with pytest.raises(Exception):
-        reshaper.reshape_batch(in_array[0, ...])
-
 
 @pytest.mark.parametrize("anchor", ['start', 'end', 'center'])
 @pytest.mark.parametrize("ilen", [3, 4])
@@ -93,7 +40,33 @@ def test_resize_interval(anchor, ilen):
     elif anchor == "centre":
         assert int((ret_inter.start + ret_inter.end) / 2) == dummy_centre
 
-        
+
+def test_ReorderedOneHot():
+    seqlen = 10
+    seq = ['A'] * seqlen
+
+    test_pairs = [
+        (('ACGT', 1, None), (10, 4)),
+        (('ACGT', 2, 1), (10, 1, 4)),
+        (('ACGTD', 2, 1), (10, 1, 5)),
+        (('ACGTD', 0, None), (4, 10)),
+        (('ACGTD', 0, 1), (4, 1, 10)),
+        (('ACGTD', 0, 2), (4, 10, 1)),
+    ]
+
+    for args, result in test_pairs:
+        tr = ReorderedOneHot(alphabet=args[0], alphabet_axis=args[1], dummy_axis=args[2])
+        out = tr(seq)
+        assert out.shape == tr.get_output_shape()
+        assert out.shape == result
+
+    with pytest.raises(Exception):
+        ReorderedOneHot(alphabet_axis=1, dummy_axis=1)
+
+    with pytest.raises(Exception):
+        ReorderedOneHot(dummy_axis=1)
+
+
 def test_SplitSplicingSeq():
     split = SplitSplicingSeq(exon_cut_l=0,
                              exon_cut_r=0,
@@ -103,9 +76,9 @@ def test_SplitSplicingSeq():
                              acceptor_exon_len=3,
                              donor_exon_len=3,
                              donor_intron_len=2
-                            )
-    
-    #seq = 'TAAAG GTAGTAGA GTCCC'
+                             )
+
+    # seq = 'TAAAG GTAGTAGA GTCCC'
     seq = 'TAAAGGTAGTAGAGTCCC'
     splited = split(seq, 5, 5)
     assert splited['intron5prime'] == 'TA'
@@ -113,4 +86,3 @@ def test_SplitSplicingSeq():
     assert splited['exon'] == 'GTAGTAGA'
     assert splited['donor'] == 'AGAGT'
     assert splited['intron3prime'] == 'CC'
-    

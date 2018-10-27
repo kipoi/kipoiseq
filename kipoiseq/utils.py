@@ -1,4 +1,5 @@
 import numpy as np
+from six import string_types
 
 
 # alphabets:
@@ -12,26 +13,6 @@ alphabets = {"DNA": DNA,
              "AMINO_ACIDS": AMINO_ACIDS}
 
 
-def get_alphabet(alphabet):
-    if isinstance(alphabet, list):
-        return alphabet
-    else:
-        return alphabets[alphabet]
-
-
-def get_onehot_shape(alphabet_axis, dummy_axis, seq_len, alphabet):
-    # these values are given with respect to batch, not the single sample:
-    dim = 3 + int(dummy_axis is not None)
-    non_seq_axis = [alphabet_axis] + [da for da in [dummy_axis] if da is not None]
-    seq_axis = [i for i in range(1, dim) if i not in non_seq_axis][0]
-
-    # now for the single sample assign the shape
-    shape = [1] * (dim - 1)
-    shape[alphabet_axis - 1] = len(alphabet)
-    shape[seq_axis - 1] = seq_len
-    return tuple(shape)
-
-
 def to_scalar(obj):
     """Convert numpy scalar to native scalar
     """
@@ -39,3 +20,29 @@ def to_scalar(obj):
         return np.asscalar(obj)
     else:
         return obj
+
+
+def parse_dtype(dtype):
+    dtypes = {'int': int, 'string': str, 'float': float, 'bool': bool}
+    if dtype is None:
+        return None
+    if dtype in list(dtypes.values()):
+        return dtype
+    if dtype not in dtypes:
+        raise Exception("Datatype '{0}' not recognized. Allowed are: {1}".format(dtype, str(list(dtypes.keys()))))
+    return dtypes[dtype]
+
+
+def parse_alphabet(alphabet):
+    if isinstance(alphabet, str):
+        return list(alphabet)
+    else:
+        return alphabet
+
+
+def parse_type(dtype):
+    if isinstance(dtype, string_types):
+        if dtype in dir(np):
+            return getattr(np, dtype)
+    else:
+        return dtype
