@@ -1,6 +1,6 @@
 """Test BedDataset
 """
-from kipoiseq.datasets.sequence import BedDataset
+from kipoiseq.dataloaders.sequence import BedDataset
 import numpy as np
 import pytest
 import pybedtools

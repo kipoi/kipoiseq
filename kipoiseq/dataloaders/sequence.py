@@ -26,7 +26,7 @@ package_authors = [Author(name='Ziga Avsec', github='avsecz'),
                    Author(name='Roman Kreuzhuber', github='krrome')]
 
 # Object exported on import *
-__all__ = ['BedDataset', 'SeqDataset', 'SeqStringDataset']
+__all__ = ['BedDataset', 'IntervalSeqStringDl', 'IntervalSeqDl']
 
 
 class BedDataset(object):
@@ -131,7 +131,7 @@ class BedDataset(object):
 
 
 @kipoi_dataloader(override={"dependencies": deps, 'info.authors': package_authors})
-class SeqStringDataset(Dataset):
+class IntervalSeqStringDl(Dataset):
     """
     info:
         doc: >
@@ -257,7 +257,7 @@ class SeqStringDataset(Dataset):
 
 
 @kipoi_dataloader(override={"dependencies": deps, 'info.authors': package_authors})
-class SeqDataset(Dataset):
+class IntervalSeqDl(Dataset):
     """
     info:
         doc: >
@@ -331,10 +331,10 @@ class SeqDataset(Dataset):
                  ignore_targets=False,
                  dtype=None):
         # core dataset, not using the one-hot encoding params
-        self.seq_string_dataset = SeqStringDataset(intervals_file, fasta_file, num_chr_fasta=num_chr_fasta,
-                                                   label_dtype=label_dtype, auto_resize_len=auto_resize_len,
-                                                   # use_strand=use_strand,
-                                                   ignore_targets=ignore_targets)
+        self.seq_dl = IntervalSeqStringDl(intervals_file, fasta_file, num_chr_fasta=num_chr_fasta,
+                                          label_dtype=label_dtype, auto_resize_len=auto_resize_len,
+                                          # use_strand=use_strand,
+                                          ignore_targets=ignore_targets)
 
         self.input_transform = ReorderedOneHot(alphabet=alphabet,
                                                dtype=dtype,
@@ -345,7 +345,7 @@ class SeqDataset(Dataset):
         return len(self.seq_string_dataset)
 
     def __getitem__(self, idx):
-        ret = self.seq_string_dataset[idx]
+        ret = self.seq_dl[idx]
         ret['inputs'] = self.input_tranform(str(ret["inputs"]))
         return ret
 

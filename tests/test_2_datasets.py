@@ -1,10 +1,11 @@
 import pytest
-from kipoiseq.datasets.sequence import SeqDataset
+from kipoiseq.dataloaders.sequence import IntervalSeqDl
 
 
 @pytest.fixture
 def example_kwargs():
-    return SeqDataset.example_kwargs
+    return IntervalSeqDl.example_kwargs
+
 
 @pytest.mark.parametrize("alphabet_axis", list(range(0, 4)))
 @pytest.mark.parametrize("dummy_axis", [None] + list(range(0, 4)))
@@ -23,10 +24,10 @@ def test_seq_dataset_reshape(alphabet_axis, dummy_axis, example_kwargs):
     if (alphabet_axis == dummy_axis_int) or (alphabet_axis == -1) or (dummy_axis_int == -1) or \
             (alphabet_axis >= 3) or (dummy_axis_int >= 3) or ((alphabet_axis >= 2) and (dummy_axis is None)):
         with pytest.raises(Exception):
-            seq_dataset = SeqDataset(**kwargs)
+            seq_dataset = IntervalSeqDl(**kwargs)
         return None
 
-    seq_dataset = SeqDataset(**kwargs)
+    seq_dataset = IntervalSeqDl(**kwargs)
 
     # test the single sample works
     reshaped = seq_dataset[0]['inputs']

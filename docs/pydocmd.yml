@@ -27,9 +27,9 @@ generate:
     - kipoiseq.transforms.functional+
   - transforms/transforms.md:
     - kipoiseq.transforms.transforms+
-  - datasets.md:
-    - kipoiseq.datasets.sequence+
-    - kipoiseq.datasets.splicing.SpliceDataset
+  - dataloaders.md:
+    - kipoiseq.dataloaders.sequence+
+    - kipoiseq.dataloaders.splicing.MMSpliceDl
 
 # - baz/cool-stuff.md:
 #   - foobar.baz:
@@ -48,7 +48,7 @@ generate:
 
 pages:
 - Home: index.md << ../README.md
-- Datsets: datasets.md
+- Datsets: dataloaders.md
 - Transforms:
   - Functional: transforms/functional.md
   - Class-based: transforms/transforms.md

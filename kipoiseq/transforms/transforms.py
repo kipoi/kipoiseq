@@ -138,8 +138,7 @@ class ReorderedOneHot(object):
                  neutral_value=0.25,
                  dtype=None,
                  alphabet_axis=1,
-                 dummy_axis=None,
-                 ):
+                 dummy_axis=None):
         # make sure the alphabet axis and the dummy axis are valid:
         assert alphabet_axis >= 0 and (alphabet_axis < 2 or (alphabet_axis <= 2 and dummy_axis is not None))
         assert dummy_axis is None or (dummy_axis >= 0 and dummy_axis <= 2 and alphabet_axis != dummy_axis)
