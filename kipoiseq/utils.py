@@ -1,5 +1,4 @@
 import numpy as np
-from pybedtools import Interval
 
 
 # alphabets:
