@@ -13,7 +13,7 @@ from kipoi.utils import default_kwargs
 from kipoiseq.extractors import FastaStringExtractor
 from kipoiseq.transforms import SwapAxes, DummyAxis, Compose, OneHot, ReorderedOneHot
 from kipoiseq.transforms.functional import resize_interval
-from kipoiseq.utils import to_scalar
+from kipoiseq.utils import to_scalar, parse_dtype
 
 import pybedtools
 from pybedtools import BedTool, Interval
