@@ -1,5 +1,6 @@
 import pytest
-from kipoiseq.transforms.functional import tokenize, token2one_hot, one_hot, one_hot_dna, pad, trim, fixed_len
+from kipoiseq.transforms.functional import resize_interval, tokenize, token2one_hot, one_hot, one_hot_dna, pad, trim, fixed_len
+from kipoiseq.transforms.transforms import ResizeInterval
 from kipoiseq.utils import DNA
 import numpy as np
 
@@ -57,6 +58,12 @@ def test_one_hot():
     assert np.all(one_hot(seq)[-1] == np.array([0, 0, 0, 1]))
     assert np.all(one_hot(seq)[-2] == np.array([0.25, 0.25, 0.25, 0.25]))
 
+    with pytest.raises(ValueError):
+        one_hot(['A', 'C'])
+
+    with pytest.raises(ValueError):
+        one_hot_dna(['A', 'C'])
+
 
 def test_fixed_len():
     seq = "ACGTTTATNT"
@@ -75,3 +82,61 @@ def test_pad_sequences():
 
     assert fixed_len(seq, 10, anchor="start", value="N") == seq
     assert fixed_len(seq, 10, anchor="end", value="N") == 'CTTACTCAGA'
+
+
+@pytest.mark.parametrize("anchor", ['start', 'end', 'center'])
+@pytest.mark.parametrize("ilen", [3, 4])
+def test_resize_interval(anchor, ilen):
+    import pybedtools
+    dummy_start, dummy_end = 10, 20
+    dummy_center = int((dummy_start + dummy_end) / 2)
+
+    dummy_inter = pybedtools.create_interval_from_list(['chr2', dummy_start, dummy_end, 'intname'])
+    ret_inter = resize_interval(dummy_inter, ilen, anchor)
+
+    # the original interval was left intact
+    assert dummy_inter.chrom == 'chr2'
+    assert dummy_inter.start == dummy_start
+    assert dummy_inter.end == dummy_end
+    assert dummy_inter.name == 'intname'
+
+    # metadata kept
+    assert ret_inter.chrom == dummy_inter.chrom
+    assert ret_inter.name == 'intname'
+
+    # desired output width
+    assert ret_inter.length == ilen
+
+    # correct anchor point
+    if anchor == "start":
+        assert ret_inter.start == dummy_start
+    elif anchor == "end":
+        assert ret_inter.end == dummy_end
+    elif anchor == "center":
+        assert int((ret_inter.start + ret_inter.end) / 2) == dummy_center
+
+
+def test_ResizeInterval():
+    """Same test as before
+    """
+    import pybedtools
+    dummy_start, dummy_end = 10, 20
+    dummy_center = int((dummy_start + dummy_end) / 2)
+    ilen = 4
+    dummy_inter = pybedtools.create_interval_from_list(['chr2', dummy_start, dummy_end, 'intname'])
+    ri = ResizeInterval(ilen, 'center')
+    ret_inter = ri(dummy_inter)
+    assert int((ret_inter.start + ret_inter.end) / 2) == dummy_center
+
+    # the original interval was left intact
+    assert dummy_inter.chrom == 'chr2'
+    assert dummy_inter.start == dummy_start
+    assert dummy_inter.end == dummy_end
+    assert dummy_inter.name == 'intname'
+
+    # metadata kept
+    assert ret_inter.chrom == dummy_inter.chrom
+    assert ret_inter.name == 'intname'
+
+    # desired output width
+    assert ret_inter.length == ilen

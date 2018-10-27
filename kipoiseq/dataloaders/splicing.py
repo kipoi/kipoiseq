@@ -13,20 +13,22 @@ deps = Dependencies(conda=['bioconda::pyfaidx', 'numpy', 'pandas'],
                     pip=['kipoiseq', 'kipoi'])
 package_authors = [Author(name='Jun Cheng', github='s6juncheng')]
 
-__all__ = ['ExonInterval', 'generate_exons', 'SpliceDataset']
+__all__ = ['ExonInterval', 'generate_exons', 'MMSpliceDl']
 
-#-------- python 2.7 compatible
+# python 2.7 compatibility
+
 try:
     FileNotFoundError
 except NameError:
     FileNotFoundError = IOError
-    
+
 try:
     ModuleNotFoundError
 except NameError:
     ModuleNotFoundError = ImportError
-#--------
-    
+# ------------
+
+
 class ExonInterval(gffutils.Feature):
 
     def __init__(self, order=-1, **kwargs):
@@ -128,13 +130,13 @@ class ExonInterval(gffutils.Feature):
 
 
 def generate_exons(gtf_file,
-                  overhang=(100, 100),  # overhang from the exon
-                  gtf_db_path=":memory:",
-                  out_file=None,
-                  disable_infer_transcripts=True,
-                  disable_infer_genes=True,
-                  firstLastNoExtend=True,
-                  source_filter=None):
+                   overhang=(100, 100),  # overhang from the exon
+                   gtf_db_path=":memory:",
+                   out_file=None,
+                   disable_infer_transcripts=True,
+                   disable_infer_genes=True,
+                   firstLastNoExtend=True,
+                   source_filter=None):
     """
     Build IntervalTree object from gtf file for one feature unit (e.g. gene, exon). If give out_file, pickle it.
     Args:
@@ -175,14 +177,15 @@ def generate_exons(gtf_file,
             overhang = default_overhang
             yield exon
 
-            
+
 @kipoi_dataloader(override={"dependencies": deps, 'info.authors': package_authors})
-class SpliceDataset(SampleIterator):
+class MMSpliceDl(SampleIterator):
     """
     info:
         doc: >
-            Dataloader for splicing models. With inputs as gtf annotation file and fasta file, each output is an exon sequence with 
-            flanking intronic seuqences. Intronic sequnce lengths specified by the users. Returned sequences are of the type np.array([str]).
+            Dataloader for splicing models. With inputs as gtf annotation file and fasta file,
+            each output is an exon sequence with flanking intronic seuqences. Intronic sequnce
+            lengths specified by the users. Returned sequences are of the type np.array([str])
     args:
         gtf_file:
             doc: file path; Genome annotation GTF file
@@ -200,12 +203,12 @@ class SpliceDataset(SampleIterator):
             doc: 3' intronic sequence length to take.
         transform:
             doc: >
-                transformation operation applied to the returned sequence. It needs to take seq, 
+                transformation operation applied to the returned sequence. It needs to take seq,
                 intron5prime_len and intron3prime_len as arguments.
     output_schema:
         inputs:
             name: seq
-            shape: () 
+            shape: ()
             special_type: DNAStringSeq
             doc: exon sequence with flanking intronic sequence
             associated_metadata: ranges
@@ -224,39 +227,39 @@ class SpliceDataset(SampleIterator):
           bed_input:
             - gtf_file
     """
-    
+
     def __init__(self,
-                gtf_file,
-                fasta_file,
-                intron5prime_len=100,
-                intron3prime_len=100,
-                transform=None,
-                **kwargs):
-        
+                 gtf_file,
+                 fasta_file,
+                 intron5prime_len=100,
+                 intron3prime_len=100,
+                 transform=None,
+                 **kwargs):
+
         try:
             with open(gtf_file, 'rb') as f:
                 self.exons = pickle.load(f)
         except (FileNotFoundError, pickle.UnpicklingError, ModuleNotFoundError):
-            self.exons = generate_exons(gtf_file=gtf_file, 
-                                        overhang=(intron5prime_len, intron3prime_len), 
-                                       **kwargs)
+            self.exons = generate_exons(gtf_file=gtf_file,
+                                        overhang=(intron5prime_len, intron3prime_len),
+                                        **kwargs)
         import six
         if isinstance(fasta_file, six.string_types):
             fasta = Fasta(fasta_file, as_raw=False)
         self.fasta = fasta
         self.transform = transform
-        
+
     def __iter__(self):
         return self
-    
+
     def __next__(self):
         exon = next(self.exons)
         seq = exon.get_seq(self.fasta).upper()
         if self.transform:
-            seq = self.transform(seq, 
-                                 exon.overhang[0], #  intron5prime_len
-                                 exon.overhang[1] # intron3prime_len
-                                )
+            seq = self.transform(seq,
+                                 exon.overhang[0],  # intron5prime_len
+                                 exon.overhang[1]  # intron3prime_len
+                                 )
         return{
             'inputs': {
                 'seq': seq
@@ -267,5 +270,18 @@ class SpliceDataset(SampleIterator):
                 'transcriptID': exon.transcript_id
             }
         }
-    
+
+    # python 2.7 compatibility
     next = __next__
+
+
+# TODO - implement
+
+class SpliceDonorSeqDl(SampleIterator):
+    # TODO
+    pass
+
+
+class SpliceAcceptorSeqDl(SampleIterator):
+    # TODO
+    pass

@@ -2,11 +2,17 @@ from __future__ import division
 from __future__ import absolute_import
 from __future__ import print_function
 
-# from genomelake.util import one_hot_encode_sequence  # TODO include once the pip install works for genomelake
 from kipoiseq.utils import DNA
 from copy import deepcopy
 import numpy as np
 from six import string_types
+
+
+try:
+    # use the fast genomelake's one-hot-encode if it's installed
+    from genomelake.util import one_hot_encode_sequence
+except ImportError:
+    one_hot_encode_sequence = None
 
 
 # sequence -> array
@@ -55,7 +61,6 @@ def tokenize(seq, alphabet=DNA, neutral_alphabet=["N"]):
     alphabet_dict = _get_alphabet_dict(alphabet)
     for l in neutral_alphabet:
         alphabet_dict[l] = -1
-
     # current performance bottleneck
     return np.array([alphabet_dict[seq[(i * nchar):((i + 1) * nchar)]] for i in range(len(seq) // nchar)])
 
@@ -74,17 +79,24 @@ def token2one_hot(tokens, alphabet_size=4, neutral_value=.25, dtype=None):
 
 
 def one_hot(seq, alphabet=DNA, neutral_alphabet=['N'], neutral_value=.25, dtype=None):
+    if not isinstance(seq, str):
+        raise ValueError("seq needs to be a string")
     return token2one_hot(tokenize(seq, alphabet, neutral_alphabet), len(alphabet), neutral_value, dtype=dtype)
 
 
 def one_hot_dna(seq, dtype=None):
     """One-hot encode DNA sequence
     """
-    # TODO - include one you use genomelake again
-    # out = np.zeros((len(seq), 4), dtype=np.float32)
-    # one_hot_encode_sequence(seq, out)
-    # return out
-    return one_hot(seq, alphabet=DNA, neutral_alphabet=['N'], neutral_value=.25, dtype=dtype)
+    if not isinstance(seq, str):
+        raise ValueError("seq needs to be a string")
+
+    if one_hot_encode_sequence is not None:
+        # genomelake's one_hot_encode_sequence could be imported
+        out = np.zeros((len(seq), 4), dtype=np.float32)
+        one_hot_encode_sequence(seq, out)
+        return out.astype(dtype)
+    else:
+        return one_hot(seq, alphabet=DNA, neutral_alphabet=['N'], neutral_value=.25, dtype=dtype)
 
 # sequence trimming
 
@@ -184,10 +196,6 @@ def fixed_len(seq, length, anchor="center", value="N"):
         return seq
 
 
-# --------------------------------------------
-# TODO - lookup what is this used for
-
-
 def resize_interval(interval, width, anchor='center'):
     """Resize the Interval. Returns new Interval instance with correct length.
 
@@ -211,13 +219,3 @@ def resize_interval(interval, width, anchor='center'):
         raise Exception("Interval resizing anchor point can only be 'start', 'end' or 'center'")
 
     return interval
-
-
-# TODO - put all these into classes
-# define the keras-type interface with get() - use default kwargs when using it
-# def get_string_transforms(trafo):
-#     if trafo is not None and isinstance(trafo, string_types):
-#         if trafo in TRANSFORMS:
-#             trafo = TRANSFORMS[trafo]
-#     return trafo
-# TRANSFORMS = {"onehot_trafo": onehot_transform}
