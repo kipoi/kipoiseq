@@ -8,13 +8,13 @@
 
 Standard set of data-loaders for training and making predictions for DNA sequence-based models.
 
-All dataloaders in `kipoiseq.dataloaders` decorated with `@kipoi_dataloader` (IntervalSeqDl and IntervalSeqStringDl) are compatible Kipoi models and can be directly used when specifying a new model in `model.yaml`:
+All dataloaders in `kipoiseq.dataloaders` decorated with `@kipoi_dataloader` (SeqIntervalDl and StringSeqIntervalDl) are compatible Kipoi models and can be directly used when specifying a new model in `model.yaml`:
 ```yaml
 ...
 default_dataloader:
-  defined_as: kipoiseq.dataloaders.IntervalSeqDl
+  defined_as: kipoiseq.dataloaders.SeqIntervalDl
   default_args:
-    auto_resize_len: 1000 # override default args in IntervalSeqDl
+    auto_resize_len: 1000 # override default args in SeqIntervalDl
     
 dependencies:
   pip:
@@ -31,11 +31,11 @@ pip install kipoiseq
 ## Getting started
 
 ```python
-from kipoiseq.dataloaders import IntervalSeqDl
+from kipoiseq.dataloaders import SeqIntervalDl
 
-dl = IntervalSeqDl.init_example()  # use the provided example files
+dl = SeqIntervalDl.init_example()  # use the provided example files
 # your own files
-dl = IntervalSeqDl("intervals.bed", "genome.fa")
+dl = SeqIntervalDl("intervals.bed", "genome.fa")
 
 len(dl)  # length of the dataset
 
@@ -60,6 +60,6 @@ More info:
 
 ## How to write your own data-loaders
 - Read the pytorch [Data Loading and Processing Tutorial](https://pytorch.org/tutorials/beginner/data_loading_tutorial.html) to become more familiar with transforms and dataloaders
-- Read the code for `IntervalSeqDl` in [kipoiseq/dataloaders/sequence.py](https://github.com/kipoi/kipoiseq/blob/master/kipoiseq/dataloaders/sequence.py)
+- Read the code for `SeqIntervalDl` in [kipoiseq/dataloaders/sequence.py](https://github.com/kipoi/kipoiseq/blob/master/kipoiseq/dataloaders/sequence.py)
   - you can skip the `@kipoi_dataloader` and the long yaml doc-string. These are only required if you want to use dataloaders in Kipoi's model.yaml files.
 - Explore the available transforms ([functional](http://kipoi.org/kipoiseq/transforms/functional/), [class-based](http://kipoi.org/kipoiseq/transforms/transforms/)) or extractors ([kipoiseq](https://github.com/kipoi/kipoiseq/blob/master/kipoiseq/extractors.py), [genomelake](https://github.com/kundajelab/genomelake/blob/master/genomelake/extractors.py))

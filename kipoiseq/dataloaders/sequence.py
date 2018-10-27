@@ -26,7 +26,7 @@ package_authors = [Author(name='Ziga Avsec', github='avsecz'),
                    Author(name='Roman Kreuzhuber', github='krrome')]
 
 # Object exported on import *
-__all__ = ['IntervalSeqDl', 'IntervalSeqStringDl', 'BedDataset']
+__all__ = ['SeqIntervalDl', 'StringSeqIntervalDl', 'BedDataset']
 
 
 class BedDataset(object):
@@ -132,7 +132,7 @@ class BedDataset(object):
 
 
 @kipoi_dataloader(override={"dependencies": deps, 'info.authors': package_authors})
-class IntervalSeqStringDl(Dataset):
+class StringSeqIntervalDl(Dataset):
     """
     info:
         doc: >
@@ -258,7 +258,7 @@ class IntervalSeqStringDl(Dataset):
 
 
 @kipoi_dataloader(override={"dependencies": deps, 'info.authors': package_authors})
-class IntervalSeqDl(Dataset):
+class SeqIntervalDl(Dataset):
     """
     info:
         doc: >
@@ -332,7 +332,7 @@ class IntervalSeqDl(Dataset):
                  ignore_targets=False,
                  dtype=None):
         # core dataset, not using the one-hot encoding params
-        self.seq_dl = IntervalSeqStringDl(intervals_file, fasta_file, num_chr_fasta=num_chr_fasta,
+        self.seq_dl = StringSeqIntervalDl(intervals_file, fasta_file, num_chr_fasta=num_chr_fasta,
                                           label_dtype=label_dtype, auto_resize_len=auto_resize_len,
                                           # use_strand=use_strand,
                                           ignore_targets=ignore_targets)

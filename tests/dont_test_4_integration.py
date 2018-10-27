@@ -3,7 +3,7 @@ import kipoi_veff
 import kipoi_veff.snv_predict as sp
 import pytest
 from kipoi_veff.utils.generic import ModelInfoExtractor
-from kipoiseq.dataloaders.sequence import IntervalSeqDl
+from kipoiseq.dataloaders.sequence import SeqIntervalDl
 import os
 from kipoi.pipeline import install_model_requirements
 
@@ -12,7 +12,7 @@ INSTALL_REQ = False
 
 def test_deepsea():
     model = kipoi.get_model("DeepSEA/variantEffects")
-    mie = ModelInfoExtractor(model, IntervalSeqDl)
+    mie = ModelInfoExtractor(model, SeqIntervalDl)
 
 
 def test_var_eff_pred_varseq(tmpdir):
@@ -22,7 +22,7 @@ def test_var_eff_pred_varseq(tmpdir):
     #
     model = kipoi.get_model(model_name, source="kipoi")
     # The preprocessor
-    Dataloader = IntervalSeqDl
+    Dataloader = SeqIntervalDl
     #
     dataloader_arguments = {"intervals_file": "example_files/intervals.bed",
                             "fasta_file": "example_files/hg38_chr22.fa",
