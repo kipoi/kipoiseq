@@ -57,6 +57,12 @@ def test_one_hot():
     assert np.all(one_hot(seq)[-1] == np.array([0, 0, 0, 1]))
     assert np.all(one_hot(seq)[-2] == np.array([0.25, 0.25, 0.25, 0.25]))
 
+    with pytest.raises(ValueError):
+        one_hot(['A', 'C'])
+
+    with pytest.raises(ValueError):
+        one_hot_dna(['A', 'C'])
+
 
 def test_fixed_len():
     seq = "ACGTTTATNT"

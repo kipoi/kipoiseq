@@ -102,15 +102,21 @@ class OneHot(object):
 
     def __init__(self, alphabet=DNA, neutral_alphabet='N', neutral_value=0.25, dtype=None):
         self.alphabet = alphabet
+        if isinstance(neutral_alphabet, str):
+            neutral_alphabet = [neutral_alphabet]
         self.neutral_alphabet = neutral_alphabet
         self.neutral_value = neutral_value
         self.dtype = dtype
 
     def __call__(self, seq):
-        if self.alphabet == DNA and self.neutral_alphabet == 'N' and self.neutral_value == 0.25:
+        if self.alphabet == DNA and self.neutral_alphabet == ['N'] and self.neutral_value == 0.25:
             return F.one_hot_dna(seq, self.dtype)
         else:
-            return F.one_hot(seq, self.alphabet, self.neutral_value, self.dtype)
+            return F.one_hot(seq,
+                             alphabet=self.alphabet,
+                             neutral_alphabet=self.neutral_alphabet,
+                             neutral_value=self.neutral_value,
+                             dtype=self.dtype)
 
 
 class ReorderedOneHot(object):
@@ -166,7 +172,7 @@ class ReorderedOneHot(object):
             self.alphabet_axis = None
 
         # how to transform the input
-        self.tranform = Compose([
+        self.transform = Compose([
             OneHot(self.alphabet,
                    neutral_alphabet=self.neutral_alphabet,
                    neutral_value=self.neutral_value,
@@ -175,39 +181,39 @@ class ReorderedOneHot(object):
             SwapAxes(existing_alphabet_axis, self.alphabet_axis),  # put the alphabet axis elsewhere
         ])
 
-        def __call__(self, seq):
-            return self.transform(seq)
+    def __call__(self, seq):
+        return self.transform(seq)
 
-        def get_output_shape(self, seqlen=None):
-            """Compute the output shape
-            """
-            if self.dummy_axis is not None and self.alphabet_axis == self.dummy_axis:
-                raise ValueError("dummy_axis can't be the same as dummy_axis")
+    def get_output_shape(self, seqlen=None):
+        """Compute the output shape
+        """
+        if self.dummy_axis is not None and self.alphabet_axis == self.dummy_axis:
+            raise ValueError("dummy_axis can't be the same as dummy_axis")
 
-            # default
-            output_shape = (seqlen, len(self.alphabet))
-            alphabet_axis = self.alphabet_axis
+        # default
+        output_shape = (seqlen, len(self.alphabet))
+        alphabet_axis = self.alphabet_axis
 
-            if self.dummy_axis is not None and self.dummy_axis < 2:
-                # dummy axis is added somewhere in the middle, so the alphabet axis is at the end now
-                existing_alphabet_axis = 2
-            else:
-                existing_alphabet_axis = 1
+        if self.dummy_axis is not None and self.dummy_axis < 2:
+            # dummy axis is added somewhere in the middle, so the alphabet axis is at the end now
+            existing_alphabet_axis = 2
+        else:
+            existing_alphabet_axis = 1
 
-            if existing_alphabet_axis == alphabet_axis:
-                alphabet_axis = None
+        if existing_alphabet_axis == alphabet_axis:
+            alphabet_axis = None
 
-            # inject the dummy axis
-            if self.dummy_axis is not None:
-                output_shape = output_shape[:self.dummy_axis] + (1,) + output_shape[self.dummy_axis:]
+        # inject the dummy axis
+        if self.dummy_axis is not None:
+            output_shape = output_shape[:self.dummy_axis] + (1,) + output_shape[self.dummy_axis:]
 
-            # swap axes
-            if alphabet_axis is not None:
-                sh = list(output_shape)
-                sh[alphabet_axis], sh[existing_alphabet_axis] = sh[existing_alphabet_axis], sh[alphabet_axis]
-                output_shape = tuple(sh)
+        # swap axes
+        if alphabet_axis is not None:
+            sh = list(output_shape)
+            sh[alphabet_axis], sh[existing_alphabet_axis] = sh[existing_alphabet_axis], sh[alphabet_axis]
+            output_shape = tuple(sh)
 
-            return output_shape
+        return output_shape
 
 
 # Splicing

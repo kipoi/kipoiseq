@@ -55,7 +55,6 @@ def tokenize(seq, alphabet=DNA, neutral_alphabet=["N"]):
     alphabet_dict = _get_alphabet_dict(alphabet)
     for l in neutral_alphabet:
         alphabet_dict[l] = -1
-
     # current performance bottleneck
     return np.array([alphabet_dict[seq[(i * nchar):((i + 1) * nchar)]] for i in range(len(seq) // nchar)])
 
@@ -74,12 +73,16 @@ def token2one_hot(tokens, alphabet_size=4, neutral_value=.25, dtype=None):
 
 
 def one_hot(seq, alphabet=DNA, neutral_alphabet=['N'], neutral_value=.25, dtype=None):
+    if not isinstance(seq, str):
+        raise ValueError("seq needs to be a string")
     return token2one_hot(tokenize(seq, alphabet, neutral_alphabet), len(alphabet), neutral_value, dtype=dtype)
 
 
 def one_hot_dna(seq, dtype=None):
     """One-hot encode DNA sequence
     """
+    if not isinstance(seq, str):
+        raise ValueError("seq needs to be a string")
     # TODO - include one you use genomelake again
     # out = np.zeros((len(seq), 4), dtype=np.float32)
     # one_hot_encode_sequence(seq, out)

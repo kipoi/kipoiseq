@@ -48,7 +48,7 @@ generate:
 
 pages:
 - Home: index.md << ../README.md
-- Datsets: dataloaders.md
+- Dataloaders: dataloaders.md
 - Transforms:
   - Functional: transforms/functional.md
   - Class-based: transforms/transforms.md

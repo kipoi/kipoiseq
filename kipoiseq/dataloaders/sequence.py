@@ -26,7 +26,7 @@ package_authors = [Author(name='Ziga Avsec', github='avsecz'),
                    Author(name='Roman Kreuzhuber', github='krrome')]
 
 # Object exported on import *
-__all__ = ['BedDataset', 'IntervalSeqStringDl', 'IntervalSeqDl']
+__all__ = ['IntervalSeqDl', 'IntervalSeqStringDl', 'BedDataset']
 
 
 class BedDataset(object):
@@ -71,6 +71,7 @@ class BedDataset(object):
                  incl_chromosomes=None,
                  excl_chromosomes=None,
                  ignore_targets=False):
+        # TODO - `chrom` column: use pd.Categorical for memory efficiency
         self.tsv_file = tsv_file
         self.bed_columns = bed_columns
         self.num_chr = num_chr
@@ -342,7 +343,7 @@ class IntervalSeqDl(Dataset):
                                                dummy_axis=dummy_axis)
 
     def __len__(self):
-        return len(self.seq_string_dataset)
+        return len(self.seq_dl)
 
     def __getitem__(self, idx):
         ret = self.seq_dl[idx]

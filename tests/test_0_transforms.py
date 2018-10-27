@@ -43,21 +43,21 @@ def test_resize_interval(anchor, ilen):
 
 def test_ReorderedOneHot():
     seqlen = 10
-    seq = ['A'] * seqlen
+    seq = 'A' * seqlen
 
     test_pairs = [
         (('ACGT', 1, None), (10, 4)),
         (('ACGT', 2, 1), (10, 1, 4)),
         (('ACGTD', 2, 1), (10, 1, 5)),
-        (('ACGTD', 0, None), (4, 10)),
-        (('ACGTD', 0, 1), (4, 1, 10)),
-        (('ACGTD', 0, 2), (4, 10, 1)),
+        (('ACGT', 0, None), (4, 10)),
+        (('ACGT', 0, 1), (4, 1, 10)),
+        (('ACGT', 0, 2), (4, 10, 1)),
     ]
 
     for args, result in test_pairs:
         tr = ReorderedOneHot(alphabet=args[0], alphabet_axis=args[1], dummy_axis=args[2])
         out = tr(seq)
-        assert out.shape == tr.get_output_shape()
+        assert out.shape == tr.get_output_shape(seqlen)
         assert out.shape == result
 
     with pytest.raises(Exception):
