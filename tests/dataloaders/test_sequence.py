@@ -122,30 +122,34 @@ def test_examples_exist(cls):
 def test_output_schape():
     Dl = deepcopy(SeqIntervalDl)
     assert Dl.get_output_schema().inputs.shape == (None, 4)
-    override_default_kwargs(Dl, {"auto_resize_len": 100})
-    assert Dl.get_output_schema().inputs.shape == (100, 4)
+    Dlc = override_default_kwargs(Dl, {"auto_resize_len": 100})
+    assert Dlc.get_output_schema().inputs.shape == (100, 4)
 
-    override_default_kwargs(Dl, {"auto_resize_len": 100, "dummy_axis": 1, "alphabet_axis": 2})
-    assert Dl.get_output_schema().inputs.shape == (100, 1, 4)
-    override_default_kwargs(Dl, {"auto_resize_len": 100, "dummy_axis": None, "alphabet_axis": 1})  # reset
-    override_default_kwargs(Dl, {"auto_resize_len": 100, "dummy_axis": 2})
-    assert Dl.get_output_schema().inputs.shape == (100, 4, 1)
-    override_default_kwargs(Dl, {"auto_resize_len": 100, "dummy_axis": None, "alphabet_axis": 1})  # reset
+    # original left intact
+    assert Dl.get_output_schema().inputs.shape == (None, 4)
 
-    override_default_kwargs(Dl, {"auto_resize_len": 100, "alphabet": "ACGTD"})
-    assert Dl.get_output_schema().inputs.shape == (100, 5)
-    override_default_kwargs(Dl, {"auto_resize_len": 100, "alphabet": "ACGT"})  # reset
+    Dlc = override_default_kwargs(Dl, {"auto_resize_len": 100, "dummy_axis": 1, "alphabet_axis": 2})
+    assert Dlc.get_output_schema().inputs.shape == (100, 1, 4)
+    Dlc = override_default_kwargs(Dl, {"auto_resize_len": 100, "dummy_axis": 2})
+    assert Dlc.get_output_schema().inputs.shape == (100, 4, 1)
+    # original left intact
+    assert Dl.get_output_schema().inputs.shape == (None, 4)
 
-    override_default_kwargs(Dl, {"auto_resize_len": 160, "dummy_axis": 2, "alphabet_axis": 0})
-    assert Dl.get_output_schema().inputs.shape == (4, 160, 1)
+    Dlc = override_default_kwargs(Dl, {"auto_resize_len": 100, "alphabet": "ACGTD"})
+    assert Dlc.get_output_schema().inputs.shape == (100, 5)
 
-    override_default_kwargs(Dl, {"auto_resize_len": 160, "dummy_axis": 2, "alphabet_axis": 1})
-    assert Dl.get_output_schema().inputs.shape == (160, 4, 1)
-    targets = Dl.get_output_schema().targets
+    Dlc = override_default_kwargs(Dl, {"auto_resize_len": 160, "dummy_axis": 2, "alphabet_axis": 0})
+    assert Dlc.get_output_schema().inputs.shape == (4, 160, 1)
+
+    Dlc = override_default_kwargs(Dl, {"auto_resize_len": 160, "dummy_axis": 2, "alphabet_axis": 1})
+    assert Dlc.get_output_schema().inputs.shape == (160, 4, 1)
+    targets = Dlc.get_output_schema().targets
     assert targets.shape == (None,)
 
-    override_default_kwargs(Dl, {"ignore_targets": True})
-    assert Dl.get_output_schema().targets is None
+    Dlc = override_default_kwargs(Dl, {"ignore_targets": True})
+    assert Dlc.get_output_schema().targets is None
     # reset back
-    override_default_kwargs(Dl, {"ignore_targets": False})
-    Dl.output_schema.targets = targets
+
+    # original left intact
+    assert Dl.get_output_schema().inputs.shape == (None, 4)
+    assert Dl.get_output_schema().targets.shape == (None, )

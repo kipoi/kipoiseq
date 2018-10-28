@@ -247,11 +247,12 @@ class StringSeqIntervalDl(Dataset):
 
     @classmethod
     def get_output_schema(cls):
+        output_schema = deepcopy(cls.output_schema)
         kwargs = default_kwargs(cls)
         ignore_targets = kwargs['ignore_targets']
         if ignore_targets:
-            cls.output_schema.targets = None
-        return cls.output_schema
+            output_schema.targets = None
+        return output_schema
 
 
 # TODO - properly deal with samples outside of the genome
@@ -354,6 +355,7 @@ class SeqIntervalDl(Dataset):
     def get_output_schema(cls):
         """Get the output schema. Overrides the default `cls.output_schema`
         """
+        output_schema = deepcopy(cls.output_schema)
 
         # get the default kwargs
         kwargs = default_kwargs(cls)
@@ -366,10 +368,10 @@ class SeqIntervalDl(Dataset):
         input_shape = mock_input_transform.get_output_shape(kwargs['auto_resize_len'])
 
         # modify it
-        cls.output_schema.inputs.shape = input_shape
+        output_schema.inputs.shape = input_shape
 
         # (optionally) get rid of the target shape
         if kwargs['ignore_targets']:
-            cls.output_schema.targets = None
+            output_schema.targets = None
 
-        return cls.output_schema
+        return output_schema
