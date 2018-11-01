@@ -11,10 +11,10 @@ requirements = [
     "numpy",
     "pandas",
     "tqdm",
-    "colorlog",
-    "related>=0.6.0",
+    # "colorlog",
+    # "related>=0.6.0",
     # sometimes required
-    "h5py",
+    # "h5py",
     "gffutils"
 ]
 
