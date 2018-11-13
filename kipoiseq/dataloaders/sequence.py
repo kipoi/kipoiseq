@@ -12,7 +12,7 @@ from kipoi.utils import default_kwargs
 
 from kipoiseq.extractors import FastaStringExtractor
 from kipoiseq.transforms import SwapAxes, DummyAxis, Compose, OneHot, ReorderedOneHot
-from kipoiseq.transforms.functional import resize_interval
+from kipoiseq.transforms.functional import resize_interval, pad
 from kipoiseq.utils import to_scalar, parse_dtype
 
 import pybedtools
@@ -86,7 +86,10 @@ class BedDataset(object):
                                 nrows=1,
                                 sep='\t')
         found_columns = df_peek.shape[1]
-        self.n_tasks = found_columns - self.bed_columns
+        if self.ignore_targets:
+            self.n_tasks = 0
+        else:
+            self.n_tasks = found_columns - self.bed_columns
         if self.n_tasks < 0:
             raise ValueError("BedDataset requires at least {} bed columns. Found only {} columns".
                              format(self.bed_columns, found_columns))
@@ -162,6 +165,8 @@ class StringSeqIntervalDl(Dataset):
         #     doc: reverse-complement fasta sequence if bed file defines negative strand
         force_upper:
             doc: Force uppercase output of sequences
+        bed_columns:
+            doc: number of columns corresponding to the bed file. All the columns after that will be parsed as targets
         ignore_targets:
             doc: if True, don't return any target variables
     output_schema:
@@ -192,8 +197,9 @@ class StringSeqIntervalDl(Dataset):
                  auto_resize_len=None,
                  # max_seq_len=None,
                  # use_strand=False,
+                 bed_columns=3,  # None,   # TODO
                  force_upper=True,
-                 ignore_targets=False):
+                 ignore_targets=True):
 
         self.num_chr_fasta = num_chr_fasta
         self.intervals_file = intervals_file
@@ -211,7 +217,7 @@ class StringSeqIntervalDl(Dataset):
 
         self.bed = BedDataset(self.intervals_file,
                               num_chr=self.num_chr_fasta,
-                              bed_columns=3,
+                              bed_columns=bed_columns,
                               label_dtype=parse_dtype(label_dtype),
                               ignore_targets=ignore_targets)
         self.fasta_extractors = None
@@ -236,6 +242,18 @@ class StringSeqIntervalDl(Dataset):
 
         # Run the fasta extractor and transform if necessary
         seq = self.fasta_extractors.extract(interval)
+
+        if self.auto_resize_len:
+            if len(seq) != self.auto_resize_len:
+                print("WARNING: len(seq) != self.auto_resize_len: {} != {}. "
+                      "Interval: {} Padding sequence end with N".format(len(seq),
+                                                                        self.auto_resize_len,
+                                                                        interval))
+                import pdb
+                pdb.set_trace()
+                seq = pad(seq, self.auto_resize_len, anchor='start')
+
+            # pass
 
         return {
             "inputs": np.array(seq),
@@ -296,6 +314,8 @@ class SeqIntervalDl(Dataset):
                 Can either be a list or a string: 'ACGT' or ['A, 'C', 'G', 'T']. Default: 'ACGT'
         dtype:
             doc: 'defines the numpy dtype of the returned array. Example: int, np.int32, np.float32, float'
+        bed_columns:
+            doc: number of columns corresponding to the bed file. All the columns after that will be parsed as targets
         ignore_targets:
             doc: if True, don't return any target variables
 
@@ -330,11 +350,13 @@ class SeqIntervalDl(Dataset):
                  alphabet_axis=1,
                  dummy_axis=None,
                  alphabet="ACGT",
-                 ignore_targets=False,
+                 bed_columns=3,  # None,  TODO
+                 ignore_targets=True,
                  dtype=None):
         # core dataset, not using the one-hot encoding params
         self.seq_dl = StringSeqIntervalDl(intervals_file, fasta_file, num_chr_fasta=num_chr_fasta,
                                           label_dtype=label_dtype, auto_resize_len=auto_resize_len,
+                                          bed_columns=bed_columns,
                                           # use_strand=use_strand,
                                           ignore_targets=ignore_targets)
 
