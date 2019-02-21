@@ -1,26 +1,77 @@
 from cyvcf2 import VCF
-from kipoiseq.extractors import FastaSeqExtractor
+from pyfaidx import Sequence
+from pybedtools import Interval
+from kipoiseq.extractors import BaseExtractor, FastaStringExtractor
 
 
-class IntervalStringBuilder:
-    def add():
-        pass
-
-    def restore(interval, seq):
-        pass
-
-    def concat():
-        pass
+__all__ = [
+    'VariantSeqExtractor',
+    'MultiSampleVCF',
+    'SingleVariantVCFSeqExtractor',
+    'SingleSeqVCFSeqExtractor'
+]
 
 
-class VariantSeqExtractor:
+class MultiSampleVCF(VCF):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sample_mapping = dict(zip(self.samples, range(len(self.samples))))
+
+    def fetch_variants(self, interval, sample_id=None):
+        for v in self(self._region(interval)):
+            if sample_id is None or self._has_variant(v, sample_id):
+                yield v
+
+    def _region(self, interval):
+        return '%s:%d-%d' % (interval.chrom, interval.start, interval.end)
+
+    def _has_variant(self, variant, sample_id):
+        return variant.gt_types[self.sample_mapping[sample_id]] != 0
+
+
+class IntervalSeqBuilder(list):
+    """
+    String builder for `pyfaidx.Sequence` and `Interval` objects.
+    """
+
+    def restore(self, sequence):
+        """
+        Args:
+          seq: `pyfaidx.Sequence` which convert all interval inside
+            to `Seqeunce` objects.
+        """
+        for i, interval in enumerate(self):
+            if type(self[i]) == Interval:
+                start = interval.start - sequence.start
+                end = start + interval.length
+                self[i] = sequence[start: end]
+
+    def _concat(self):
+        for sequence in self:
+            if type(sequence) != Sequence:
+                raise TypeError('Intervals should be restored with `restore`'
+                                ' method before calling concat method!')
+            yield sequence.seq
+
+    def concat(self):
+        """
+        Build the string from sequence objects.
+
+        Returns:
+          str: the final sequence.
+        """
+        return ''.join(self._concat())
+
+
+class VariantSeqExtractor(BaseExtractor):
 
     def __init__(self, fasta_file):
         """
         Args:
           fasta_file: path to the fasta file (can be gzipped)
         """
-        self.fasta = FastaSeqExtractor(fasta_file)
+        self.fasta = FastaStringExtractor(fasta_file)
 
     def extract(self, interval, variants, anchor, fixed_len=True):
         """
@@ -43,18 +94,18 @@ class VariantSeqExtractor:
         Returns:
           A single sequence (`str`) with all the variants applied.
         """
-        anchor_abs = anchor + interval.start
+        pairs_seq = zip(*self._variant_to_sequence(variants))
 
-        # 1. split the variants hitting the anchor into two
-        variants = self._split_overlapping(variants, anchor_abs)
+        anchor_abs = anchor + interval.start
+        variants = self._split_overlapping(pairs_seq, anchor_abs)
 
         # 2. split the variants into upstream and downstream
         # 3. sort the variants in each interval
-        upstream_variants = sorted(
-            filter(variants, lambda x: x.pos < anchor_abs))
+        # upstream_variants = sorted(
+        #     filter(variants, lambda x: x.pos < anchor_abs))
 
-        downstream_variants = sorted(
-            filter(variants, lambda x: x.pos < anchor_abs), reversed=True)
+        # downstream_variants = sorted(
+        #     filter(variants, lambda x: x.pos < anchor_abs), reversed=True)
 
         # 4. Iterate from the anchor point outwards. At each
         # register the interval from which to take the reference sequence
@@ -65,52 +116,44 @@ class VariantSeqExtractor:
         # (start, end)
         #  ]
         # Also, update the start and end of the interval
-        up_sb = IntervalStringBuilder()
-        down_sb = IntervalStringBuilder()
+        # up_sb = IntervalSeqBuilder()
+        # down_sb = IntervalSeqBuilder()
 
         # 5. fetch the sequence
-        seq = self.fasta.extract(interval)
+        # seq = self.fasta.extract(interval)
 
         # 6. loop through them, if you see an interval, cut it out
         # from the reference sequence. Store the sequences into a list
-        up_sb.restore(interval, seq)
-        down_sb.restore(interval, seq)
+        # up_sb.restore(interval, seq)
+        # down_sb.restore(interval, seq)
 
         # 7. Concate sequences from the upstream and downstream splits. Concat
         # upstream and downstream sequence
-        return up_sb.concat() + down_sb.concat()
+        # return up_sb.concat() + down_sb.concat()
 
-    def _split_overlapping(variant, anchor_abs):
+    def _variant_to_sequence(self, variants):
+        """
+        Convert `cyvcf2.Variant` objects to `pyfaidx.Seqeunce` objects
+        for reference and variants.
+        """
+        for v in variants:
+            ref = Sequence(name=v.CHROM, seq=v.REF,
+                           start=v.POS, end=v.POS + len(v.REF))
+            # TO DO: consider alternative alleles.
+            alt = Sequence(name=v.CHROM, seq=v.ALT[0],
+                           start=v.POS, end=v.POS + len(v.ALT[0]))
+            yield ref, alt
+
+    def _split_overlapping(pairs_seq, anchor_abs):
+        """
+        Split the variants hitting the anchor into two
+        """
         pass
 
 
-class MultiSampleVCF:
-
-    def __init__(self, vcf_file):
-        self.vcf_file = vcf_file
-        self.vcf = VCF(vcf_file)
-
-        # self._single_sample
-
-    def fetch_variants(self, interval, sample_id=None):
-        return self._variant_in(interval, sample_id)
-
-    def _variant_in(self, interval, sample_id=None):
-        for v in self.vcf(interval):
-            if sample_id is None or self._has_variant(v, sample_id):
-                return v
-
-    def _has_variant(self, variant, sample_id):
-        # TODO
-        return variant.gt_types[self.individual_mapping[sample_id]] != 0
-
-
-class SingleVariantVCFSeqExtractor:
+class SingleVariantVCFSeqExtractor(BaseExtractor):
 
     def __init__(self, fasta_file, vcf_file):
-        '''
-        :params strategy: 'one' or 'all'
-        '''
         self.fasta_file = fasta_file
         self.vcf_file = vcf_file
         self.variant_extractor = VariantSeqExtractor(fasta_file)
@@ -124,12 +167,9 @@ class SingleVariantVCFSeqExtractor:
                                                  fixed_len=fixed_len)
 
 
-class SingleSeqVCFSeqExtractor:
+class SingleSeqVCFSeqExtractor(BaseExtractor):
 
     def __init__(self, fasta_file, vcf_file):
-        '''
-        :params strategy: 'one' or 'all'
-        '''
         self.fasta_file = fasta_file
         self.vcf_file = vcf_file
         self.variant_extractor = VariantSeqExtractor(fasta_file)

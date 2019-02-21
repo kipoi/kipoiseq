@@ -8,6 +8,7 @@ requirements = [
     # "genomelake",
     "pybedtools",
     "pyfaidx",
+    'cyvcf2',
     "numpy",
     "pandas",
     "tqdm",
