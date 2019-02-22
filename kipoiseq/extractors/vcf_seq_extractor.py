@@ -94,42 +94,74 @@ class VariantSeqExtractor(BaseExtractor):
         Returns:
           A single sequence (`str`) with all the variants applied.
         """
-        pairs_seq = zip(*self._variant_to_sequence(variants))
-
         anchor_abs = anchor + interval.start
-        variants = self._split_overlapping(pairs_seq, anchor_abs)
+        istart = interval.start
+        iend = interval.end
+
+        variant_pairs = self._variant_to_sequence(variants)
+
+        # 1. Split variants overlapping with anchor
+        variant_pairs = list(self._split_overlapping(
+            variant_pairs, anchor_abs))
 
         # 2. split the variants into upstream and downstream
-        # 3. sort the variants in each interval
-        # upstream_variants = sorted(
-        #     filter(variants, lambda x: x.pos < anchor_abs))
+        # and sort the variants in each interval
+        upstream_variants = sorted(
+            filter(lambda x: x[0].start >= anchor_abs, variant_pairs),
+            key=lambda x: x[0].start)
 
-        # downstream_variants = sorted(
-        #     filter(variants, lambda x: x.pos < anchor_abs), reversed=True)
+        downstream_variants = sorted(
+            filter(lambda x: x[0].start < anchor_abs, variant_pairs),
+            key=lambda x: x[0].start, reverse=True)
 
-        # 4. Iterate from the anchor point outwards. At each
+        # 3. Iterate from the anchor point outwards. At each
         # register the interval from which to take the reference sequence
         # as well as the interval for the variant
-        # [
-        # (start, end)
-        # (seq)
-        # (start, end)
-        #  ]
         # Also, update the start and end of the interval
-        # up_sb = IntervalSeqBuilder()
-        # down_sb = IntervalSeqBuilder()
+        up_sb = IntervalSeqBuilder()
+        down_sb = IntervalSeqBuilder()
 
-        # 5. fetch the sequence
-        # seq = self.fasta.extract(interval)
+        prev = anchor_abs
+        for ref, alt in upstream_variants:
+            if ref.end > iend:
+                if ref.start > iend:
+                    break
+                else:
+                    ref, alt = self._cut_half((ref, alt), iend)[0]
+            if fixed_len:
+                iend -= len(alt) - len(ref)
+            up_sb.append(Interval(interval.chrom, prev,
+                                  ref.start, interval.strand))
+            up_sb.append(alt)
+            prev = ref.end
+        up_sb.append(Interval(interval.chrom, prev, iend, interval.strand))
 
-        # 6. loop through them, if you see an interval, cut it out
-        # from the reference sequence. Store the sequences into a list
-        # up_sb.restore(interval, seq)
-        # down_sb.restore(interval, seq)
+        prev = anchor_abs
+        for ref, alt in downstream_variants:
+            if ref.start < istart:
+                if ref.end < istart:
+                    break
+                else:
+                    ref, alt = self._cut_half((ref, alt), istart)[1]
+            if fixed_len:
+                istart -= len(alt) - len(ref)
+            down_sb.append(Interval(interval.chrom, ref.end,
+                                    prev, interval.strand))
+            down_sb.append(alt)
+            prev = ref.start
+        down_sb.append(Interval(interval.chrom, istart, prev, interval.strand))
+        down_sb.reverse()
 
-        # 7. Concate sequences from the upstream and downstream splits. Concat
+        # 4. fetch the sequence and restore intervals in builder
+        t_interval = Interval(interval.chrom, istart, iend, interval.strand)
+        seq = self.fasta.extract(t_interval)
+        seq = Sequence(name=interval.chrom, seq=seq, start=istart, end=iend)
+        up_sb.restore(seq)
+        down_sb.restore(seq)
+
+        # 5. Concate sequences from the upstream and downstream splits. Concat
         # upstream and downstream sequence
-        # return up_sb.concat() + down_sb.concat()
+        return down_sb.concat() + up_sb.concat()
 
     def _variant_to_sequence(self, variants):
         """
@@ -144,20 +176,40 @@ class VariantSeqExtractor(BaseExtractor):
                            start=v.POS, end=v.POS + len(v.ALT[0]))
             yield ref, alt
 
-    def _split_overlapping(pairs_seq, anchor_abs):
+    def _split_overlapping(self, variant_pairs, anchor_abs):
         """
         Split the variants hitting the anchor into two
         """
-        pass
+        for ref, alt in variant_pairs:
+            if ref.start < anchor_abs < ref.end \
+               or alt.start < anchor_abs < alt.end:
+                fhalf, shalf = self._cut_half((ref, alt), anchor_abs)
+                yield fhalf
+                yield shalf
+            else:
+                yield ref, alt
+
+    def _cut_half(self, variant_pair, cutting_point):
+        """
+        Cuts variant pairs based on cutting point.
+        """
+        ref, alt = variant_pair
+        mid = cutting_point - ref.start
+        return (
+            (ref[:mid], alt[:mid]),
+            (ref[mid:], alt[mid:])
+        )
 
 
-class SingleVariantVCFSeqExtractor(BaseExtractor):
-
+class BaseVCFSeqExtractor(BaseExtractor):
     def __init__(self, fasta_file, vcf_file):
         self.fasta_file = fasta_file
         self.vcf_file = vcf_file
         self.variant_extractor = VariantSeqExtractor(fasta_file)
         self.vcf = MultiSampleVCF(vcf_file)
+
+
+class SingleVariantVCFSeqExtractor(BaseVCFSeqExtractor):
 
     def extract(self, interval, anchor=None, sample_id=None, fixed_len=True):
         for variant in self.vcf.fetch_variants(interval, sample_id):
@@ -167,17 +219,9 @@ class SingleVariantVCFSeqExtractor(BaseExtractor):
                                                  fixed_len=fixed_len)
 
 
-class SingleSeqVCFSeqExtractor(BaseExtractor):
-
-    def __init__(self, fasta_file, vcf_file):
-        self.fasta_file = fasta_file
-        self.vcf_file = vcf_file
-        self.variant_extractor = VariantSeqExtractor(fasta_file)
-        self.vcf = MultiSampleVCF(vcf_file)
+class SingleSeqVCFSeqExtractor(BaseVCFSeqExtractor):
 
     def extract(self, interval, anchor=None, sample_id=None, fixed_len=True):
-        return self.variant_extractor.extract(interval,
-                                              variants=self.fetch_variants(
-                                                  interval, sample_id),
-                                              anchor=anchor,
-                                              fixed_len=fixed_len)
+        return self.variant_extractor.extract(
+            interval, variants=self.vcf.fetch_variants(interval, sample_id),
+            anchor=anchor, fixed_len=fixed_len)

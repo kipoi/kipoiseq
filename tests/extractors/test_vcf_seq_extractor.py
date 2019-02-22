@@ -5,7 +5,7 @@ from pybedtools import Interval
 from kipoiseq.extractors.vcf_seq_extractor import IntervalSeqBuilder
 from kipoiseq.extractors import *
 
-fasta_file = 'tests/data/sample.fasta'
+fasta_file = 'tests/data/sample.5kb.fa'
 vcf_file = 'tests/data/test.vcf.gz'
 
 
@@ -54,10 +54,52 @@ def variant_seq_extractor():
     return VariantSeqExtractor(fasta_file)
 
 
-# def test__split_overlapping(variant_seq_extractor):
-#     interval = Interval('chr1', 2, 9)
-#     variants = list(VCF(vcf_file)())
-#     variant_seq_extractor.extract(interval, variants, anchor=5)
+def test__split_overlapping(variant_seq_extractor):
+    pair = (Sequence(seq='AAA', start=3, end=6),
+            Sequence(seq='T', start=3, end=4))
+    splited_pairs = list(variant_seq_extractor._split_overlapping([pair], 5))
 
-# def test_extract(variant_seq_extractor):
-#     pass
+    assert splited_pairs[0][0].seq == 'AA'
+    assert splited_pairs[0][1].seq == 'T'
+    assert splited_pairs[1][0].seq == 'A'
+    assert splited_pairs[1][1].seq == ''
+
+    pair = (Sequence(seq='T', start=3, end=4),
+            Sequence(seq='AAA', start=3, end=6))
+    splited_pairs = list(variant_seq_extractor._split_overlapping([pair], 5))
+
+    assert splited_pairs[0][0].seq == 'T'
+    assert splited_pairs[0][1].seq == 'AA'
+    assert splited_pairs[1][0].seq == ''
+    assert splited_pairs[1][1].seq == 'A'
+
+
+def test_extract(variant_seq_extractor):
+    interval = Interval('chr1', 2, 9)
+    variants = list(VCF(vcf_file)())
+    seq = variant_seq_extractor.extract(interval, variants, anchor=3)
+    assert len(seq) == interval.end - interval.start
+    assert seq == 'GCGAACG'
+
+
+@pytest.fixture
+def single_variant_vcf_seq_extractor():
+    return SingleVariantVCFSeqExtractor(fasta_file, vcf_file)
+
+
+def test_single_variant_vcf_seq_extract(single_variant_vcf_seq_extractor):
+    interval = Interval('chr1', 2, 9)
+    seqs = single_variant_vcf_seq_extractor.extract(interval, anchor=3)
+    assert next(seqs) == 'GCAACGT'
+    assert next(seqs) == 'GTGAACG'
+
+
+@pytest.fixture
+def single_seq_vcf_seq_extractor():
+    return SingleSeqVCFSeqExtractor(fasta_file, vcf_file)
+
+
+def test_single_seq_vcf_seq_extract(single_seq_vcf_seq_extractor):
+    interval = Interval('chr1', 2, 9)
+    seq = single_seq_vcf_seq_extractor.extract(interval, anchor=3)
+    assert seq == 'GCGAACG'
