@@ -15,7 +15,9 @@ requirements = [
     # "related>=0.6.0",
     # sometimes required
     # "h5py",
-    "gffutils"
+    "gffutils",
+    "kipoi-utils>=0.1.1",
+    "kipoi-conda>=0.1.0"
 ]
 
 test_requirements = [

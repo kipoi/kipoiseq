@@ -7,8 +7,9 @@ from kipoi.metadata import GenomicRanges
 from kipoi.specs import DataLoaderArgument, ArraySpecialType
 from kipoi.plugin import is_installed
 from kipoi.data import Dataset, kipoi_dataloader
-from kipoi.specs import Author, Dependencies
-from kipoi.utils import default_kwargs
+from kipoi_conda.dependencies import Dependencies
+from kipoi.specs import Author
+from kipoi_utils.utils import default_kwargs
 
 from kipoiseq.extractors import FastaStringExtractor
 from kipoiseq.transforms import SwapAxes, DummyAxis, Compose, OneHot, ReorderedOneHot
