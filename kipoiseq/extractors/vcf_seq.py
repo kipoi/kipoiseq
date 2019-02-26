@@ -1,5 +1,5 @@
 from pybedtools import Interval
-from pyfaidx import Sequence
+from pyfaidx import Sequence, complement
 from kipoiseq.extractors import BaseExtractor, FastaStringExtractor
 try:
     from cyvcf2 import VCF
@@ -77,7 +77,7 @@ class VariantSeqExtractor(BaseExtractor):
         Args:
           fasta_file: path to the fasta file (can be gzipped)
         """
-        self.fasta = FastaStringExtractor(fasta_file)
+        self.fasta = FastaStringExtractor(fasta_file, use_strand=True)
 
     def extract(self, interval, variants, anchor, fixed_len=True):
         """
@@ -147,7 +147,12 @@ class VariantSeqExtractor(BaseExtractor):
             down_str, up_str = self._cut_to_fix_len(
                 down_str, up_str, interval, anchor)
 
-        return down_str + up_str
+        seq = down_str + up_str
+
+        if interval.strand == '-':
+            seq = complement(seq)[::-1]
+
+        return seq
 
     def _variant_to_sequence(self, variants):
         """
@@ -197,11 +202,10 @@ class VariantSeqExtractor(BaseExtractor):
         for ref, alt in down_variants:
             if ref.end <= istart:
                 break
-            down_sb.append(Interval(interval.chrom, ref.end,
-                                    prev, interval.strand))
+            down_sb.append(Interval(interval.chrom, ref.end, prev))
             down_sb.append(alt)
             prev = ref.start
-        down_sb.append(Interval(interval.chrom, istart, prev, interval.strand))
+        down_sb.append(Interval(interval.chrom, istart, prev))
         down_sb.reverse()
 
         return down_sb
@@ -213,17 +217,15 @@ class VariantSeqExtractor(BaseExtractor):
         for ref, alt in up_variants:
             if ref.start > iend:
                 break
-            up_sb.append(Interval(interval.chrom, prev,
-                                  ref.start, interval.strand))
+            up_sb.append(Interval(interval.chrom, prev, ref.start))
             up_sb.append(alt)
             prev = ref.end
-        up_sb.append(Interval(interval.chrom, prev, iend, interval.strand))
+        up_sb.append(Interval(interval.chrom, prev, iend))
 
         return up_sb
 
     def _fetch(self, interval, istart, iend):
-        t_interval = Interval(interval.chrom, istart, iend, interval.strand)
-        seq = self.fasta.extract(t_interval)
+        seq = self.fasta.extract(Interval(interval.chrom, istart, iend))
         seq = Sequence(name=interval.chrom, seq=seq, start=istart, end=iend)
         return seq
 

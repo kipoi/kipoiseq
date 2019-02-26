@@ -92,10 +92,17 @@ def test__split_overlapping(variant_seq_extractor):
 
 def test_extract(variant_seq_extractor):
     interval = Interval('chr1', 2, 9)
+
     variants = list(VCF(vcf_file)())
     seq = variant_seq_extractor.extract(interval, variants, anchor=5)
     assert len(seq) == interval.end - interval.start
     assert seq == 'GCGAACG'
+
+    interval = Interval('chr1', 2, 9, strand='-')
+    variants = list(VCF(vcf_file)())
+    seq = variant_seq_extractor.extract(interval, variants, anchor=5)
+    assert len(seq) == interval.end - interval.start
+    assert seq == 'CGTTCGC'
 
     interval = Interval('chr1', 4, 14)
     seq = variant_seq_extractor.extract(interval, variants, anchor=7)
