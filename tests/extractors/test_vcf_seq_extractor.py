@@ -42,6 +42,22 @@ def test_interval_seq_builder_restore(interval_seq_builder):
     assert interval_seq_builder[2].seq == 'TAGC'
     assert interval_seq_builder[3].seq == 'TT'
 
+    interval_seq_builder.append(Interval('chr1', 5, 10))
+    interval_seq_builder.restore(sequence)
+    assert interval_seq_builder[4].seq == ''
+
+    interval_seq_builder.append(Interval('chr1', 20, 25))
+    interval_seq_builder.restore(sequence)
+    assert interval_seq_builder[5].seq == ''
+
+    interval_seq_builder.append(Interval('chr1', 10, 5))
+    interval_seq_builder.restore(sequence)
+    assert interval_seq_builder[6].seq == ''
+
+    interval_seq_builder.append(Interval('chr1', 25, 20))
+    interval_seq_builder.restore(sequence)
+    assert interval_seq_builder[7].seq == ''
+
 
 def test_interval_seq_builder_concat(interval_seq_builder):
     sequence = Sequence(seq='CCCCATCGNN', start=10, end=20)
@@ -77,9 +93,44 @@ def test__split_overlapping(variant_seq_extractor):
 def test_extract(variant_seq_extractor):
     interval = Interval('chr1', 2, 9)
     variants = list(VCF(vcf_file)())
-    seq = variant_seq_extractor.extract(interval, variants, anchor=3)
+    seq = variant_seq_extractor.extract(interval, variants, anchor=5)
     assert len(seq) == interval.end - interval.start
     assert seq == 'GCGAACG'
+
+    interval = Interval('chr1', 4, 14)
+    seq = variant_seq_extractor.extract(interval, variants, anchor=7)
+    assert len(seq) == interval.end - interval.start
+    assert seq == 'AACGTAACGT'
+
+    interval = Interval('chr1', 4, 14)
+    seq = variant_seq_extractor.extract(interval, variants, anchor=4)
+    assert len(seq) == interval.end - interval.start
+    assert seq == 'GAACGTAACG'
+
+    interval = Interval('chr1', 2, 5)
+    seq = variant_seq_extractor.extract(interval, variants, anchor=3)
+    assert len(seq) == interval.end - interval.start
+    assert seq == 'GCG'
+
+    interval = Interval('chr1', 24, 34)
+    seq = variant_seq_extractor.extract(interval, variants, anchor=27)
+    assert len(seq) == interval.end - interval.start
+    assert seq == 'TGATAACGTA'
+
+    interval = Interval('chr1', 25, 35)
+    seq = variant_seq_extractor.extract(interval, variants, anchor=34)
+    assert len(seq) == interval.end - interval.start
+    assert seq == 'TGATAACGTA'
+
+    interval = Interval('chr1', 34, 44)
+    seq = variant_seq_extractor.extract(interval, variants, anchor=37)
+    assert len(seq) == interval.end - interval.start
+    assert seq == 'AACGTAACGT'
+
+    interval = Interval('chr1', 34, 44)
+    seq = variant_seq_extractor.extract(interval, variants, anchor=100)
+    assert len(seq) == interval.end - interval.start
+    assert seq == 'AACGTAACGT'
 
 
 @pytest.fixture

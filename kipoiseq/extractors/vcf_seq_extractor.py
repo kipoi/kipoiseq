@@ -42,6 +42,9 @@ class IntervalSeqBuilder(list):
             to `Seqeunce` objects.
         """
         for i, interval in enumerate(self):
+            # interval.end can be bigger than interval.start
+            interval.end = max(interval.start, interval.end)
+
             if type(self[i]) == Interval:
                 start = interval.start - sequence.start
                 end = start + interval.length
@@ -94,74 +97,54 @@ class VariantSeqExtractor(BaseExtractor):
         Returns:
           A single sequence (`str`) with all the variants applied.
         """
-        anchor_abs = anchor + interval.start
-        istart = interval.start
-        iend = interval.end
-
+        # Preprocessing
+        anchor = max(min(anchor, interval.end), interval.start)
         variant_pairs = self._variant_to_sequence(variants)
 
         # 1. Split variants overlapping with anchor
-        variant_pairs = list(self._split_overlapping(
-            variant_pairs, anchor_abs))
+        variant_pairs = list(self._split_overlapping(variant_pairs, anchor))
 
         # 2. split the variants into upstream and downstream
         # and sort the variants in each interval
         upstream_variants = sorted(
-            filter(lambda x: x[0].start >= anchor_abs, variant_pairs),
+            filter(lambda x: x[0].start >= anchor, variant_pairs),
             key=lambda x: x[0].start)
 
         downstream_variants = sorted(
-            filter(lambda x: x[0].start < anchor_abs, variant_pairs),
+            filter(lambda x: x[0].start < anchor, variant_pairs),
             key=lambda x: x[0].start, reverse=True)
 
-        # 3. Iterate from the anchor point outwards. At each
+        # 3. Extend start and end position for deletions
+        if fixed_len:
+            istart, iend = self._updated_interval(
+                interval, upstream_variants, downstream_variants)
+        else:
+            istart, iend = interval.start, interval.end
+
+        # 4. Iterate from the anchor point outwards. At each
         # register the interval from which to take the reference sequence
         # as well as the interval for the variant
-        # Also, update the start and end of the interval
-        up_sb = IntervalSeqBuilder()
-        down_sb = IntervalSeqBuilder()
+        down_sb = self._downstream_builder(
+            downstream_variants, interval, anchor, istart)
 
-        prev = anchor_abs
-        for ref, alt in upstream_variants:
-            if ref.end > iend:
-                if ref.start > iend:
-                    break
-                else:
-                    ref, alt = self._cut_half((ref, alt), iend)[0]
-            if fixed_len:
-                iend -= len(alt) - len(ref)
-            up_sb.append(Interval(interval.chrom, prev,
-                                  ref.start, interval.strand))
-            up_sb.append(alt)
-            prev = ref.end
-        up_sb.append(Interval(interval.chrom, prev, iend, interval.strand))
+        up_sb = self._upstream_builder(
+            upstream_variants, interval, anchor, iend)
 
-        prev = anchor_abs
-        for ref, alt in downstream_variants:
-            if ref.start < istart:
-                if ref.end < istart:
-                    break
-                else:
-                    ref, alt = self._cut_half((ref, alt), istart)[1]
-            if fixed_len:
-                istart -= len(alt) - len(ref)
-            down_sb.append(Interval(interval.chrom, ref.end,
-                                    prev, interval.strand))
-            down_sb.append(alt)
-            prev = ref.start
-        down_sb.append(Interval(interval.chrom, istart, prev, interval.strand))
-        down_sb.reverse()
-
-        # 4. fetch the sequence and restore intervals in builder
-        t_interval = Interval(interval.chrom, istart, iend, interval.strand)
-        seq = self.fasta.extract(t_interval)
-        seq = Sequence(name=interval.chrom, seq=seq, start=istart, end=iend)
+        # 5. fetch the sequence and restore intervals in builder
+        seq = self._fetch(interval, istart, iend)
         up_sb.restore(seq)
         down_sb.restore(seq)
 
-        # 5. Concate sequences from the upstream and downstream splits. Concat
-        # upstream and downstream sequence
-        return down_sb.concat() + up_sb.concat()
+        # 6. Concate sequences from the upstream and downstream splits. Concat
+        # upstream and downstream sequence. Cut to fix the length.
+        down_str = down_sb.concat()
+        up_str = up_sb.concat()
+
+        if fixed_len:
+            down_str, up_str = self._cut_to_fix_len(
+                down_str, up_str, interval, anchor)
+
+        return down_str + up_str
 
     def _variant_to_sequence(self, variants):
         """
@@ -176,29 +159,77 @@ class VariantSeqExtractor(BaseExtractor):
                            start=v.POS, end=v.POS + len(v.ALT[0]))
             yield ref, alt
 
-    def _split_overlapping(self, variant_pairs, anchor_abs):
+    def _split_overlapping(self, variant_pairs, anchor):
         """
         Split the variants hitting the anchor into two
         """
         for ref, alt in variant_pairs:
-            if ref.start < anchor_abs < ref.end \
-               or alt.start < anchor_abs < alt.end:
-                fhalf, shalf = self._cut_half((ref, alt), anchor_abs)
-                yield fhalf
-                yield shalf
+            if ref.start < anchor < ref.end or alt.start < anchor < alt.end:
+                mid = anchor - ref.start
+                yield ref[:mid], alt[:mid]
+                yield ref[mid:], alt[mid:]
             else:
                 yield ref, alt
 
-    def _cut_half(self, variant_pair, cutting_point):
-        """
-        Cuts variant pairs based on cutting point.
-        """
-        ref, alt = variant_pair
-        mid = cutting_point - ref.start
-        return (
-            (ref[:mid], alt[:mid]),
-            (ref[mid:], alt[mid:])
-        )
+    def _updated_interval(self, interval, up_variants, down_variants):
+        istart = interval.start
+        iend = interval.end
+
+        for ref, alt in up_variants:
+            diff_len = len(alt) - len(ref)
+            if diff_len < 0:
+                iend -= diff_len
+
+        for ref, alt in down_variants:
+            diff_len = len(alt) - len(ref)
+            if diff_len < 0:
+                istart += diff_len
+
+        return istart, iend
+
+    def _downstream_builder(self, down_variants, interval, anchor, istart):
+        down_sb = IntervalSeqBuilder()
+
+        prev = anchor
+        for ref, alt in down_variants:
+            if ref.end <= istart:
+                break
+            down_sb.append(Interval(interval.chrom, ref.end,
+                                    prev, interval.strand))
+            down_sb.append(alt)
+            prev = ref.start
+        down_sb.append(Interval(interval.chrom, istart, prev, interval.strand))
+        down_sb.reverse()
+
+        return down_sb
+
+    def _upstream_builder(self, up_variants, interval, anchor, iend):
+        up_sb = IntervalSeqBuilder()
+
+        prev = anchor
+        for ref, alt in up_variants:
+            if ref.start > iend:
+                break
+            up_sb.append(Interval(interval.chrom, prev,
+                                  ref.start, interval.strand))
+            up_sb.append(alt)
+            prev = ref.end
+        up_sb.append(Interval(interval.chrom, prev, iend, interval.strand))
+
+        return up_sb
+
+    def _fetch(self, interval, istart, iend):
+        t_interval = Interval(interval.chrom, istart, iend, interval.strand)
+        seq = self.fasta.extract(t_interval)
+        seq = Sequence(name=interval.chrom, seq=seq, start=istart, end=iend)
+        return seq
+
+    def _cut_to_fix_len(self,  down_str, up_str, interval, anchor):
+        down_len = anchor - interval.start
+        up_len = interval.end - anchor
+        down_str = down_str[-down_len:] if down_len else ''
+        up_str = up_str[:up_len] if up_len else ''
+        return down_str, up_str
 
 
 class BaseVCFSeqExtractor(BaseExtractor):
