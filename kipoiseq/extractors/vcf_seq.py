@@ -1,5 +1,5 @@
-from pyfaidx import Sequence
 from pybedtools import Interval
+from pyfaidx import Sequence
 from kipoiseq.extractors import BaseExtractor, FastaStringExtractor
 try:
     from cyvcf2 import VCF
@@ -18,7 +18,7 @@ class MultiSampleVCF(VCF):
 
     def __init__(self, *args, **kwargs):
         from cyvcf2 import VCF
-        super().__init__(*args, **kwargs)
+        super(MultiSampleVCF, self).__init__(*args, **kwargs)
         self.sample_mapping = dict(zip(self.samples, range(len(self.samples))))
 
     def fetch_variants(self, interval, sample_id=None):
@@ -46,11 +46,11 @@ class IntervalSeqBuilder(list):
         """
         for i, interval in enumerate(self):
             # interval.end can be bigger than interval.start
-            interval.end = max(interval.start, interval.end)
+            interval_len = max(0, interval.end - interval.start)
 
             if type(self[i]) == Interval:
                 start = interval.start - sequence.start
-                end = start + interval.length
+                end = start + interval_len
                 self[i] = sequence[start: end]
 
     def _concat(self):
