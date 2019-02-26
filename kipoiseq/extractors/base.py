@@ -47,7 +47,8 @@ class FastaStringExtractor(BaseExtractor):
         rc = self.use_strand and interval.strand == "-"
 
         # pyfaidx wants a 1-based interval
-        seq = str(self.fasta.get_seq(interval.chrom, interval.start + 1, interval.stop, rc=rc).seq)
+        seq = str(self.fasta.get_seq(interval.chrom,
+                                     interval.start + 1, interval.stop, rc=rc).seq)
 
         # optionally, force upper-case letters
         if self.force_upper:

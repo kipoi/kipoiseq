@@ -32,6 +32,7 @@ test_requirements = [
     "coveralls",
     "scikit-learn",
     "cython",
+    "cyvcf2",
     # "genomelake",
     "keras",
     "tensorflow",
