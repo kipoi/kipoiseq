@@ -16,12 +16,17 @@ variables:
       name: Update pytorch
       command: |
         conda install --yes pytorch-cpu -c pytorch
-  install_pip_deps: &install_pip_deps
+  icondaall_pip_deps: &install_pip_deps
     run:
       name: Install pip dependencies
       command: |
         pip install genomelake --no-deps
         pip install pyfaidx
+  install_conda_deps: &install_conda_deps
+    run:
+      name: Install conda dependencies
+      command: |
+        conda install genomelake pyfaidx -c bioconda
   install_kipoi: &install_kipoi
     run:
       name: Install Kipoi
@@ -72,7 +77,7 @@ jobs:
       - *update_conda
       - *install_git_lfs
       - *update_pytorch
-      - *install_pip_deps
+      - *install_conda_deps
       - *install_kipoi
       - *install_kipoiseq
       - *kipoi_ls
@@ -90,7 +95,7 @@ jobs:
       - *update_conda
       - *install_git_lfs
       - *update_pytorch
-      - *install_pip_deps
+      - *install_conda_deps
       - *install_kipoi
       - *install_kipoiseq
       - *kipoi_ls
