@@ -1,2 +1,2 @@
 from .base import *
-from .vcf_seq_extractor import *
+from .vcf_seq import *

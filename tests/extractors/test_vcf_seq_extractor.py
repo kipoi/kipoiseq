@@ -2,7 +2,7 @@ import pytest
 from cyvcf2 import VCF
 from pyfaidx import Sequence
 from pybedtools import Interval
-from kipoiseq.extractors.vcf_seq_extractor import IntervalSeqBuilder
+from kipoiseq.extractors.vcf_seq import IntervalSeqBuilder
 from kipoiseq.extractors import *
 
 fasta_file = 'tests/data/sample.5kb.fa'

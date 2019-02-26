@@ -1,8 +1,10 @@
-from cyvcf2 import VCF
 from pyfaidx import Sequence
 from pybedtools import Interval
 from kipoiseq.extractors import BaseExtractor, FastaStringExtractor
-
+try:
+    from cyvcf2 import VCF
+except ImportError:
+    VCF = object
 
 __all__ = [
     'VariantSeqExtractor',
@@ -15,6 +17,7 @@ __all__ = [
 class MultiSampleVCF(VCF):
 
     def __init__(self, *args, **kwargs):
+        from cyvcf2 import VCF
         super().__init__(*args, **kwargs)
         self.sample_mapping = dict(zip(self.samples, range(len(self.samples))))
 
