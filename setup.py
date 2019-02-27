@@ -41,7 +41,7 @@ test_requirements = [
 
 setup(
     name='kipoiseq',
-    version='0.2.2',
+    version='0.2.3',
     description="kipoiseq: sequence-based data-laoders for Kipoi",
     author="Kipoi team",
     author_email='avsec@in.tum.de',
