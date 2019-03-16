@@ -162,10 +162,10 @@ class VariantSeqExtractor(BaseExtractor):
         """
         for v in variants:
             ref = Sequence(name=v.CHROM, seq=v.REF,
-                           start=v.POS, end=v.POS + len(v.REF))
+                           start=v.start, end=v.start + len(v.REF))
             # TO DO: consider alternative alleles.
             alt = Sequence(name=v.CHROM, seq=v.ALT[0],
-                           start=v.POS, end=v.POS + len(v.ALT[0]))
+                           start=v.start, end=v.start + len(v.ALT[0]))
             yield ref, alt
 
     def _split_overlapping(self, variant_pairs, anchor):
