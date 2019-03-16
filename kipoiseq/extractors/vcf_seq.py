@@ -30,7 +30,8 @@ class MultiSampleVCF(VCF):
         return '%s:%d-%d' % (interval.chrom, interval.start, interval.end)
 
     def _has_variant(self, variant, sample_id):
-        return variant.gt_types[self.sample_mapping[sample_id]] != 0
+        gt_type = variant.gt_types[self.sample_mapping[sample_id]]
+        return gt_type != 0 and gt_type != 2
 
 
 class IntervalSeqBuilder(list):

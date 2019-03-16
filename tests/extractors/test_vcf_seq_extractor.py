@@ -18,6 +18,7 @@ def test_multi_sample_vcf_fetch_variant(multi_sample_vcf):
     interval = Interval('chr1', 3, 5)
     assert len(list(multi_sample_vcf.fetch_variants(interval))) == 2
     assert len(list(multi_sample_vcf.fetch_variants(interval, 'NA00003'))) == 1
+    assert len(list(multi_sample_vcf.fetch_variants(interval, 'NA00001'))) == 0
 
     interval = Interval('chr1', 7, 12)
     assert len(list(multi_sample_vcf.fetch_variants(interval))) == 0
