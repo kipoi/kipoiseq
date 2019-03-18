@@ -30,7 +30,8 @@ class MultiSampleVCF(VCF):
         return '%s:%d-%d' % (interval.chrom, interval.start, interval.end)
 
     def _has_variant(self, variant, sample_id):
-        return variant.gt_types[self.sample_mapping[sample_id]] != 0
+        gt_type = variant.gt_types[self.sample_mapping[sample_id]]
+        return gt_type != 0 and gt_type != 2
 
 
 class IntervalSeqBuilder(list):
@@ -161,10 +162,10 @@ class VariantSeqExtractor(BaseExtractor):
         """
         for v in variants:
             ref = Sequence(name=v.CHROM, seq=v.REF,
-                           start=v.POS, end=v.POS + len(v.REF))
+                           start=v.start, end=v.start + len(v.REF))
             # TO DO: consider alternative alleles.
             alt = Sequence(name=v.CHROM, seq=v.ALT[0],
-                           start=v.POS, end=v.POS + len(v.ALT[0]))
+                           start=v.start, end=v.start + len(v.ALT[0]))
             yield ref, alt
 
     def _split_overlapping(self, variant_pairs, anchor):
