@@ -88,13 +88,9 @@ class VariantSeqExtractor(BaseExtractor):
             which to query the sequence. 0-based
           variants List[cyvcf2.Variant]: variants overlapping the `interval`.
             can also be indels. 1-based
-          anchor: position w.r.t. the interval start. (0-based). E.g.
-            for an interval of `chr1:10-20` the anchor of 0 denotes
-            the point chr1:10 in the 0-based coordinate system. Similarly,
-            `anchor=5` means the anchor point is right in the middle
-            of the sequence e.g. first half of the sequence (5nt) will be
-            upstream of the anchor and the second half (5nt) will be
-            downstream of the anchor.
+          anchor: absolution position w.r.t. the interval start. (0-based).
+            E.g. for an interval of `chr1:10-20` the anchor of 10 denotes
+            the point chr1:10 in the 0-based coordinate system.
           fixed_len: if True, the return sequence will have the same length
             as the `interval` (e.g. `interval.end - interval.start`)
 
@@ -106,7 +102,16 @@ class VariantSeqExtractor(BaseExtractor):
         variant_pairs = self._variant_to_sequence(variants)
 
         # 1. Split variants overlapping with anchor
-        variant_pairs = list(self._split_overlapping(variant_pairs, anchor))
+        # and interval start end if not fixed_len
+        variant_pairs = self._split_overlapping(variant_pairs, anchor)
+
+        if not fixed_len:
+            variant_pairs = self._split_overlapping(
+                variant_pairs, interval.start, which='right')
+            variant_pairs = self._split_overlapping(
+                variant_pairs, interval.end, which='left')
+
+        variant_pairs = list(variant_pairs)
 
         # 2. split the variants into upstream and downstream
         # and sort the variants in each interval
@@ -168,15 +173,17 @@ class VariantSeqExtractor(BaseExtractor):
                            start=v.start, end=v.start + len(v.ALT[0]))
             yield ref, alt
 
-    def _split_overlapping(self, variant_pairs, anchor):
+    def _split_overlapping(self, variant_pairs, anchor, which='both'):
         """
         Split the variants hitting the anchor into two
         """
         for ref, alt in variant_pairs:
             if ref.start < anchor < ref.end or alt.start < anchor < alt.end:
                 mid = anchor - ref.start
-                yield ref[:mid], alt[:mid]
-                yield ref[mid:], alt[mid:]
+                if which == 'left' or which == 'both':
+                    yield ref[:mid], alt[:mid]
+                if which == 'right' or which == 'both':
+                    yield ref[mid:], alt[mid:]
             else:
                 yield ref, alt
 
@@ -201,7 +208,7 @@ class VariantSeqExtractor(BaseExtractor):
 
         prev = anchor
         for ref, alt in down_variants:
-            if ref.end <= istart:
+            if ref.end < istart:
                 break
             down_sb.append(Interval(interval.chrom, ref.end, prev))
             down_sb.append(alt)
@@ -239,7 +246,17 @@ class VariantSeqExtractor(BaseExtractor):
 
 
 class BaseVCFSeqExtractor(BaseExtractor):
+    """
+    Base class to fetch sequence in which variants applied based
+    on given vcf file.
+    """
+
     def __init__(self, fasta_file, vcf_file):
+        """
+        Args:
+          fasta_file: path to the fasta file (can be gzipped)
+          vcf_file: path to the fasta file (need be bgzipped and indexed)
+        """
         self.fasta_file = fasta_file
         self.vcf_file = vcf_file
         self.variant_extractor = VariantSeqExtractor(fasta_file)
@@ -247,6 +264,10 @@ class BaseVCFSeqExtractor(BaseExtractor):
 
 
 class SingleVariantVCFSeqExtractor(BaseVCFSeqExtractor):
+    """
+    Fetch list of sequence in which each variant applied based
+    on given vcf file.
+    """
 
     def extract(self, interval, anchor=None, sample_id=None, fixed_len=True):
         for variant in self.vcf.fetch_variants(interval, sample_id):
@@ -257,6 +278,9 @@ class SingleVariantVCFSeqExtractor(BaseVCFSeqExtractor):
 
 
 class SingleSeqVCFSeqExtractor(BaseVCFSeqExtractor):
+    """
+    Fetch sequence in which all variant applied based on given vcf file.
+    """
 
     def extract(self, interval, anchor=None, sample_id=None, fixed_len=True):
         return self.variant_extractor.extract(

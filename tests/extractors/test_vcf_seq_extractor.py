@@ -92,15 +92,14 @@ def test__split_overlapping(variant_seq_extractor):
 
 
 def test_extract(variant_seq_extractor):
-    interval = Interval('chr1', 2, 9)
-
     variants = list(VCF(vcf_file)())
+
+    interval = Interval('chr1', 2, 9)
     seq = variant_seq_extractor.extract(interval, variants, anchor=5)
     assert len(seq) == interval.end - interval.start
     assert seq == 'GCGAACG'
 
     interval = Interval('chr1', 2, 9, strand='-')
-    variants = list(VCF(vcf_file)())
     seq = variant_seq_extractor.extract(interval, variants, anchor=5)
     assert len(seq) == interval.end - interval.start
     assert seq == 'CGTTCGC'
@@ -139,6 +138,11 @@ def test_extract(variant_seq_extractor):
     seq = variant_seq_extractor.extract(interval, variants, anchor=100)
     assert len(seq) == interval.end - interval.start
     assert seq == 'AACGTAACGT'
+
+    interval = Interval('chr1', 5, 11, strand='+')
+    seq = variant_seq_extractor.extract(
+        interval, variants, anchor=10, fixed_len=False)
+    assert seq == 'AACGTAA'
 
 
 @pytest.fixture
