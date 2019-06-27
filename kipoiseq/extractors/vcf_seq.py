@@ -178,7 +178,7 @@ class VariantSeqExtractor(BaseExtractor):
         Split the variants hitting the anchor into two
         """
         for ref, alt in variant_pairs:
-            if ref.start < anchor < ref.end or alt.start < anchor < alt.end:
+            if ref.start < anchor < ref.end:
                 mid = anchor - ref.start
                 if which == 'left' or which == 'both':
                     yield ref[:mid], alt[:mid]
@@ -208,7 +208,7 @@ class VariantSeqExtractor(BaseExtractor):
 
         prev = anchor
         for ref, alt in down_variants:
-            if ref.end < istart:
+            if ref.end <= istart:
                 break
             down_sb.append(Interval(interval.chrom, ref.end, prev))
             down_sb.append(alt)
@@ -223,7 +223,7 @@ class VariantSeqExtractor(BaseExtractor):
 
         prev = anchor
         for ref, alt in up_variants:
-            if ref.start > iend:
+            if ref.start >= iend:
                 break
             up_sb.append(Interval(interval.chrom, prev, ref.start))
             up_sb.append(alt)
@@ -241,7 +241,7 @@ class VariantSeqExtractor(BaseExtractor):
         down_len = anchor - interval.start
         up_len = interval.end - anchor
         down_str = down_str[-down_len:] if down_len else ''
-        up_str = up_str[:up_len] if up_len else ''
+        up_str = up_str[: up_len] if up_len else ''
         return down_str, up_str
 
 
