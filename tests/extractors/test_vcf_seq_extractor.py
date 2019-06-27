@@ -81,28 +81,29 @@ def test__split_overlapping(variant_seq_extractor):
     assert splited_pairs[1][0].seq == 'A'
     assert splited_pairs[1][1].seq == ''
 
-    pair = (Sequence(seq='T', start=3, end=4),
+    pair = (Sequence(seq='TT', start=3, end=5),
             Sequence(seq='AAA', start=3, end=6))
-    splited_pairs = list(variant_seq_extractor._split_overlapping([pair], 5))
+    splited_pairs = list(variant_seq_extractor._split_overlapping([pair], 4))
 
     assert splited_pairs[0][0].seq == 'T'
-    assert splited_pairs[0][1].seq == 'AA'
-    assert splited_pairs[1][0].seq == ''
-    assert splited_pairs[1][1].seq == 'A'
+    assert splited_pairs[0][1].seq == 'A'
+    assert splited_pairs[1][0].seq == 'T'
+    assert splited_pairs[1][1].seq == 'AA'
 
 
 def test_extract(variant_seq_extractor):
     variants = list(VCF(vcf_file)())
 
     interval = Interval('chr1', 2, 9)
+
     seq = variant_seq_extractor.extract(interval, variants, anchor=5)
     assert len(seq) == interval.end - interval.start
-    assert seq == 'GCGAACG'
+    assert seq == 'CGAACGT'
 
     interval = Interval('chr1', 2, 9, strand='-')
     seq = variant_seq_extractor.extract(interval, variants, anchor=5)
     assert len(seq) == interval.end - interval.start
-    assert seq == 'CGTTCGC'
+    assert seq == 'ACGTTCG'
 
     interval = Interval('chr1', 4, 14)
     seq = variant_seq_extractor.extract(interval, variants, anchor=7)
@@ -142,7 +143,12 @@ def test_extract(variant_seq_extractor):
     interval = Interval('chr1', 5, 11, strand='+')
     seq = variant_seq_extractor.extract(
         interval, variants, anchor=10, fixed_len=False)
-    assert seq == 'AACGTAA'
+    assert seq == 'ACGTAA'
+
+    interval = Interval('chr1', 0, 3, strand='+')
+    seq = variant_seq_extractor.extract(
+        interval, variants, anchor=10, fixed_len=False)
+    assert seq == 'ACG'
 
 
 @pytest.fixture
