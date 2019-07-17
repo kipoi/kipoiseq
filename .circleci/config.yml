@@ -6,7 +6,7 @@ variables:
       name: install build essentials
       command: |
         apt-get update
-        apt-get install build-essential
+        apt-get install build-essential -y
   update_conda: &update_conda
     run:
       name: Update conda
