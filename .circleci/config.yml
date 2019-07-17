@@ -5,6 +5,11 @@ variables:
     run:
       name: Update conda
       command: conda update --yes conda
+  install_conda_packages: &install_conda_packages
+    run:
+      name: Install conda packages
+      conda install -yes c conda-forge icu==58.2
+
   install_git_lfs: &install_git_lfs
     run:
       name: Install git-lfs
@@ -76,6 +81,7 @@ jobs:
       - checkout
       - *update_conda
       - *install_git_lfs
+      - *install_conda_packages
       - *update_pytorch
       - *install_conda_deps
       - *install_kipoi
@@ -86,22 +92,7 @@ jobs:
       - *store_test_results
       - *store_test_artifacts
 
-  test-py27:
-    docker:
-      - image: kipoi/miniconda:4.3.14
-    working_directory: ~/repo
-    steps:
-      - checkout
-      - *update_conda
-      - *install_git_lfs
-      - *update_pytorch
-      - *install_conda_deps
-      - *install_kipoi
-      - *install_kipoiseq
-      - *kipoi_ls
-      - *run_tests
-      - *store_test_results
-      - *store_test_artifacts
+
 
   build-deploy-docs:
     docker:
@@ -142,11 +133,9 @@ workflows:
   test:
     jobs:
       - test-py36
-      - test-py27
       - build-deploy-docs:
           requires:
             - test-py36
-            - test-py27
           filters:
             branches:
               only:
