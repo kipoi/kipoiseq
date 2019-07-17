@@ -1,6 +1,10 @@
 version: 2
 
 variables:
+  install_build_essential: &install_build_essential
+    run:
+      name: install build essentials
+      command: apt-get install build-essential
   update_conda: &update_conda
     run:
       name: Update conda
@@ -89,6 +93,7 @@ jobs:
     working_directory: ~/repo
     steps:
       - checkout
+      - *install_build_essential
       - *update_conda
       - *create_env
       - *update_pytorch
