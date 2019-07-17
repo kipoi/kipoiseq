@@ -54,7 +54,9 @@ variables:
   install_kipoiseq: &install_kipoiseq
     run:
       name: Install kipoiseq
-      command: pip install '.[develop]'
+      command: |
+      source activate kipoi-dev
+      pip install '.[develop]'
   install_requests: &install_requests
     run:
       name: Install requirements for requests correctly
