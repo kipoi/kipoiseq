@@ -48,7 +48,7 @@ variables:
       name: Install Kipoi
       command: |
         source activate kipoi-dev
-          cd kipoi_pkg
+        cd kipoi_pkg
         pip install '.'
         cd ..
   install_kipoiseq: &install_kipoiseq
