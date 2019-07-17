@@ -9,7 +9,7 @@ variables:
     run:
       name: Install conda packages
       command: |
-        conda install --yes c conda-forge icu==58.2
+        conda install --yes -c conda-forge icu==58.2
 
   install_git_lfs: &install_git_lfs
     run:
