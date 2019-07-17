@@ -5,32 +5,41 @@ variables:
     run:
       name: Update conda
       command: conda update --yes conda
+  create_env: &create_env
+    run:
+      name: Update conda
+      command: conda create -n kipoi-dev python=3.6
   install_git_lfs: &install_git_lfs
     run:
       name: Install git-lfs
       command: |
+        source activate kipoi-dev
         conda install --yes -c conda-forge git-lfs
         cp .circleci/gitconfig ~/.gitconfig
   update_pytorch: &update_pytorch
     run:
       name: Update pytorch
       command: |
+        source activate kipoi-dev
         conda install --yes pytorch-cpu -c pytorch
   icondaall_pip_deps: &install_pip_deps
     run:
       name: Install pip dependencies
       command: |
+        source activate kipoi-dev
         pip install genomelake --no-deps
         pip install pyfaidx
   install_conda_deps: &install_conda_deps
     run:
       name: Install conda dependencies
       command: |
+        source activate kipoi-dev
         conda install genomelake pyfaidx -c bioconda
   install_kipoi: &install_kipoi
     run:
       name: Install Kipoi
       command: |
+        source activate kipoi-dev
         git clone git@github.com:kipoi/kipoi.git kipoi_pkg
         cd kipoi_pkg
         pip install '.'
@@ -42,11 +51,15 @@ variables:
   install_requests: &install_requests
     run:
       name: Install requirements for requests correctly
-      command: pip install requests
+      command: |
+        source activate kipoi-dev
+        pip install requests
   kipoi_ls: &kipoi_ls
     run:
       name: List kipoi packages
-      command: kipoi ls
+      command: |
+        source activate kipoi-dev
+        kipoi ls
   run_tests: &run_tests
     run:
       name: Run tests
@@ -56,7 +69,9 @@ variables:
   run_coveralls: &run_coveralls
     run:
       name: run coveralls
-      command: coveralls || true
+      command: |
+          source activate kipoi-dev
+          coveralls || true
   store_test_results: &store_test_results
     store_test_results:
       path: test-reports
@@ -75,6 +90,7 @@ jobs:
     steps:
       - checkout
       - *update_conda
+      - *create_env
       - *update_pytorch
       - *install_conda_deps
       - *install_kipoi
