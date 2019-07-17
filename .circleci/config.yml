@@ -76,7 +76,7 @@ jobs:
 
   test-py36:
     docker:
-      - image: continuumio/miniconda3:4.5.12
+      - image: kipoi/miniconda3:4.5.12
     working_directory: ~/repo
     steps:
       - checkout
@@ -94,6 +94,7 @@ jobs:
 
 
 
+  build-deploy-docs:
     docker:
       - image: continuumio/miniconda3:4.5.12
       #- image: kipoi/miniconda3:4.3.14
