@@ -71,6 +71,7 @@ variables:
     run:
       name: Run tests
       command: |
+        source activate kipoi-dev
         mkdir test-reports
         py.test --cov=kipoiseq/ tests/ -n 1 --no-cov-on-fail --junitxml=test-reports/junit.xml
   run_coveralls: &run_coveralls
