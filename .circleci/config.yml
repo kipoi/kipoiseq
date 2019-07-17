@@ -81,7 +81,7 @@ jobs:
     steps:
       - checkout
       - *update_conda
-      - *install_git_lfs
+      #- *install_git_lfs
       - *install_conda_packages
       - *update_pytorch
       - *install_conda_deps
