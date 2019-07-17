@@ -75,7 +75,7 @@ jobs:
     steps:
       - checkout
       - *update_conda
-      - *install_git_lfs
+      # - *install_git_lfs
       - *update_pytorch
       - *install_conda_deps
       - *install_kipoi
@@ -93,7 +93,7 @@ jobs:
     steps:
       - checkout
       - *update_conda
-      - *install_git_lfs
+      #- *install_git_lfs
       - *update_pytorch
       - *install_conda_deps
       - *install_kipoi
