@@ -13,7 +13,7 @@ variables:
       command: conda update --yes conda
   create_env: &create_env
     run:
-      name: Update conda
+      name: create env
       command: |
         git clone git@github.com:kipoi/kipoi.git kipoi_pkg
         conda env create  -f kipoi_pkg/dev-requirements-py36.yml
