@@ -5,12 +5,6 @@ variables:
     run:
       name: Update conda
       command: conda update --yes conda
-  install_conda_packages: &install_conda_packages
-    run:
-      name: Install conda packages
-      command: |
-        conda install --yes -c conda-forge icu==58.2
-
   install_git_lfs: &install_git_lfs
     run:
       name: Install git-lfs
@@ -81,7 +75,6 @@ jobs:
     steps:
       - checkout
       - *update_conda
-      - *install_conda_packages
       - *update_pytorch
       - *install_conda_deps
       - *install_kipoi
