@@ -1,12 +1,6 @@
 version: 2
 
 variables:
-  install_build_essential: &install_build_essential
-    run:
-      name: install build essentials
-      command: |
-        apt-get update
-        apt-get install build-essential libz-dev libssl-dev libcurl4-openssl-dev -y
   update_conda: &update_conda
     run:
       name: Update conda
@@ -99,7 +93,6 @@ jobs:
     working_directory: ~/repo
     steps:
       - checkout
-      #- *install_build_essential
       - *update_conda
       - *create_env
       - *update_pytorch
@@ -117,9 +110,6 @@ jobs:
   build-deploy-docs:
     docker:
       - image: continuumio/miniconda3:4.5.12
-      #- image: kipoi/miniconda3:4.3.14
-      # - image: continuumio/anaconda3:5.0.1
-      # - image: circleci/python:3.5
     working_directory: ~/repo
     steps:
       - add_ssh_keys:
@@ -134,7 +124,6 @@ jobs:
           command: pip install -e .
       - run:
           name: Install build deps
-          # use custom pydoc-markdown
           command: pip install nbconvert mkdocs git+https://github.com/kipoi/pydoc-markdown@master
       - run:
           name: Build docs
@@ -149,7 +138,6 @@ jobs:
 
 workflows:
   version: 2
-
   test:
     jobs:
       - test-py36
