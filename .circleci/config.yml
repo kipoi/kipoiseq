@@ -116,25 +116,29 @@ jobs:
           fingerprints:
             - e3:44:16:ec:72:df:ae:59:82:c2:ee:57:4a:52:71:aa
       - checkout
-      - run:
-          name: Install pip Kipoi
-          command: pip install git+https://github.com/kipoi/kipoi@master
-      - run:
-          name: Install pip kipoiseq
-          command: pip install -e .
+      - *update_conda
+      - *create_env
+      - *install_conda_deps
+      - *install_kipoi
+      - *install_kipoiseq
       - run:
           name: Install build deps
-          command: pip install nbconvert mkdocs git+https://github.com/kipoi/pydoc-markdown@master
+          command: |
+            source activate kipoi-dev
+            pip install nbconvert mkdocs git+https://github.com/kipoi/pydoc-markdown@master
       - run:
           name: Build docs
           command: |
+            source activate kipoi-dev
             cd docs/
             mkdir -p theme_dir/img/ipynb/
             ./render_ipynb.bash
             pydocmd build
       - run:
           name: Deploy docs
-          command: .circleci/deploy_docs.bash
+          command: |
+            source activate kipoi-dev
+            .circleci/deploy_docs.bash
 
 workflows:
   version: 2
