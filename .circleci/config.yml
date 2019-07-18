@@ -5,32 +5,42 @@ variables:
     run:
       name: Update conda
       command: conda update --yes conda
+  create_env: &create_env
+    run:
+      name: create env
+      command: |
+        conda create -n kipoi-dev python=3.6
   install_git_lfs: &install_git_lfs
     run:
       name: Install git-lfs
       command: |
+        source activate kipoi-dev
         conda install --yes -c conda-forge git-lfs
         cp .circleci/gitconfig ~/.gitconfig
   update_pytorch: &update_pytorch
     run:
       name: Update pytorch
       command: |
+        source activate kipoi-dev
         conda install --yes pytorch-cpu -c pytorch
   icondaall_pip_deps: &install_pip_deps
     run:
       name: Install pip dependencies
       command: |
+        source activate kipoi-dev
         pip install genomelake --no-deps
         pip install pyfaidx
   install_conda_deps: &install_conda_deps
     run:
       name: Install conda dependencies
       command: |
-        conda install genomelake pyfaidx -c bioconda
+        source activate kipoi-dev
+        conda install -c bioconda cyvcf2 pybedtools genomelake pyfaidx 
   install_kipoi: &install_kipoi
     run:
       name: Install Kipoi
       command: |
+        source activate kipoi-dev
         git clone git@github.com:kipoi/kipoi.git kipoi_pkg
         cd kipoi_pkg
         pip install '.'
@@ -38,25 +48,34 @@ variables:
   install_kipoiseq: &install_kipoiseq
     run:
       name: Install kipoiseq
-      command: pip install '.[develop]'
+      command: |
+        source activate kipoi-dev
+        pip install '.[develop]'
   install_requests: &install_requests
     run:
       name: Install requirements for requests correctly
-      command: pip install requests
+      command: |
+        source activate kipoi-dev
+        pip install requests
   kipoi_ls: &kipoi_ls
     run:
       name: List kipoi packages
-      command: kipoi ls
+      command: |
+        source activate kipoi-dev
+        kipoi ls
   run_tests: &run_tests
     run:
       name: Run tests
       command: |
+        source activate kipoi-dev
         mkdir test-reports
         py.test --cov=kipoiseq/ tests/ -n 1 --no-cov-on-fail --junitxml=test-reports/junit.xml
   run_coveralls: &run_coveralls
     run:
       name: run coveralls
-      command: coveralls || true
+      command: |
+          source activate kipoi-dev
+          coveralls || true
   store_test_results: &store_test_results
     store_test_results:
       path: test-reports
@@ -70,12 +89,12 @@ jobs:
 
   test-py36:
     docker:
-      - image: kipoi/miniconda3:4.3.14
+      - image: continuumio/miniconda3:4.5.12
     working_directory: ~/repo
     steps:
       - checkout
       - *update_conda
-      - *install_git_lfs
+      - *create_env
       - *update_pytorch
       - *install_conda_deps
       - *install_kipoi
@@ -86,29 +105,11 @@ jobs:
       - *store_test_results
       - *store_test_artifacts
 
-  test-py27:
-    docker:
-      - image: kipoi/miniconda:4.3.14
-    working_directory: ~/repo
-    steps:
-      - checkout
-      - *update_conda
-      - *install_git_lfs
-      - *update_pytorch
-      - *install_conda_deps
-      - *install_kipoi
-      - *install_kipoiseq
-      - *kipoi_ls
-      - *run_tests
-      - *store_test_results
-      - *store_test_artifacts
+
 
   build-deploy-docs:
     docker:
-      # - image: continuumio/miniconda3:4.3.14
-      - image: kipoi/miniconda3:4.3.14
-      # - image: continuumio/anaconda3:5.0.1
-      # - image: circleci/python:3.5
+      - image: continuumio/miniconda3:4.5.12
     working_directory: ~/repo
     steps:
       - add_ssh_keys:
@@ -123,7 +124,6 @@ jobs:
           command: pip install -e .
       - run:
           name: Install build deps
-          # use custom pydoc-markdown
           command: pip install nbconvert mkdocs git+https://github.com/kipoi/pydoc-markdown@master
       - run:
           name: Build docs
@@ -138,15 +138,12 @@ jobs:
 
 workflows:
   version: 2
-
   test:
     jobs:
       - test-py36
-      - test-py27
       - build-deploy-docs:
           requires:
             - test-py36
-            - test-py27
           filters:
             branches:
               only:
