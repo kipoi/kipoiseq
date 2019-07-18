@@ -15,8 +15,7 @@ variables:
     run:
       name: create env
       command: |
-        git clone git@github.com:kipoi/kipoi.git kipoi_pkg
-        conda env create  -f kipoi_pkg/dev-requirements-py36.yml
+        conda create -n kipoi-dev python=3.6
   install_git_lfs: &install_git_lfs
     run:
       name: Install git-lfs
@@ -48,6 +47,7 @@ variables:
       name: Install Kipoi
       command: |
         source activate kipoi-dev
+        git clone git@github.com:kipoi/kipoi.git kipoi_pkg
         cd kipoi_pkg
         pip install '.'
         cd ..
@@ -99,7 +99,7 @@ jobs:
     working_directory: ~/repo
     steps:
       - checkout
-      - *install_build_essential
+      #- *install_build_essential
       - *update_conda
       - *create_env
       - *update_pytorch
