@@ -14,26 +14,27 @@ from tqdm import tqdm
 gff_file = 'data/protein/Homo_sapiens.GRCh38.97.chromosome.22.gff3.gz'
 gtf_file = 'data/protein/Homo_sapiens.GRCh38.97.chr.chr22.gtf.gz'
 gtf_full_file = 'data/protein/Homo_sapiens.GRCh38.97.chr.gtf.gz'
-fasta_file = 'data/protein/Homo_sapiens.GRCh38.dna.chromosome.22.fa'
+fasta_file = 'data/protein/Homo_sapiens.GRCh38.dna.primary_assembly.fa'
 protein_file = 'data/protein/Homo_sapiens.GRCh38.pep.all.fa'
-gtf = pr.read_gtf(gtf_file, output_df=True)
 
-gtf_full = pr.read_gtf(gtf_full_file, output_df=True)
+# gtf = pr.read_gtf(gtf_file, output_df=True)
 
-gff = pr.read_gff(gff_file, full=True)
+# gtf_full = pr.read_gtf(gtf_full_file, output_df=True)
 
-df = gtf_full
+# gff = pr.read_gff(gff_file, full=True)
 
-df = df[(df.transcript_biotype == 'protein_coding')]
-df[(df.transcript_biotype == 'protein_coding') & (~df.protein_id.isna()) & (df.exon_number == '1')]
-np.sum((df.transcript_biotype == 'protein_coding') & (df.Feature == 'transcript'))
-dict(df.Feature.value_counts())
-df[df.Feature == 'transcript'].transcript_biotype.value_counts()
-# 43469
+# df = gtf_full
 
-assert not df[df.Feature == 'transcript'].transcript_id.duplicated().any()
+# df = df[(df.transcript_biotype == 'protein_coding')]
+# df[(df.transcript_biotype == 'protein_coding') & (~df.protein_id.isna()) & (df.exon_number == '1')]
+# np.sum((df.transcript_biotype == 'protein_coding') & (df.Feature == 'transcript'))
+# dict(df.Feature.value_counts())
+# df[df.Feature == 'transcript'].transcript_biotype.value_counts()
+# # 43469
 
-len(df)
+# assert not df[df.Feature == 'transcript'].transcript_id.duplicated().any()
+
+# len(df)
 
 
 def read_pep_fa(protein_file):
@@ -48,16 +49,16 @@ def read_pep_fa(protein_file):
     return pd.DataFrame(pl)
 
 
-dfp = read_pep_fa(protein_file)
-dfp.transcript_biotype.value_counts()
-assert not dfp.transcript.duplicated().any()
+# dfp = read_pep_fa(protein_file)
+# dfp.transcript_biotype.value_counts()
+# assert not dfp.transcript.duplicated().any()
 
-df[df.Feature == 'transcript'].transcript_id.duplicated().any()
+# df[df.Feature == 'transcript'].transcript_id.duplicated().any()
 
-cds = df[(df.Feature == 'CDS')].set_index('transcript_id')
+# cds = df[(df.Feature == 'CDS')].set_index('transcript_id')
 
-transcript_id = 'ENST00000252835'
-transcript_id = 'ENST00000395590'
+# transcript_id = 'ENST00000252835'
+# transcript_id = 'ENST00000395590'
 
 
 def gtf_row2interval(row):
@@ -83,6 +84,11 @@ class GenomeCDSSeq:
                     .query("Feature == 'CDS'")
                     .query("tag == 'basic'")
                     .set_index('transcript_id'))
+        # filter valid transcripts
+        self.cds = self.cds[~self.cds.transcript_support_level.isnull()]
+        self.cds = self.cds[self.cds.transcript_support_level != 'NA']
+        self.cds.transcript_support_level = self.cds.transcript_support_level.astype(int)
+        self.cds = self.cds[~self.cds.transcript_support_level.isna()]
         self.cds_exons = pr.PyRanges(self.cds.reset_index())
         self.transcripts = self.cds.index.unique()
 
@@ -97,7 +103,6 @@ class GenomeCDSSeq:
             # single exon
             strand = cds_exons.Strand
             intervals = [gtf_row2interval(cds_exons)]
-            pass
         else:
             # multiple exons
             strand = cds_exons.iloc[0].Strand
@@ -154,29 +159,47 @@ assert not dfp['transcript_id'].duplicated().any()
 dfp = dfp.set_index("transcript_id")
 dfp = dfp[~dfp.chromosome.isnull()]
 
-gps = GenomeCDSSeq(gtf_file, fasta_file)
+gps = GenomeCDSSeq(gtf_full_file, fasta_file)
 assert gps.transcripts.isin(dfp.index).all()
 
-transcript_id = 'ENST00000640668'
+transcript_id = 'ENST00000485079'
 div3_error = 0
 seq_mismatch_err = 0
+err_transcripts = []
 for transcript_id in tqdm(gps.transcripts):
     # make sure all ids can be found in the proteome
     dna_seq = gps.get_seq(transcript_id)
     # dna_seq = dna_seq[:(len(dna_seq) // 3) * 3]
-
+    if len(dna_seq) % 3 != 0:
+        div3_error += 1
+        print(f"len(dna_seq) % 3 != 0: {transcript_id}")
+        err_transcripts.append({"transcript_id": transcript_id, "div3_err": True})
+        continue
     prot_seq = translate(dna_seq)
     if dfp.loc[transcript_id].seq != prot_seq:
         seq_mismatch_err += 1
         print(f"seq.mismatch: {transcript_id}")
+        n_mismatch = 0
         for i in range(len(prot_seq)):
             a = dfp.loc[transcript_id].seq[i]
             b = prot_seq[i]
             if a != b:
+                n_mismatch += 1
                 print(f"{a} {b} {i}/{len(prot_seq)}")
+        err_transcripts.append({"transcript_id": transcript_id, "div3_err": False,
+                                "n-seq-mismatch": n_mismatch})
         # print("prot:", dfp.loc[transcript_id].seq)
         # print("seq: ", prot_seq)
+err_transcripts = pd.DataFrame(err_transcripts)
+err_cds.to_csv("data/protein/err_cds.csv")
+err_transcripts.to_csv("data/protein/err_transcripts.csv")
 
+# len(dna_seq) % 3 != 0: ENST00000625258
+# len(dna_seq) % 3 != 0: ENST00000485079
+# len(dna_seq) % 3 != 0: ENST00000638880
+# len(dna_seq) % 3 != 0: ENST00000606910
+# len(dna_seq) % 3 != 0: ENST00000412982
+# seq.mismatch: ENST00000606505
 # TODO - run this for all the sequences
 
 # they use U for the stop
