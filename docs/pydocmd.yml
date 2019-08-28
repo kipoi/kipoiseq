@@ -22,7 +22,7 @@ google_analytics: ["UA-115025493-1", "kipoi.org"]
 # documented. Higher indentation leads to smaller header size.
 generate:
   - extractors.md:
-    - kipoiseq.extractors+
+    - kipoiseq.extractors.vcf_seq+
   - transforms/functional.md:
     - kipoiseq.transforms.functional+
   - transforms/transforms.md:

@@ -2,11 +2,18 @@ import pytest
 from cyvcf2 import VCF
 from pyfaidx import Sequence
 from pybedtools import Interval
-from kipoiseq.extractors.vcf_seq import IntervalSeqBuilder
+from kipoiseq.extractors.vcf_seq import IntervalSeqBuilder, VCFQueryable
 from kipoiseq.extractors import *
 
 fasta_file = 'tests/data/sample.5kb.fa'
 vcf_file = 'tests/data/test.vcf.gz'
+
+
+intervals = [
+    Interval('chr1', 4, 10),
+    Interval('chr1', 5, 30),
+    Interval('chr1', 20, 30)
+]
 
 
 @pytest.fixture
@@ -23,6 +30,68 @@ def test_multi_sample_vcf_fetch_variant(multi_sample_vcf):
     interval = Interval('chr1', 7, 12)
     assert len(list(multi_sample_vcf.fetch_variants(interval))) == 0
     assert len(list(multi_sample_vcf.fetch_variants(interval, 'NA00003'))) == 0
+
+
+def test_query_variants(multi_sample_vcf):
+    vq = multi_sample_vcf.query_variants(intervals)
+    variants = list(vq)
+    assert len(variants) == 5
+    assert variants[0].end == 4
+    assert variants[1].end == 5
+
+
+def test_get_samples(multi_sample_vcf):
+    variants = list(multi_sample_vcf)
+    samples = multi_sample_vcf.get_samples(variants[0])
+    assert samples == {'NA00003': 3}
+
+
+def test_get_variant_by_id(multi_sample_vcf):
+    variant = multi_sample_vcf.get_variant_by_id("chr1:4:T:['C']")
+    assert variant.CHROM == 'chr1'
+    assert variant.POS == 4
+    assert variant.REF == 'T'
+    assert variant.ALT[0] == 'C'
+
+
+@pytest.fixture
+def vcf_queryable(multi_sample_vcf):
+    variants = [(multi_sample_vcf.fetch_variants(i), i) for i in intervals]
+    return VCFQueryable(multi_sample_vcf, variants)
+
+
+def test_VCFQueryable__iter__(vcf_queryable):
+    variants = list(vcf_queryable)
+    assert len(variants) == 5
+    assert variants[0].REF == 'T'
+    assert variants[0].ALT[0] == 'C'
+
+
+def test_VCFQueryable_filter_all(vcf_queryable):
+    assert 2 == len(list(vcf_queryable.filter_all(
+        lambda variants, interval: (v.REF == 'A' for v in variants))))
+
+
+def test_VCFQueryable_filter_by_num_max(vcf_queryable):
+    assert 1 == len(list(vcf_queryable.filter_by_num(max_num=1)))
+
+
+def test_VCFQueryable_filter_by_num_min(vcf_queryable):
+    assert 4 == len(list(vcf_queryable.filter_by_num(min_num=2)))
+
+
+def test_VCFQueryable_to_vcf(tmpdir, vcf_queryable):
+    output_vcf_file = str(tmpdir / 'output.vcf')
+
+    vcf_queryable \
+        .filter_by_num(max_num=1) \
+        .to_vcf(output_vcf_file)
+
+    vcf = MultiSampleVCF(output_vcf_file)
+    variants = list(vcf)
+    assert len(variants) == 1
+    assert variants[0].REF == 'AACG'
+    assert variants[0].ALT[0] == 'GA'
 
 
 @pytest.fixture
