@@ -1,3 +1,4 @@
+from collections import defaultdict
 from tqdm import tqdm
 from pybedtools import Interval
 from pyfaidx import Sequence, complement
@@ -16,7 +17,12 @@ __all__ = [
 ]
 
 
-class BaseVCFAllQuery:
+class BaseQuery:
+    # TODO: implement and, or functionity
+    pass
+
+
+class BaseVariantAllQuery(BaseQuery):
     """
     Closure for filtering variant-interval pairs.
     """
@@ -27,7 +33,7 @@ class BaseVCFAllQuery:
         raise NotImplementedError
 
 
-class BaseVCFQuery:
+class BaseVariantQuery(BaseQuery):
     """
     Closure for filtering variants.
     """
@@ -38,7 +44,29 @@ class BaseVCFQuery:
         raise NotImplementedError
 
 
-class VCFNumberQuery(BaseVCFAllQuery):
+class BaseSampleAllQuery(BaseQuery):
+    """
+    Closure for filtering variant-interval pairs.
+    """
+
+    # TODO: implement and, or functionity
+
+    def __call__(self, variants, interval, sample=None):
+        raise NotImplementedError
+
+
+class BaseSampleQuery(BaseQuery):
+    """
+    Closure for filtering variants.
+    """
+
+    # TODO: implement and, or functionity
+
+    def __call__(self, variant, sample=None):
+        raise NotImplementedError
+
+
+class NumberVariantQuery(BaseVariantAllQuery):
     """
     Closure for variant query. Filter variants for interval
       if number of variants in given limits.
@@ -56,7 +84,7 @@ class VCFNumberQuery(BaseVCFAllQuery):
             return [False] * len(variants)
 
 
-class VCFQueryable:
+class VariantQueryable:
 
     def __init__(self, vcf, variants, progress=False):
         """
@@ -94,7 +122,7 @@ class VCFQueryable:
           query: function which get variants and an interval as input
             and filtered iter of variants.
         """
-        return VCFQueryable(self.vcf, self._filter_all(query))
+        return VariantQueryable(self.vcf, self._filter_all(query))
 
     def _filter_all(self, query):
         for variants, interval in self.variants:
@@ -117,7 +145,7 @@ class VCFQueryable:
                 .query_variants(intervals) \
                 .filter_by_num_variant(max_num=1)
         """
-        return self.filter_all(VCFNumberQuery(max_num, min_num))
+        return self.filter_all(NumberVariantQuery(max_num, min_num))
 
     def to_vcf(self, path):
         """
@@ -132,9 +160,51 @@ class VCFQueryable:
             writer.write_record(v)
 
 
+class SampleQueryable:
+    def __init__(self, vcf, variants, progress=False):
+        """
+        Query object of variants.
+
+        Args:
+          vcf: cyvcf2.VCF objects.
+          variants: iter of (Dict[sample, variants], interval) tuples.
+        """
+        self.vcf = vcf
+        if progress:
+            self.variants = tqdm(variants)
+        else:
+            self.variants = variants
+
+    def __iter__(self):
+        for sample_variants, interval in self.variants:
+            yield sample_variants
+
+    def filter(self, query):
+        """
+        Filters variant given conduction.
+
+        Args:
+          query: function which get a variant as input and filtered iter of
+            variants.
+        """
+        # TODO: support sample query and variant query
+        raise NotImplementedError()
+
+    def filter_all(self, query):
+        """
+        Filters variant given conduction.
+
+        Args:
+          query: function which get variants, an interval, sample as input
+            and filtered iter of variants.
+        """
+        # TODO: support sample query and variant query
+        raise NotImplementedError()
+
+
 class MultiSampleVCF(VCF):
     """
-    Extended cyvcf2.VCF class for kipoiseq. It contains feature like 
+    Extended cyvcf2.VCF class for kipoiseq. It contains feature like
       querying variants or fetching variants with variant_id string.
     """
 
@@ -142,6 +212,16 @@ class MultiSampleVCF(VCF):
         from cyvcf2 import VCF
         super(MultiSampleVCF, self).__init__(*args, **kwargs)
         self.sample_mapping = dict(zip(self.samples, range(len(self.samples))))
+
+    def _region(self, interval):
+        return '%s:%d-%d' % (interval.chrom, interval.start, interval.end)
+
+    def _has_variant(self, variant, sample_id):
+        gt_type = variant.gt_types[self.sample_mapping[sample_id]]
+        return self._has_variant_gt(gt_type)
+
+    def _has_variant_gt(self, gt_type):
+        return gt_type != 0 and gt_type != 2
 
     def fetch_variants(self, interval, sample_id=None):
         """
@@ -178,30 +258,7 @@ class MultiSampleVCF(VCF):
         """
         pairs = ((self.fetch_variants(i, sample_id=sample_id), i)
                  for i in intervals)
-        return VCFQueryable(self, pairs, progress=progress)
-
-    def _region(self, interval):
-        return '%s:%d-%d' % (interval.chrom, interval.start, interval.end)
-
-    def _has_variant(self, variant, sample_id):
-        gt_type = variant.gt_types[self.sample_mapping[sample_id]]
-        return self._has_variant_gt(gt_type)
-
-    def _has_variant_gt(self, gt_type):
-        return gt_type != 0 and gt_type != 2
-
-    def get_samples(self, variant):
-        """
-        Fetchs sample names which have given variants
-
-        Args:
-          variant: variant object.
-
-        Returns:
-          List[str]: List of sample names.
-        """
-        return dict(filter(lambda x: self._has_variant_gt(x[1]),
-                           zip(self.samples, variant.gt_types)))
+        return VariantQueryable(self, pairs, progress=progress)
 
     def get_variant_by_id(self, variant_id):
         """
@@ -226,6 +283,68 @@ class MultiSampleVCF(VCF):
             if v.REF == ref and v.ALT[0] == alt:
                 return v
         raise KeyError('Variant %s not found in vcf file.' % variant_id)
+
+    def get_samples(self, variant):
+        """
+        Fetchs sample names which have given variants
+
+        Args:
+          variant: variant object.
+
+        Returns:
+          List[str]: List of sample names.
+        """
+        return dict(filter(lambda x: self._has_variant_gt(x[1]),
+                           zip(self.samples, variant.gt_types)))
+
+    def fetch_sample_with_variants(self, interval):
+        """
+        Fetchs variants for intervals and return it with samples.
+
+        Args:
+          interval: pybedtools.Interval Region of interest from
+            which to query the sequence. 0-based
+
+        Returns:
+          Dict[str, Variant]: dict of samples as key and variants as values.
+        """
+        variants = self.fetch_variants(interval)
+        variant_sample = defaultdict(list)
+
+        for v in variants:
+            for s in self.get_samples(v):
+                variant_sample[s].append(v)
+
+        return dict(variant_sample)
+
+    def query_variants(self, intervals, sample_id=None, progress=False):
+        """
+        Fetch variants for given multi-intervals from vcf file
+          for sample if sample id is given.
+
+        Args:
+          intervals (List[pybedtools.Interval]): list of Interval objects
+          sample_id (str, optional): sample id in vcf file.
+
+        Returns:
+          VCFQueryable: queryable object whihc allow you to query the
+            fetched variatns.
+
+        Examples:
+          To fetch variants if only single variant present in interval.
+
+          >>> MultiSampleVCF(vcf_path) \
+                .query_variants(intervals) \
+                .filter_by_num_variant(max_num=1)
+        """
+        pairs = ((self.fetch_variants(i, sample_id=sample_id), i)
+                 for i in intervals)
+        return VariantQueryable(self, pairs, progress=progress)
+
+    def query_samples(self, intervals, progress=False):
+        pairs = ((self.fetch_sample_with_variants(i), i)
+                 for i in intervals)
+        return SampleQueryable(self, pairs, progress=progress)
 
 
 class IntervalSeqBuilder(list):

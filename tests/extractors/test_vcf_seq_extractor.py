@@ -2,7 +2,7 @@ import pytest
 from cyvcf2 import VCF
 from pyfaidx import Sequence
 from pybedtools import Interval
-from kipoiseq.extractors.vcf_seq import IntervalSeqBuilder, VCFQueryable
+from kipoiseq.extractors.vcf_seq import IntervalSeqBuilder, VariantQueryable
 from kipoiseq.extractors import *
 
 fasta_file = 'tests/data/sample.5kb.fa'
@@ -32,6 +32,20 @@ def test_multi_sample_vcf_fetch_variant(multi_sample_vcf):
     assert len(list(multi_sample_vcf.fetch_variants(interval, 'NA00003'))) == 0
 
 
+def test_multi_sample_vcf_fetch_sample_with_variants(multi_sample_vcf):
+    interval = Interval('chr1', 3, 10)
+    d = multi_sample_vcf.fetch_sample_with_variants(interval)
+    assert len(d) == 1
+    assert len(d['NA00003']) == 1
+
+
+def test_multi_sample_query_samples(multi_sample_vcf):
+    intervals = [Interval('chr1', 3, 10)]
+    d = list(multi_sample_vcf.query_samples(intervals))
+    assert len(d[0]) == 1
+    assert len(d[0]['NA00003']) == 1
+
+
 def test_query_variants(multi_sample_vcf):
     vq = multi_sample_vcf.query_variants(intervals)
     variants = list(vq)
@@ -55,35 +69,35 @@ def test_get_variant_by_id(multi_sample_vcf):
 
 
 @pytest.fixture
-def vcf_queryable(multi_sample_vcf):
+def variant_queryable(multi_sample_vcf):
     variants = [(multi_sample_vcf.fetch_variants(i), i) for i in intervals]
-    return VCFQueryable(multi_sample_vcf, variants)
+    return VariantQueryable(multi_sample_vcf, variants)
 
 
-def test_VCFQueryable__iter__(vcf_queryable):
-    variants = list(vcf_queryable)
+def test_VariantQueryable__iter__(variant_queryable):
+    variants = list(variant_queryable)
     assert len(variants) == 5
     assert variants[0].REF == 'T'
     assert variants[0].ALT[0] == 'C'
 
 
-def test_VCFQueryable_filter_all(vcf_queryable):
-    assert 2 == len(list(vcf_queryable.filter_all(
+def test_VariantQueryable_filter_all(variant_queryable):
+    assert 2 == len(list(variant_queryable.filter_all(
         lambda variants, interval: (v.REF == 'A' for v in variants))))
 
 
-def test_VCFQueryable_filter_by_num_max(vcf_queryable):
-    assert 1 == len(list(vcf_queryable.filter_by_num(max_num=1)))
+def test_VariantQueryable_filter_by_num_max(variant_queryable):
+    assert 1 == len(list(variant_queryable.filter_by_num(max_num=1)))
 
 
-def test_VCFQueryable_filter_by_num_min(vcf_queryable):
-    assert 4 == len(list(vcf_queryable.filter_by_num(min_num=2)))
+def test_VariantQueryable_filter_by_num_min(variant_queryable):
+    assert 4 == len(list(variant_queryable.filter_by_num(min_num=2)))
 
 
-def test_VCFQueryable_to_vcf(tmpdir, vcf_queryable):
+def test_VariantQueryable_to_vcf(tmpdir, variant_queryable):
     output_vcf_file = str(tmpdir / 'output.vcf')
 
-    vcf_queryable \
+    variant_queryable \
         .filter_by_num(max_num=1) \
         .to_vcf(output_vcf_file)
 
