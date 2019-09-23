@@ -32,9 +32,14 @@ def test_multi_sample_vcf_fetch_variant(multi_sample_vcf):
     assert len(list(multi_sample_vcf.fetch_variants(interval, 'NA00003'))) == 0
 
 
-def test_multi_sample_vcf_fetch_sample_with_variants(multi_sample_vcf):
-    interval = Interval('chr1', 3, 10)
-    d = multi_sample_vcf.fetch_sample_with_variants(interval)
+def test_multi_sample_vcf_fetch_samples_with_variants(multi_sample_vcf):
+    intervals = [Interval('chr1', 3, 10)]
+    d = multi_sample_vcf.fetch_samples_with_variants(intervals)
+    assert len(d) == 1
+    assert len(d['NA00003']) == 1
+
+    intervals = [Interval('chr1', 3, 10), Interval('chr1', 4, 7)]
+    d = multi_sample_vcf.fetch_samples_with_variants(intervals)
     assert len(d) == 1
     assert len(d['NA00003']) == 1
 

@@ -9,6 +9,11 @@ except ImportError:
     VCF = object
 
 
+def variant_to_id(variant):
+    return "%s:%s:%s:['%s']" % (variant.CHROM, str(variant.POS),
+                                variant.REF, variant.ALT[0])
+
+
 __all__ = [
     'VariantSeqExtractor',
     'MultiSampleVCF',
@@ -297,23 +302,27 @@ class MultiSampleVCF(VCF):
         return dict(filter(lambda x: self._has_variant_gt(x[1]),
                            zip(self.samples, variant.gt_types)))
 
-    def fetch_sample_with_variants(self, interval):
+    def fetch_samples_with_variants(self, intervals):
         """
         Fetchs variants for intervals and return it with samples.
 
         Args:
-          interval: pybedtools.Interval Region of interest from
-            which to query the sequence. 0-based
+          interval (List[pybedtools.Interval]): Region of interest from which
+          to query the sequence. 0-based
 
         Returns:
           Dict[str, Variant]: dict of samples as key and variants as values.
         """
-        variants = self.fetch_variants(interval)
         variant_sample = defaultdict(list)
+        _variant_sample = defaultdict(set)
 
-        for v in variants:
-            for s in self.get_samples(v):
-                variant_sample[s].append(v)
+        for i in intervals:
+            variants = self.fetch_variants(i)
+            for v in variants:
+                for s in self.get_samples(v):
+                    if variant_to_id(v) not in _variant_sample[s]:
+                        variant_sample[s].append(v)
+                        _variant_sample[s].add(variant_to_id(v))
 
         return dict(variant_sample)
 
@@ -342,7 +351,7 @@ class MultiSampleVCF(VCF):
         return VariantQueryable(self, pairs, progress=progress)
 
     def query_samples(self, intervals, progress=False):
-        pairs = ((self.fetch_sample_with_variants(i), i)
+        pairs = ((self.fetch_samples_with_variants([i]), i)
                  for i in intervals)
         return SampleQueryable(self, pairs, progress=progress)
 
