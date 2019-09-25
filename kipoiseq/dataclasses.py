@@ -42,10 +42,10 @@ class Variant:
         # main 4 attributes
         # these should be immutable by default to not
         # run into any strange issues downstream.
-        self._chrom = chrom
-        self._pos = pos
-        self._ref = ref
-        self._alt = alt
+        self._chrom = str(chrom)
+        self._pos = int(pos)
+        self._ref = str(ref)
+        self._alt = str(alt)
 
         # other 4 main VCF attributes
         self.id = id
@@ -109,15 +109,16 @@ class Variant:
         return hash((self.chrom, self.pos, self.ref, self.alt))
 
     def __str__(self):
-        return f"{self.chrom}_{self.pos}_{self.ref}/{self.alt}"
+        return f"{self.chrom}:{self.pos}:{self.ref}>{self.alt}"
 
-    def from_str(self, s):
-        chrom, pos, ref_alt = s.split("_")
-        ref, alt = ref_alt.split("/")
-        return Variant(chrom=chrom, pos=pos, ref=ref, alt=alt)
+    @classmethod
+    def from_str(cls, s):
+        chrom, pos, ref_alt = s.split(":")
+        ref, alt = ref_alt.split(">")
+        return cls(chrom=chrom, pos=int(pos), ref=ref, alt=alt)
 
     def __repr__(self):
-        return f"Variant(chrom='{self.variant}'), pos={self.pos}, ref='{self.ref}', alt='{self.alt}', id='{self.id}',..."
+        return f"Variant(chrom='{self.chrom}', pos={self.pos}, ref='{self.ref}', alt='{self.alt}', id='{self.id}',...)"
 
 
 class Interval:
@@ -206,18 +207,18 @@ class Interval:
     def neg_strand(self):
         return self.strand == "-"
 
-    def center(self, ignore_strand=False):
+    def center(self, use_strand=True):
         """Compute the center of the interval
         """
-        if ignore_strand:
-            add_offset = 0
-        else:
+        if use_strand:
             add_offset = 0 if self.neg_strand else 1
+        else:
+            add_offset = 0
         delta = (self.end + self.start) % 2
         center = (self.end + self.start) // 2
         return center + add_offset * delta
 
-    def shift(self, x: int, use_strand: bool=False):
+    def shift(self, x: int, use_strand: bool=True):
         """Shift the interval by x.
 
         Args:
@@ -241,9 +242,9 @@ class Interval:
     def swap_strand(self):
         obj = self.copy()
         if obj.strand == "+":
-            obj.strand = "-"
+            obj._strand = "-"
         elif obj.strand == "-":
-            obj.strand = "+"
+            obj._strand = "+"
         return obj
 
     def __eq__(self, obj):
@@ -261,18 +262,19 @@ class Interval:
     def __repr__(self):
         return (f"Interval(chrom='{self.chrom}', start={self.start}, end={self.end}, name='{self.name}', strand='{self.strand}', ...)")
 
-    def from_str(self, s):
+    @classmethod
+    def from_str(cls, s):
         chrom, int_range, strand = s.split(":")
         start, end = int_range.split("-")
-        return Interval(chrom=chrom,
-                        start=int(start),
-                        end=int(end),
-                        strand=strand)
+        return cls(chrom=chrom,
+                   start=int(start),
+                   end=int(end),
+                   strand=strand)
 
     def copy(self):
         return deepcopy(self)
 
-    def slop(self, upstream=0, downstream=0, use_strand=False):
+    def slop(self, upstream=0, downstream=0, use_strand=True):
         """Extend the interval on each strand
         """
         obj = self.copy()
@@ -296,20 +298,21 @@ class Interval:
             obj._end = min(self.end, chrom_len - 1)
             return obj
 
-    def resize(self, width):
+    def resize(self, width, use_strand=True):
         obj = deepcopy(self)
 
         if width is None or self.width() == width:
             # no need to resize
             return obj
 
-        if self.strand != "-":
+        if self.neg_strand and use_strand:
+            # negative strand
+            obj._start = self.center() - width // 2
+            obj._end = self.center() + width // 2 + width % 2
+        else:
             # positive strand
             obj._start = self.center() - width // 2 - width % 2
             obj._end = self.center() + width // 2
-        else:
-            obj._start = self.center() - width // 2
-            obj._end = self.center() + width // 2 + width % 2
         return obj
 
     def width(self):
@@ -318,12 +321,12 @@ class Interval:
     def __len__(self):
         return self.width()
 
-    def trim(self, i, j):
+    def trim(self, i, j, use_strand=True):
         if i == 0 and j == self.width():
             return self
         obj = self.copy()
         assert j > i
-        if self.strand == "-":
+        if self.strand == "-" and use_strand:
             w = self.width()
             obj._start = self.start + w - j
             obj._end = self.start + w - i
