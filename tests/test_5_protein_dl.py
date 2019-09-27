@@ -11,11 +11,20 @@ from kipoiseq.extractors import FastaStringExtractor
 from tqdm import tqdm
 
 
-gff_file = 'data/protein/Homo_sapiens.GRCh38.97.chromosome.22.gff3.gz'
-gtf_file = 'data/protein/Homo_sapiens.GRCh38.97.chr.chr22.gtf.gz'
-gtf_full_file = 'data/protein/Homo_sapiens.GRCh38.97.chr.gtf.gz'
-fasta_file = 'data/protein/Homo_sapiens.GRCh38.dna.primary_assembly.fa'
-protein_file = 'data/protein/Homo_sapiens.GRCh38.pep.all.fa'
+from pathlib import Path
+ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
+
+gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
+gtf_full_file = ddir / 'Homo_sapiens.GRCh37.75.gtf'
+fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
+protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
+
+
+# gff_file = 'data/protein/Homo_sapiens.GRCh38.97.chromosome.22.gff3.gz'
+# gtf_file = 'data/protein/Homo_sapiens.GRCh38.97.chr.chr22.gtf.gz'
+# gtf_full_file = 'data/protein/Homo_sapiens.GRCh38.97.chr.gtf.gz'
+# fasta_file = 'data/protein/Homo_sapiens.GRCh38.dna.primary_assembly.fa'
+# protein_file = 'data/protein/Homo_sapiens.GRCh38.pep.all.fa'
 
 # gtf = pr.read_gtf(gtf_file, output_df=True)
 
@@ -75,20 +84,25 @@ class GenomeCDSSeq:
     def __init__(self, gtf_file, fasta_file):
         """Protein sequences in the genome
         """
-        self.gtf_file = gtf_file
-        self.fasta_file = fasta_file
+        self.gtf_file = str(gtf_file)
+        self.fasta_file = str(fasta_file)
 
         self.fae = FastaStringExtractor(self.fasta_file, use_strand=False)
-        self.cds = (pr.read_gtf(self.gtf_file, output_df=True)
-                    .query("transcript_biotype == 'protein_coding'")
-                    .query("Feature == 'CDS'")
-                    .query("tag == 'basic'")
+        df = pr.read_gtf(self.gtf_file, output_df=True)
+        biotype_str = 'transcript_biotype' if 'transcript_biotype' in df else 'gene_biotype'
+        self.cds = (df
+                    .query(f"{biotype_str} == 'protein_coding'")
+                    .query("(Feature == 'CDS') | (Feature == 'CCDS')")
+                    .query("(tag == 'basic') | (tag == 'CCDS')")
                     .set_index('transcript_id'))
         # filter valid transcripts
-        self.cds = self.cds[~self.cds.transcript_support_level.isnull()]
-        self.cds = self.cds[self.cds.transcript_support_level != 'NA']
-        self.cds.transcript_support_level = self.cds.transcript_support_level.astype(int)
-        self.cds = self.cds[~self.cds.transcript_support_level.isna()]
+        if 'transcript_support_level' in self.cds:
+            self.cds = self.cds[~self.cds.transcript_support_level.isnull()]
+            self.cds = self.cds[self.cds.transcript_support_level != 'NA']
+            self.cds.transcript_support_level = self.cds.transcript_support_level.astype(int)
+            self.cds = self.cds[~self.cds.transcript_support_level.isna()]
+        else:
+            print("Transcript support level not in gtf. Skipping the associated filters.")
         self.cds_exons = pr.PyRanges(self.cds.reset_index())
         self.transcripts = self.cds.index.unique()
 
@@ -160,6 +174,7 @@ dfp = dfp.set_index("transcript_id")
 dfp = dfp[~dfp.chromosome.isnull()]
 
 gps = GenomeCDSSeq(gtf_full_file, fasta_file)
+assert len(gps) > 100
 assert gps.transcripts.isin(dfp.index).all()
 
 transcript_id = 'ENST00000485079'
@@ -212,7 +227,6 @@ err_transcripts.to_csv("data/protein/err_transcripts.csv")
 # now: 0 115 1802
 print(div3_error, seq_mismatch_err, len(gps))
 # TODO - fix all the errors
-
 
 def test_translate():
     assert translate("TGAATGGAC") == '_MD'
