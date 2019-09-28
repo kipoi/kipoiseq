@@ -18,9 +18,9 @@ class Variant:
                  ref: str,
                  alt: str,
                  id: str = '',
-                 qual: float=0,
-                 filter: str='PASS',
-                 info: dict=None,
+                 qual: float = 0,
+                 filter: str = 'PASS',
+                 info: dict = None,
                  source=None):
         """Variant container.
 
@@ -109,7 +109,7 @@ class Variant:
         return hash((self.chrom, self.pos, self.ref, self.alt))
 
     def __str__(self):
-        return f"{self.chrom}:{self.pos}:{self.ref}>{self.alt}"
+        return "{}:{}:{}>{}".format(self.chrom, self.pos, self.ref, self.alt)
 
     @classmethod
     def from_str(cls, s):
@@ -118,7 +118,8 @@ class Variant:
         return cls(chrom=chrom, pos=int(pos), ref=ref, alt=alt)
 
     def __repr__(self):
-        return f"Variant(chrom='{self.chrom}', pos={self.pos}, ref='{self.ref}', alt='{self.alt}', id='{self.id}',...)"
+        return ("Variant(chrom='{}', pos={}, ref='{}', alt='{}', id='{}',...)"
+                .format(self.chrom, self.pos, self.ref, self.alt, self.id))
 
 
 class Interval:
@@ -141,10 +142,10 @@ class Interval:
                  chrom: str,
                  start: int,  # 0-based
                  end: int,  # 0-based
-                 name: str='',
-                 score: float=0,
-                 strand: str='.',
-                 attrs: dict=None):
+                 name: str = '',
+                 score: float = 0,
+                 strand: str = '.',
+                 attrs: dict = None):
         self._chrom = chrom
         self._start = start
         self._end = end
@@ -218,7 +219,7 @@ class Interval:
         center = (self.end + self.start) // 2
         return center + add_offset * delta
 
-    def shift(self, x: int, use_strand: bool=True):
+    def shift(self, x: int, use_strand: bool = True):
         """Shift the interval by x.
 
         Args:
@@ -257,10 +258,11 @@ class Interval:
         return hash((self.chrom, self.start, self.end, self.strand))
 
     def __str__(self):
-        return (f"{self.chrom}:{self.start}-{self.end}:{self.strand}")
+        return ("{}:{}-{}:{}".format(self.chrom, self.start, self.end, self.strand))
 
     def __repr__(self):
-        return (f"Interval(chrom='{self.chrom}', start={self.start}, end={self.end}, name='{self.name}', strand='{self.strand}', ...)")
+        return ("Interval(chrom='{}', start={}, end={}, name='{}', strand='{}', ...)"
+                .format(self.chrom, self.start, self.end, self.name, self.strand))
 
     @classmethod
     def from_str(cls, s):
