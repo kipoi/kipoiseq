@@ -194,7 +194,8 @@ class StringSeqIntervalDl(Dataset):
                  # max_seq_len=None,
                  # use_strand=False,
                  force_upper=True,
-                 ignore_targets=False):
+                 ignore_targets=False,
+                 target_only_score=target_only_score):
 
         self.num_chr_fasta = num_chr_fasta
         self.intervals_file = intervals_file
@@ -226,7 +227,7 @@ class StringSeqIntervalDl(Dataset):
                                                          force_upper=self.force_upper)
 
         interval, labels = self.bed[idx]
-
+        
         if self.auto_resize_len:
             # automatically resize the sequence to cerat
             interval = resize_interval(interval, self.auto_resize_len, anchor='center')
@@ -237,7 +238,13 @@ class StringSeqIntervalDl(Dataset):
 
         # Run the fasta extractor and transform if necessary
         seq = self.fasta_extractors.extract(interval)
-
+        
+        if labels[2]=="-": #reverse strand
+            seq = seq[::-1]
+            
+        if target_only_score: # remove "strand" and "name" columns for straightforward ML
+            labels = labels[1]
+            
         return {
             "inputs": np.array(seq),
             "targets": labels,
@@ -332,12 +339,14 @@ class SeqIntervalDl(Dataset):
                  dummy_axis=None,
                  alphabet="ACGT",
                  ignore_targets=False,
+                 target_only_score=True,
                  dtype=None):
         # core dataset, not using the one-hot encoding params
         self.seq_dl = StringSeqIntervalDl(intervals_file, fasta_file, num_chr_fasta=num_chr_fasta,
                                           label_dtype=label_dtype, auto_resize_len=auto_resize_len,
                                           # use_strand=use_strand,
-                                          ignore_targets=ignore_targets)
+                                          ignore_targets=ignore_targets,
+                                          target_only_score=target_only_score)
 
         self.input_transform = ReorderedOneHot(alphabet=alphabet,
                                                dtype=dtype,
