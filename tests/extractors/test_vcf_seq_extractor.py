@@ -37,6 +37,11 @@ def test_multi_sample_vcf_fetch_samples_with_variants(multi_sample_vcf):
     d = multi_sample_vcf.fetch_samples_with_variants(intervals)
     assert len(d) == 1
     assert len(d['NA00003']) == 1
+    variant = d['NA00003'][0][0]
+    assert variant.CHROM == 'chr1'
+    assert variant.REF == 'T'
+    assert variant.ALT == ['C']
+    assert d['NA00003'][0][1] == 3
 
     intervals = [Interval('chr1', 3, 10), Interval('chr1', 4, 7)]
     d = multi_sample_vcf.fetch_samples_with_variants(intervals)

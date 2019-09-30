@@ -297,7 +297,7 @@ class MultiSampleVCF(VCF):
           variant: variant object.
 
         Returns:
-          List[str]: List of sample names.
+          Dict[str, int]: Dict of sample which have variant and gt as value.
         """
         return dict(filter(lambda x: self._has_variant_gt(x[1]),
                            zip(self.samples, variant.gt_types)))
@@ -308,7 +308,7 @@ class MultiSampleVCF(VCF):
 
         Args:
           interval (List[pybedtools.Interval]): Region of interest from which
-          to query the sequence. 0-based
+            to query the sequence. 0-based
 
         Returns:
           Dict[str, Variant]: dict of samples as key and variants as values.
@@ -319,36 +319,12 @@ class MultiSampleVCF(VCF):
         for i in intervals:
             variants = self.fetch_variants(i)
             for v in variants:
-                for s in self.get_samples(v):
+                for s, gt in self.get_samples(v).items():
                     if variant_to_id(v) not in _variant_sample[s]:
-                        variant_sample[s].append(v)
+                        variant_sample[s].append((v, gt))
                         _variant_sample[s].add(variant_to_id(v))
 
         return dict(variant_sample)
-
-    def query_variants(self, intervals, sample_id=None, progress=False):
-        """
-        Fetch variants for given multi-intervals from vcf file
-          for sample if sample id is given.
-
-        Args:
-          intervals (List[pybedtools.Interval]): list of Interval objects
-          sample_id (str, optional): sample id in vcf file.
-
-        Returns:
-          VCFQueryable: queryable object whihc allow you to query the
-            fetched variatns.
-
-        Examples:
-          To fetch variants if only single variant present in interval.
-
-          >>> MultiSampleVCF(vcf_path) \
-                .query_variants(intervals) \
-                .filter_by_num_variant(max_num=1)
-        """
-        pairs = ((self.fetch_variants(i, sample_id=sample_id), i)
-                 for i in intervals)
-        return VariantQueryable(self, pairs, progress=progress)
 
     def query_samples(self, intervals, progress=False):
         pairs = ((self.fetch_samples_with_variants([i]), i)
