@@ -161,6 +161,8 @@ class StringSeqIntervalDl(Dataset):
             doc: Force uppercase output of sequences
         ignore_targets:
             doc: if True, don't return any target variables
+        target_only_score:
+            doc: if True, only 'score' column of BED file is returned in targets array
     output_schema:
         inputs:
             name: seq
@@ -303,7 +305,8 @@ class SeqIntervalDl(Dataset):
             doc: 'defines the numpy dtype of the returned array. Example: int, np.int32, np.float32, float'
         ignore_targets:
             doc: if True, don't return any target variables
-
+        target_only_score:
+            doc: if True, only 'score' column of BED file is returned in targets array
     output_schema:
         inputs:
             name: seq
