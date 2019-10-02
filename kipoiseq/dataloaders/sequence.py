@@ -1,23 +1,19 @@
-from collections import OrderedDict
 import pandas as pd
 import numpy as np
 from copy import deepcopy
 
 from kipoi.metadata import GenomicRanges
-from kipoi.specs import DataLoaderArgument, ArraySpecialType
-from kipoi.plugin import is_installed
 from kipoi.data import Dataset, kipoi_dataloader
 from kipoi_conda.dependencies import Dependencies
 from kipoi.specs import Author
 from kipoi_utils.utils import default_kwargs
 
 from kipoiseq.extractors import FastaStringExtractor
-from kipoiseq.transforms import SwapAxes, DummyAxis, Compose, OneHot, ReorderedOneHot
+from kipoiseq.transforms import ReorderedOneHot
 from kipoiseq.transforms.functional import resize_interval
 from kipoiseq.utils import to_scalar, parse_dtype
 
 import pybedtools
-from pybedtools import BedTool, Interval
 
 # general dependencies
 # bioconda::genomelake', TODO - add genomelake again once it gets released with pyfaidx to bioconda
@@ -195,7 +191,7 @@ class StringSeqIntervalDl(Dataset):
                  # use_strand=False,
                  force_upper=True,
                  ignore_targets=False,
-                 target_only_score=target_only_score):
+                 target_only_score=False):
 
         self.num_chr_fasta = num_chr_fasta
         self.intervals_file = intervals_file
@@ -210,6 +206,7 @@ class StringSeqIntervalDl(Dataset):
         #     bed_columns = 6
         # else:
         #     bed_columns = 3
+        self.target_only_score = target_only_score
 
         self.bed = BedDataset(self.intervals_file,
                               num_chr=self.num_chr_fasta,
@@ -242,7 +239,7 @@ class StringSeqIntervalDl(Dataset):
         if labels[2]=="-": #reverse strand
             seq = seq[::-1]
             
-        if target_only_score: # remove "strand" and "name" columns for straightforward ML
+        if self.target_only_score: # remove "strand" and "name" columns for straightforward ML
             labels = labels[1]
             
         return {
@@ -339,7 +336,7 @@ class SeqIntervalDl(Dataset):
                  dummy_axis=None,
                  alphabet="ACGT",
                  ignore_targets=False,
-                 target_only_score=True,
+                 target_only_score=False,
                  dtype=None):
         # core dataset, not using the one-hot encoding params
         self.seq_dl = StringSeqIntervalDl(intervals_file, fasta_file, num_chr_fasta=num_chr_fasta,
