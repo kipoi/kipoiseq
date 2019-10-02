@@ -238,10 +238,10 @@ class StringSeqIntervalDl(Dataset):
         # Run the fasta extractor and transform if necessary
         seq = self.fasta_extractors.extract(interval)
         
-        if labels[2]=="-": #reverse strand
+        if len(labels) >= 2 and labels[2]=="-": #reverse strand
             seq = seq[::-1]
             
-        if self.target_only_score: # remove "strand" and "name" columns for straightforward ML
+        if self.target_only_score and len(labels) > 1: # remove "strand" and "name" columns for straightforward ML
             labels = labels[1]
             
         return {
