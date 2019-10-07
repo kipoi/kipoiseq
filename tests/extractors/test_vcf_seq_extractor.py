@@ -1,8 +1,8 @@
 import pytest
 from cyvcf2 import VCF
 from pyfaidx import Sequence
-from pybedtools import Interval
 from kipoiseq.extractors.vcf_seq import IntervalSeqBuilder
+from kipoiseq.dataclasses import Variant, Interval
 from kipoiseq.extractors import *
 
 fasta_file = 'tests/data/sample.5kb.fa'
@@ -92,7 +92,7 @@ def test__split_overlapping(variant_seq_extractor):
 
 
 def test_extract(variant_seq_extractor):
-    variants = list(VCF(vcf_file)())
+    variants = [Variant.from_cyvcf(v) for v in VCF(vcf_file)]
 
     interval = Interval('chr1', 2, 9)
 
