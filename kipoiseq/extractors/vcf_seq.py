@@ -1,6 +1,7 @@
-from pybedtools import Interval
 from pyfaidx import Sequence, complement
 from kipoiseq.extractors import BaseExtractor, FastaStringExtractor
+from kipoiseq.dataclasses import Variant, Interval
+
 try:
     from cyvcf2 import VCF
 except ImportError:
@@ -23,14 +24,15 @@ class MultiSampleVCF(VCF):
 
     def fetch_variants(self, interval, sample_id=None):
         for v in self(self._region(interval)):
-            if sample_id is None or self._has_variant(v, sample_id):
+            v = Variant.from_cyvcf(v)
+            if sample_id is None or self.has_variant(v, sample_id):
                 yield v
 
     def _region(self, interval):
         return '%s:%d-%d' % (interval.chrom, interval.start, interval.end)
 
-    def _has_variant(self, variant, sample_id):
-        gt_type = variant.gt_types[self.sample_mapping[sample_id]]
+    def has_variant(self, variant, sample_id):
+        gt_type = variant.source.gt_types[self.sample_mapping[sample_id]]
         return gt_type != 0 and gt_type != 2
 
 
@@ -166,11 +168,10 @@ class VariantSeqExtractor(BaseExtractor):
         for reference and variants.
         """
         for v in variants:
-            ref = Sequence(name=v.CHROM, seq=v.REF,
-                           start=v.start, end=v.start + len(v.REF))
-            # TO DO: consider alternative alleles.
-            alt = Sequence(name=v.CHROM, seq=v.ALT[0],
-                           start=v.start, end=v.start + len(v.ALT[0]))
+            ref = Sequence(name=v.chrom, seq=v.ref,
+                           start=v.start, end=v.start + len(v.ref))
+            alt = Sequence(name=v.chrom, seq=v.alt,
+                           start=v.start, end=v.start + len(v.alt))
             yield ref, alt
 
     def _split_overlapping(self, variant_pairs, anchor, which='both'):
