@@ -37,15 +37,15 @@ class VariantIntervalQuery:
 
     def __or__(self, other):
         return VariantIntervalQuery(
-            lambda variants, interval: (
+            lambda variants, interval: [
                 i or j for i, j in zip(self(variants, interval),
-                                       other(variants, interval))))
+                                       other(variants, interval))])
 
     def __and__(self, other):
         return VariantIntervalQuery(
-            lambda variants, interval: (
+            lambda variants, interval: [
                 i and j for i, j in zip(self(variants, interval),
-                                        other(variants, interval))))
+                                        other(variants, interval))])
 
 
 class NumberVariantQuery(VariantIntervalQuery):
@@ -81,14 +81,14 @@ class VariantIntervalQueryable:
           variants: iter of (variant, interval) tuples.
         """
         self.vcf = vcf
-
-        if progress:
-            self.variant_intervals = tqdm(variant_intervals)
-        else:
-            self.variant_intervals = variant_intervals
+        self.variant_intervals = variant_intervals
+        self.progress = progress
 
     def __iter__(self):
-        for variants, interval in self.variant_intervals:
+        variant_intervals = tqdm(self.variant_intervals) if self.progress \
+            else self.variant_intervals
+
+        for variants, interval in variant_intervals:
             yield from variants
 
     def filter(self, query: VariantQuery):

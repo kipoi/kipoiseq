@@ -4,6 +4,7 @@ from cyvcf2 import VCF
 from pyfaidx import Sequence
 from kipoiseq.extractors.vcf_seq import IntervalSeqBuilder
 from kipoiseq.dataclasses import Variant, Interval
+from kipoiseq.extractors.vcf_query import NumberVariantQuery
 from kipoiseq.extractors import *
 
 fasta_file = sample_5kb_fasta_file
@@ -52,6 +53,30 @@ def test_MultiSampleVCF_get_variant(multi_sample_vcf):
     assert variant.ref == 'T'
     assert variant.alt == 'C'
 
+    variant = multi_sample_vcf.get_variant(Variant('chr1', 4, 'T', 'C'))
+    assert variant.chrom == 'chr1'
+    assert variant.pos == 4
+    assert variant.ref == 'T'
+    assert variant.alt == 'C'
+
+    with pytest.raises(KeyError):
+        multi_sample_vcf.get_variant("chr1:4:A>C")
+
+
+def test_MultiSampleVCF_VariantQueryable_to_vcf(tmpdir, multi_sample_vcf):
+    output_vcf_file = str(tmpdir / 'output.vcf')
+
+    multi_sample_vcf \
+        .query_variants(intervals) \
+        .filter_range(NumberVariantQuery(max_num=1)) \
+        .to_vcf(output_vcf_file)
+
+    vcf = MultiSampleVCF(output_vcf_file)
+    variants = list(vcf)
+    assert len(variants) == 1
+    assert variants[0].REF == 'AACG'
+    assert variants[0].ALT[0] == 'GA'
+
 
 @pytest.fixture
 def interval_seq_builder():
@@ -89,6 +114,9 @@ def test_interval_seq_builder_restore(interval_seq_builder):
 
 
 def test_interval_seq_builder_concat(interval_seq_builder):
+    with pytest.raises(TypeError):
+        interval_seq_builder.concat()
+
     sequence = Sequence(seq='CCCCATCGNN', start=10, end=20)
     interval_seq_builder.restore(sequence)
     assert interval_seq_builder.concat() == 'CCCCTAGCNN'

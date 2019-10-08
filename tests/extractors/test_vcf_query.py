@@ -15,12 +15,34 @@ def query_false():
     return VariantQuery(lambda v: False)
 
 
-def test_base_query__and__(query_false, query_true):
+def test_VariantQuery__and__(query_false, query_true):
     assert not (query_false & query_true)(None)
 
 
-def test_base_query__or__(query_false, query_true):
+def test_VariantQuery__or__(query_false, query_true):
     assert (query_false | query_true)(None)
+
+
+@pytest.fixture
+def query_interval_true():
+    return VariantIntervalQuery(lambda vs, i: [True, True, False, False])
+
+
+@pytest.fixture
+def query_interval_false():
+    return VariantIntervalQuery(lambda vs, i: [True, False, True, False])
+
+
+def test_VariantIntervalQuery__and__(query_interval_false,
+                                     query_interval_true):
+    assert (query_interval_false & query_interval_true)(None, None) == [
+        True, False, False, False]
+
+
+def test_VariantIntervalQuery__or__(query_interval_false,
+                                    query_interval_true):
+    assert (query_interval_false | query_interval_true)(None, None) == [
+        True, True, True, False]
 
 
 @pytest.fixture
