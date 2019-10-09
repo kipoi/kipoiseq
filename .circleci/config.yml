@@ -40,7 +40,7 @@ variables:
       name: Install conda dependencies
       command: |
         source activate kipoi-dev
-        conda install -c bioconda cyvcf2 pybedtools genomelake pyfaidx 
+        conda install -c bioconda cyvcf2 pyranges pybedtools genomelake pyfaidx 
   install_kipoi: &install_kipoi
     run:
       name: Install Kipoi
