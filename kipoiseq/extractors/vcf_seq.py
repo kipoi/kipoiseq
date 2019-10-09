@@ -1,107 +1,13 @@
 from pyfaidx import Sequence, complement
-from kipoiseq.extractors import BaseExtractor, FastaStringExtractor
-from kipoiseq.dataclasses import Variant, Interval
-from kipoiseq.extractors.vcf_query import VariantIntervalQueryable
-
-
-try:
-    from cyvcf2 import VCF
-except ImportError:
-    VCF = object
+from kipoiseq.dataclasses import Interval
+from kipoiseq.extractors import BaseExtractor, FastaStringExtractor, \
+    MultiSampleVCF
 
 __all__ = [
     'VariantSeqExtractor',
-    'MultiSampleVCF',
     'SingleVariantVCFSeqExtractor',
     'SingleSeqVCFSeqExtractor'
 ]
-
-
-class MultiSampleVCF(VCF):
-
-    def __init__(self, *args, **kwargs):
-        from cyvcf2 import VCF
-        super(MultiSampleVCF, self).__init__(*args, **kwargs)
-        self.sample_mapping = dict(zip(self.samples, range(len(self.samples))))
-
-    def fetch_variants(self, interval, sample_id=None):
-        for v in self(self._region(interval)):
-            v = Variant.from_cyvcf(v)
-            if sample_id is None or self.has_variant(v, sample_id):
-                yield v
-
-    def _region(self, interval):
-        return '%s:%d-%d' % (interval.chrom, interval.start, interval.end)
-
-    def has_variant(self, variant, sample_id):
-        gt_type = variant.source.gt_types[self.sample_mapping[sample_id]]
-        return self._has_variant_gt(gt_type)
-
-    def _has_variant_gt(self, gt_type):
-        return gt_type != 0 and gt_type != 2
-
-    def query_variants(self, intervals, sample_id=None, progress=False):
-        """
-        Fetch variants for given multi-intervals from vcf file
-          for sample if sample id is given.
-
-        Args:
-          intervals (List[pybedtools.Interval]): list of Interval objects
-          sample_id (str, optional): sample id in vcf file.
-
-        Returns:
-          VCFQueryable: queryable object whihc allow you to query the
-            fetched variatns.
-
-        Examples:
-          To fetch variants if only single variant present in interval.
-
-          >>> MultiSampleVCF(vcf_path) \
-                .query_variants(intervals) \
-                .filter(lambda variant: variant.qual > 10) \
-                .filter_range(NumberVariantQuery(max_num=1))
-                .to_vcf(output_path)
-        """
-        pairs = ((self.fetch_variants(i, sample_id=sample_id), i)
-                 for i in intervals)
-        return VariantIntervalQueryable(self, pairs, progress=progress)
-
-    def get_variant(self, variant):
-        """
-        Returns variant from vcf file. Let you use vcf file as dict.
-
-        Args:
-          vcf: cyvcf2.VCF file
-          variant: variant object or variant id as string.
-
-        Returns:
-          Variant object.
-
-        Examples:
-          >>> MultiSampleVCF(vcf_path).get_variant("chr1:4:T:['C']")
-        """
-        if type(variant) == str:
-            variant = Variant.from_str(variant)
-
-        variants = self.fetch_variants(
-            Interval(variant.chrom, variant.pos, variant.pos))
-        for v in variants:
-            if v.ref == variant.ref and v.alt == variant.alt:
-                return v
-        raise KeyError('Variant %s not found in vcf file.' % str(variant))
-
-    def get_samples(self, variant):
-        """
-        Fetchs sample names which have given variants
-
-        Args:
-          variant: variant object.
-
-        Returns:
-          Dict[str, int]: Dict of sample which have variant and gt as value.
-        """
-        return dict(filter(lambda x: self._has_variant_gt(x[1]),
-                           zip(self.samples, variant.gt_types)))
 
 
 class IntervalSeqBuilder(list):

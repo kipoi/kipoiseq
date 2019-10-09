@@ -28,6 +28,12 @@ dependencies:
 pip install kipoiseq
 ```
 
+Optional dependencies:
+```bash
+pip install cyvcf2, pyranges
+conda install cyvcf2, pyranges
+```
+
 ## Getting started
 
 ```python
