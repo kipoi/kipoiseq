@@ -8,6 +8,12 @@ from kipoiseq.extractors.vcf_seq import IntervalSeqBuilder, \
 
 fasta_file = sample_5kb_fasta_file
 
+intervals = [
+    Interval('chr1', 4, 10),
+    Interval('chr1', 5, 30),
+    Interval('chr1', 20, 30)
+]
+
 
 @pytest.fixture
 def interval_seq_builder():
