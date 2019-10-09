@@ -1,23 +1,19 @@
-from collections import OrderedDict
 import pandas as pd
 import numpy as np
 from copy import deepcopy
 
 from kipoi.metadata import GenomicRanges
-from kipoi.specs import DataLoaderArgument, ArraySpecialType
-from kipoi.plugin import is_installed
 from kipoi.data import Dataset, kipoi_dataloader
 from kipoi_conda.dependencies import Dependencies
 from kipoi.specs import Author
 from kipoi_utils.utils import default_kwargs
 
 from kipoiseq.extractors import FastaStringExtractor
-from kipoiseq.transforms import SwapAxes, DummyAxis, Compose, OneHot, ReorderedOneHot
+from kipoiseq.transforms import ReorderedOneHot
 from kipoiseq.transforms.functional import resize_interval
 from kipoiseq.utils import to_scalar, parse_dtype
 
 import pybedtools
-from pybedtools import BedTool, Interval
 
 # general dependencies
 # bioconda::genomelake', TODO - add genomelake again once it gets released with pyfaidx to bioconda
@@ -165,6 +161,8 @@ class StringSeqIntervalDl(Dataset):
             doc: Force uppercase output of sequences
         ignore_targets:
             doc: if True, don't return any target variables
+        target_only_score:
+            doc: if True, only 'score' column of BED file is returned in targets array
     output_schema:
         inputs:
             name: seq
@@ -194,7 +192,8 @@ class StringSeqIntervalDl(Dataset):
                  # max_seq_len=None,
                  # use_strand=False,
                  force_upper=True,
-                 ignore_targets=False):
+                 ignore_targets=False,
+                 target_only_score=False):
 
         self.num_chr_fasta = num_chr_fasta
         self.intervals_file = intervals_file
@@ -209,6 +208,7 @@ class StringSeqIntervalDl(Dataset):
         #     bed_columns = 6
         # else:
         #     bed_columns = 3
+        self.target_only_score = target_only_score
 
         self.bed = BedDataset(self.intervals_file,
                               num_chr=self.num_chr_fasta,
@@ -226,7 +226,7 @@ class StringSeqIntervalDl(Dataset):
                                                          force_upper=self.force_upper)
 
         interval, labels = self.bed[idx]
-
+        
         if self.auto_resize_len:
             # automatically resize the sequence to cerat
             interval = resize_interval(interval, self.auto_resize_len, anchor='center')
@@ -237,7 +237,13 @@ class StringSeqIntervalDl(Dataset):
 
         # Run the fasta extractor and transform if necessary
         seq = self.fasta_extractors.extract(interval)
-
+        
+        if len(labels) >= 2 and labels[2]=="-": #reverse strand
+            seq = seq[::-1]
+            
+        if self.target_only_score and len(labels) > 1: # remove "strand" and "name" columns for straightforward ML
+            labels = labels[1]
+            
         return {
             "inputs": np.array(seq),
             "targets": labels,
@@ -299,7 +305,8 @@ class SeqIntervalDl(Dataset):
             doc: 'defines the numpy dtype of the returned array. Example: int, np.int32, np.float32, float'
         ignore_targets:
             doc: if True, don't return any target variables
-
+        target_only_score:
+            doc: if True, only 'score' column of BED file is returned in targets array
     output_schema:
         inputs:
             name: seq
@@ -332,12 +339,14 @@ class SeqIntervalDl(Dataset):
                  dummy_axis=None,
                  alphabet="ACGT",
                  ignore_targets=False,
+                 target_only_score=False,
                  dtype=None):
         # core dataset, not using the one-hot encoding params
         self.seq_dl = StringSeqIntervalDl(intervals_file, fasta_file, num_chr_fasta=num_chr_fasta,
                                           label_dtype=label_dtype, auto_resize_len=auto_resize_len,
                                           # use_strand=use_strand,
-                                          ignore_targets=ignore_targets)
+                                          ignore_targets=ignore_targets,
+                                          target_only_score=target_only_score)
 
         self.input_transform = ReorderedOneHot(alphabet=alphabet,
                                                dtype=dtype,
