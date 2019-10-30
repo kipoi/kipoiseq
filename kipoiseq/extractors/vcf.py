@@ -40,13 +40,12 @@ class MultiSampleVCF(VCF):
         return Variant.from_cyvcf(super().__next__())
 
     def batch_iter(self, batch_size=10000):
-        '''
-        Iterates variatns in vcf file.
+        """Iterates variatns in vcf file.
 
-        Args:
-          vcf_file: path of vcf file.
-          batch_size: size of each batch.
-        '''
+        # Arguments
+            vcf_file: path of vcf file.
+            batch_size: size of each batch.
+        """
         variants = iter(self)
         batch = list(islice(variants, batch_size))
 
@@ -55,44 +54,45 @@ class MultiSampleVCF(VCF):
             batch = list(islice(variants, batch_size))
 
     def query_variants(self, intervals, sample_id=None, progress=False):
-        """
-        Fetch variants for given multi-intervals from vcf file
-          for sample if sample id is given.
+        """Fetch variants for given multi-intervals from vcf file
+        for sample if sample id is given.
 
-        Args:
-          intervals (List[pybedtools.Interval]): list of Interval objects
-          sample_id (str, optional): sample id in vcf file.
+        # Arguments
+            intervals (List[pybedtools.Interval]): list of Interval objects
+            sample_id (str, optional): sample id in vcf file.
 
-        Returns:
+        # Returns
           VCFQueryable: queryable object whihc allow you to query the
             fetched variatns.
 
-        Examples:
-          To fetch variants if only single variant present in interval.
-
-          >>> MultiSampleVCF(vcf_path) \
-                .query_variants(intervals) \
-                .filter(lambda variant: variant.qual > 10) \
-                .filter_range(NumberVariantQuery(max_num=1))
-                .to_vcf(output_path)
+        # Example
+            To fetch variants if only single variant present in interval.
+            ```
+              >>> MultiSampleVCF(vcf_path) \
+                    .query_variants(intervals) \
+                    .filter(lambda variant: variant.qual > 10) \
+                    .filter_range(NumberVariantQuery(max_num=1)) \
+                    .to_vcf(output_path)
+            ```
         """
         pairs = ((self.fetch_variants(i, sample_id=sample_id), i)
                  for i in intervals)
         return VariantIntervalQueryable(self, pairs, progress=progress)
 
     def get_variant(self, variant):
-        """
-        Returns variant from vcf file. Let you use vcf file as dict.
+        """Returns variant from vcf file. Let you use vcf file as dict.
 
-        Args:
-          vcf: cyvcf2.VCF file
-          variant: variant object or variant id as string.
+        # Arguments:
+            vcf: cyvcf2.VCF file
+            variant: variant object or variant id as string.
 
-        Returns:
-          Variant object.
+        # Returns
+            Variant object.
 
-        Examples:
-          >>> MultiSampleVCF(vcf_path).get_variant("chr1:4:T:['C']")
+        # Example
+            ```python
+              >>> MultiSampleVCF(vcf_path).get_variant("chr1:4:T:['C']")
+            ```
         """
         if type(variant) == str:
             variant = Variant.from_str(variant)
@@ -105,14 +105,13 @@ class MultiSampleVCF(VCF):
         raise KeyError('Variant %s not found in vcf file.' % str(variant))
 
     def get_samples(self, variant):
-        """
-        Fetchs sample names which have given variants
+        """Fetchs sample names which have given variants
 
-        Args:
-          variant: variant object.
+        # Arguments
+            variant: variant object.
 
-        Returns:
-          Dict[str, int]: Dict of sample which have variant and gt as value.
+        # Returns
+            Dict[str, int]: Dict of sample which have variant and gt as value.
         """
         return dict(filter(lambda x: self._has_variant_gt(x[1]),
                            zip(self.samples, variant.source.gt_types)))
