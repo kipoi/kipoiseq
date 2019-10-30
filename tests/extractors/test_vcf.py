@@ -18,6 +18,22 @@ def multi_sample_vcf():
     return MultiSampleVCF(vcf_file)
 
 
+def test_MultiSampleVCF__next__(multi_sample_vcf):
+    variant = next(multi_sample_vcf)
+    assert variant.chrom == 'chr1'
+    assert variant.pos == 4
+    assert variant.ref == 'T'
+    assert variant.alt == 'C'
+
+
+def test_MultiSampleVCF__iter__(multi_sample_vcf):
+    variant = list(multi_sample_vcf)[0]
+    assert variant.chrom == 'chr1'
+    assert variant.pos == 4
+    assert variant.ref == 'T'
+    assert variant.alt == 'C'
+
+
 def test_MultiSampleVCF_fetch_variant(multi_sample_vcf):
     interval = Interval('chr1', 3, 5)
     assert len(list(multi_sample_vcf.fetch_variants(interval))) == 2

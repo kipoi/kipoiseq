@@ -81,9 +81,10 @@ class BaseVariantMatcher:
                  intervals=None, interval_attrs=None, vcf_lazy=True,
                  variant_batch_size=10000):
         """
-        Base variant intervals matcher for
+        Base variant intervals matcher
         """
         self.vcf = MultiSampleVCF(vcf_file, lazy=vcf_lazy)
+        self.interval_attrs = interval_attrs
         self.pr = self._read_intervals(gtf_path, bed_path, pranges,
                                        intervals, interval_attrs)
         self.variant_batch_size = variant_batch_size
@@ -100,13 +101,10 @@ class BaseVariantMatcher:
             pranges = pyranges.read_gtf(gtf_path)
             pranges.Start -= 1
 
-        if bed_path:
+        elif bed_path:
             import pyranges
             pranges = pyranges.read_bed(bed_path)
 
-        if pranges:
-            pranges.intervals = list(pyranges_to_intervals(
-                pranges, interval_attrs=interval_attrs))
         elif intervals:
             if interval_attrs is not None:
                 raise ValueError(
@@ -123,7 +121,16 @@ class BaseVariantMatcher:
 
 class SingleVariantMatcher(BaseVariantMatcher):
     """
+    Match and iterate variants with intervals.
 
+    Args:
+      vcf_file: path of vcf file
+      gtf_path: (optional) path of gtf file contains features
+      bed_path: (optional) path of bed file
+      pranges: (optional) pyranges object
+      intervals: (optional) list of intervals
+      interval_attrs: attr of intervals should read from files or
+        pyranges object. This argument is not valid with intervals.
     """
 
     def _read_vcf_pyranges(self, batch_size=10000):
@@ -138,16 +145,30 @@ class SingleVariantMatcher(BaseVariantMatcher):
             yield variants_to_pyranges(batch)
 
     def iter_pyranges(self):
+        """
+        Iter matched variants with intervals as pyranges.
+         """
         for pr_variants in self._read_vcf_pyranges():
-            yield pr_variants.join(self.pr, suffix="_interval")
+            pr_join = self.pr.join(pr_variants, suffix='_variant')
+            if not hasattr(pr_join, 'intervals'):
+                pr_join.intervals = list(pyranges_to_intervals(
+                    pr_join, interval_attrs=self.interval_attrs))
+            yield pr_join
 
     def iter_rows(self):
+        """
+        Iter matched variants with intervals as pandas series.
+        """
         for pr in self.iter_pyranges():
             for _, df in pr:
+                df = df.sort_values(['Start_variant', 'Start'])
                 for _, row in df.iterrows():
                     yield row
 
     def __iter__(self):
+        """
+        Iterate interval and variant object.
+        """
         for row in self.iter_rows():
             yield row['intervals'], row['variant']
 
@@ -160,7 +181,10 @@ class MultiVariantsMatcher(BaseVariantMatcher):
                          intervals=intervals, interval_attrs=interval_attrs,
                          vcf_lazy=vcf_lazy,
                          variant_batch_size=variant_batch_size)
-        self.intervals = self.pr.intervals
+        if hasattr(self.pr, 'intervals'):
+            self.intervals = self.pr.intervals
+        else:
+            self.intervals = pyranges_to_intervals(self.pr)
 
     def __iter__(self):
         for i in self.intervals:

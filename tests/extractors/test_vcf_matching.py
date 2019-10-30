@@ -18,6 +18,13 @@ variants = [
     Variant('chr1', 25, 'AACG', 'GA')
 ]
 
+pr = pyranges.PyRanges(
+    chromosomes='chr1',
+    starts=[1, 23, 5],
+    ends=[10, 30, 50],
+    strands=['+', '-', '.']
+)
+
 
 def test_variants_to_pyranges():
     vcf = MultiSampleVCF(vcf_file)
@@ -80,19 +87,19 @@ def test_BaseVariantMatcher__read_intervals():
     assert pr.Chromosome.tolist() == ['chr1'] * 5
     assert pr.Start.tolist() == [200, 200, 200, 1049, 3029]
     assert pr.End.tolist() == [4230, 4230, 402, 1340, 4230]
-    assert len(pr.intervals.tolist()) == 5
+    # assert len(pr.intervals.tolist()) == 5
 
     pr = BaseVariantMatcher._read_intervals(bed_path=example_intervals_bed)
     assert pr.Chromosome.tolist() == ['chr1'] * 4
     assert pr.Start.tolist() == [2, 2, 2, 602]
     assert pr.End.tolist() == [1000, 5000, 1002, 604]
-    assert len(pr.intervals.tolist()) == 4
+    # assert len(pr.intervals.tolist()) == 4
 
     pr = BaseVariantMatcher._read_intervals(pranges=pranges)
     assert pr.Chromosome.tolist() == ['chr1'] * 5
     assert pr.Start.tolist() == [201, 201, 201, 1050, 3030]
     assert pr.End.tolist() == [4230, 4230, 402, 1340, 4230]
-    assert len(pr.intervals.tolist()) == 5
+    # assert len(pr.intervals.tolist()) == 5
 
     pr = BaseVariantMatcher._read_intervals(intervals=intervals)
     assert pr.df.Chromosome.tolist() == ['chr1', 'chr1']
@@ -120,9 +127,32 @@ def test_SingleVariantMatcher__iter__():
     assert pairs[4][1] == variants[2]
     assert len(pairs) == 5
 
+    matcher = SingleVariantMatcher(vcf_file, pranges=pr)
+    pairs = list(matcher)
+
+    assert pairs[0][0] == intervals[0]
+    assert pairs[0][1] == variants[0]
+    assert pairs[1][0] == intervals[0]
+    assert pairs[1][1] == variants[1]
+    assert pairs[2][0] == inters[2]
+    assert pairs[2][1] == variants[1]
+    assert pairs[3][0] == inters[2]
+    assert pairs[3][1] == variants[2]
+    assert pairs[4][0] == intervals[1]
+    assert pairs[4][1] == variants[2]
+    assert len(pairs) == 5
+
 
 def test_MultiVariantMatcher__iter__():
     matcher = MultiVariantsMatcher(vcf_file, intervals=intervals)
+    pairs = list(matcher)
+
+    assert pairs[0][0] == intervals[0]
+    assert list(pairs[0][1]) == [variants[0], variants[1]]
+    assert pairs[1][0] == intervals[1]
+    assert list(pairs[1][1]) == [variants[2]]
+
+    matcher = MultiVariantsMatcher(vcf_file, pranges=pr)
     pairs = list(matcher)
 
     assert pairs[0][0] == intervals[0]
