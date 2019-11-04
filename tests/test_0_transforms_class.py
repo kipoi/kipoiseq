@@ -1,9 +1,5 @@
 import pytest
-import numpy as np
-import copy
 from kipoiseq.transforms.transforms import Compose, OneHot, SplitSplicingSeq, ReorderedOneHot
-from kipoiseq.utils import DNA
-from pybedtools import Interval
 
 
 # --------------------------------------------
@@ -27,7 +23,8 @@ def test_ReorderedOneHot():
     ]
 
     for args, result in test_pairs:
-        tr = ReorderedOneHot(alphabet=args[0], alphabet_axis=args[1], dummy_axis=args[2])
+        tr = ReorderedOneHot(
+            alphabet=args[0], alphabet_axis=args[1], dummy_axis=args[2])
         out = tr(seq)
         assert out.shape == tr.get_output_shape(seqlen)
         assert out.shape == result

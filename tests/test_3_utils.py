@@ -1,6 +1,5 @@
 import pytest
 import numpy as np
-from pybedtools import Interval
 from kipoiseq.utils import parse_alphabet, parse_dtype
 
 

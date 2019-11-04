@@ -3,7 +3,6 @@
 from kipoiseq.dataloaders.sequence import BedDataset
 import numpy as np
 import pytest
-import pybedtools
 from pybedtools import Interval
 
 
@@ -40,7 +39,8 @@ def test_bed3_labels(tmpdir):
 
 
 def test_incl_excl_chromosomes(tmpdir):
-    bed_file = write_tmp('chr1\t1\t2\t1\t0\nchr2\t1\t3\t0\t1\nchr3\t1\t3\t0\t1', tmpdir)
+    bed_file = write_tmp(
+        'chr1\t1\t2\t1\t0\nchr2\t1\t3\t0\t1\nchr3\t1\t3\t0\t1', tmpdir)
     bt = BedDataset(bed_file)
     assert len(bt) == 3
 
@@ -54,7 +54,8 @@ def test_incl_excl_chromosomes(tmpdir):
 
 
 def test_ambiguous_mask(tmpdir):
-    bed_file = write_tmp('chr1\t1\t2\t1\t0\nchr2\t1\t3\t0\t1\nchr3\t1\t3\t0\t-1', tmpdir)
+    bed_file = write_tmp(
+        'chr1\t1\t2\t1\t0\nchr2\t1\t3\t0\t1\nchr3\t1\t3\t0\t-1', tmpdir)
     bt = BedDataset(bed_file)
     assert len(bt) == 3
     assert np.all(bt[2][1] == np.array([0, -1]))
@@ -68,14 +69,16 @@ def test_ambiguous_mask(tmpdir):
 
 def test_ambiguous_mask2(tmpdir):
     # only ambigous regions are present
-    bed_file = write_tmp('chr1\t1\t2\t1\t0\nchr2\t1\t3\t0\t1\nchr3\t1\t3\t-1\t-1', tmpdir)
+    bed_file = write_tmp(
+        'chr1\t1\t2\t1\t0\nchr2\t1\t3\t0\t1\nchr3\t1\t3\t-1\t-1', tmpdir)
     bt = BedDataset(bed_file, ambiguous_mask=-1)
     assert len(bt) == 2
     assert np.all(bt.get_targets().max(axis=1) >= 0)
 
 
 def test_num_chr(tmpdir):
-    bed_file = write_tmp('chr1\t1\t2\t1\t0\nchr2\t1\t3\t0\t1\nchr3\t1\t3\t0\t-1', tmpdir)
+    bed_file = write_tmp(
+        'chr1\t1\t2\t1\t0\nchr2\t1\t3\t0\t1\nchr3\t1\t3\t0\t-1', tmpdir)
     bt = BedDataset(bed_file, num_chr=True)
     assert len(bt) == 3
     assert bt[0][0].chrom == '1'
@@ -90,7 +93,8 @@ def test_label_dtype(tmpdir):
 
 
 def test_more_columns(tmpdir):
-    bed_file = write_tmp('chr1\t1\t2\tinterval1\t1\t0\nchr2\t1\t3\tinterval2\t0\t1', tmpdir)
+    bed_file = write_tmp(
+        'chr1\t1\t2\tinterval1\t1\t0\nchr2\t1\t3\tinterval2\t0\t1', tmpdir)
     with pytest.raises(Exception):
         bt = BedDataset(bed_file, label_dtype=bool)
     bt = BedDataset(bed_file, bed_columns=4, label_dtype=bool)

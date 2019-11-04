@@ -1,7 +1,6 @@
 from kipoiseq.extractors import FastaStringExtractor
 import pytest
-import numpy as np
-from pybedtools import Interval
+from kipoiseq.dataclasses import Interval
 
 
 comp = {"A": "T", "C": "G", "G": "C", "T": "A"}

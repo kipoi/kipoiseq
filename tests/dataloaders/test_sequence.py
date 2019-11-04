@@ -1,11 +1,9 @@
-import os
 import numpy as np
 import pytest
 from copy import deepcopy
-from pybedtools import Interval
 from kipoi.utils import override_default_kwargs
 from kipoiseq.transforms.functional import one_hot_dna
-from kipoiseq.dataloaders.sequence import StringSeqIntervalDl, SeqIntervalDl, BedDataset
+from kipoiseq.dataloaders.sequence import StringSeqIntervalDl, SeqIntervalDl
 
 
 @pytest.fixture
@@ -128,20 +126,25 @@ def test_output_schape():
     # original left intact
     assert Dl.get_output_schema().inputs.shape == (None, 4)
 
-    Dlc = override_default_kwargs(Dl, {"auto_resize_len": 100, "dummy_axis": 1, "alphabet_axis": 2})
+    Dlc = override_default_kwargs(
+        Dl, {"auto_resize_len": 100, "dummy_axis": 1, "alphabet_axis": 2})
     assert Dlc.get_output_schema().inputs.shape == (100, 1, 4)
-    Dlc = override_default_kwargs(Dl, {"auto_resize_len": 100, "dummy_axis": 2})
+    Dlc = override_default_kwargs(
+        Dl, {"auto_resize_len": 100, "dummy_axis": 2})
     assert Dlc.get_output_schema().inputs.shape == (100, 4, 1)
     # original left intact
     assert Dl.get_output_schema().inputs.shape == (None, 4)
 
-    Dlc = override_default_kwargs(Dl, {"auto_resize_len": 100, "alphabet": "ACGTD"})
+    Dlc = override_default_kwargs(
+        Dl, {"auto_resize_len": 100, "alphabet": "ACGTD"})
     assert Dlc.get_output_schema().inputs.shape == (100, 5)
 
-    Dlc = override_default_kwargs(Dl, {"auto_resize_len": 160, "dummy_axis": 2, "alphabet_axis": 0})
+    Dlc = override_default_kwargs(
+        Dl, {"auto_resize_len": 160, "dummy_axis": 2, "alphabet_axis": 0})
     assert Dlc.get_output_schema().inputs.shape == (4, 160, 1)
 
-    Dlc = override_default_kwargs(Dl, {"auto_resize_len": 160, "dummy_axis": 2, "alphabet_axis": 1})
+    Dlc = override_default_kwargs(
+        Dl, {"auto_resize_len": 160, "dummy_axis": 2, "alphabet_axis": 1})
     assert Dlc.get_output_schema().inputs.shape == (160, 4, 1)
     targets = Dlc.get_output_schema().targets
     assert targets.shape == (None,)

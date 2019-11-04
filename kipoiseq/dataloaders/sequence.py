@@ -1,23 +1,16 @@
-from collections import OrderedDict
 import pandas as pd
 import numpy as np
 from copy import deepcopy
-
 from kipoi.metadata import GenomicRanges
-from kipoi.specs import DataLoaderArgument, ArraySpecialType
-from kipoi.plugin import is_installed
 from kipoi.data import Dataset, kipoi_dataloader
 from kipoi_conda.dependencies import Dependencies
+from kipoiseq.transforms import ReorderedOneHot
 from kipoi.specs import Author
 from kipoi_utils.utils import default_kwargs
-
 from kipoiseq.extractors import FastaStringExtractor
-from kipoiseq.transforms import SwapAxes, DummyAxis, Compose, OneHot, ReorderedOneHot
 from kipoiseq.transforms.functional import resize_interval
 from kipoiseq.utils import to_scalar, parse_dtype
 
-import pybedtools
-from pybedtools import BedTool, Interval
 
 # general dependencies
 # bioconda::genomelake', TODO - add genomelake again once it gets released with pyfaidx to bioconda
@@ -105,7 +98,8 @@ class BedDataset(object):
 
         if ambiguous_mask is not None:
             # exclude regions where only ambigous labels are present
-            self.df = self.df[~np.all(self.df.iloc[:, self.bed_columns:] == ambiguous_mask, axis=1)]
+            self.df = self.df[~np.all(
+                self.df.iloc[:, self.bed_columns:] == ambiguous_mask, axis=1)]
 
             # omit data outside chromosomes
         if incl_chromosomes is not None:
@@ -117,12 +111,17 @@ class BedDataset(object):
         """Returns (pybedtools.Interval, labels)
         """
         row = self.df.iloc[idx]
-        interval = pybedtools.create_interval_from_list([to_scalar(x) for x in row.iloc[:self.bed_columns]])
+
+        # TODO: use kipoiseq.dataclasses.interval instead of pybedtools
+        import pybedtools
+        interval = pybedtools.create_interval_from_list(
+            [to_scalar(x) for x in row.iloc[:self.bed_columns]])
 
         if self.ignore_targets or self.n_tasks == 0:
             labels = {}
         else:
-            labels = row.iloc[self.bed_columns:].values.astype(self.label_dtype)
+            labels = row.iloc[self.bed_columns:].values.astype(
+                self.label_dtype)
         return interval, labels
 
     def __len__(self):
@@ -229,7 +228,8 @@ class StringSeqIntervalDl(Dataset):
 
         if self.auto_resize_len:
             # automatically resize the sequence to cerat
-            interval = resize_interval(interval, self.auto_resize_len, anchor='center')
+            interval = resize_interval(
+                interval, self.auto_resize_len, anchor='center')
 
         # QUESTION: @kromme - why to we need max_seq_len?
         # if self.max_seq_len is not None:
@@ -366,7 +366,8 @@ class SeqIntervalDl(Dataset):
                                                dtype=kwargs['dtype'],
                                                alphabet_axis=kwargs['alphabet_axis'],
                                                dummy_axis=kwargs['dummy_axis'])
-        input_shape = mock_input_transform.get_output_shape(kwargs['auto_resize_len'])
+        input_shape = mock_input_transform.get_output_shape(
+            kwargs['auto_resize_len'])
 
         # modify it
         output_schema.inputs.shape = input_shape
