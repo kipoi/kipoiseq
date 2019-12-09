@@ -135,6 +135,8 @@ class GenomeCDSSeq:
         if strand == '-':
             # optionally reverse complement
             seq = rc_dna(seq)
+        while(len(seq)%3!=0):
+            seq=seq[:-1]
         return seq
 
     def get_seq_variants(self, transcript_id, variants):
@@ -206,9 +208,8 @@ for transcript_id in tqdm(gps.transcripts):
         # print("prot:", dfp.loc[transcript_id].seq)
         # print("seq: ", prot_seq)
 err_transcripts = pd.DataFrame(err_transcripts)
-err_cds.to_csv("data/protein/err_cds.csv")
-err_transcripts.to_csv("data/protein/err_transcripts.csv")
-
+#err_cds.to_csv("data/protein/err_cds.csv")
+#err_transcripts.to_csv("data/protein/err_transcripts.csv")
 # len(dna_seq) % 3 != 0: ENST00000625258
 # len(dna_seq) % 3 != 0: ENST00000485079
 # len(dna_seq) % 3 != 0: ENST00000638880
