@@ -279,7 +279,7 @@ def test_mutation_in_each_exon_all_variance():
     s1 = dfp.loc[transcript_id].seq
     for i in range(len(s1)):
         if s1[i]!=s2[i]:
-            assert s2[i] in ['L','A','K'],'Unexepcted AA: '+s2[i]+'. Should be: ' + s1[i]
+            assert s2[i] in ['L','A','K'],'Unexpected AA: '+s2[i]+'. Should be: ' + s1[i]
 
 def test_mutation_single_variance():
     from pathlib import Path
@@ -300,7 +300,7 @@ def test_mutation_single_variance():
     for seq in s2:
         for a in range(len(seq)):
             if s1[a]!=seq[a]:
-                assert seq[a] in ['I','T','L'],'Unexepcted AA: '+ seq[a]
+                assert seq[a] in ['I','T','L'],'Unexpected AA: '+ seq[a]
 
 
 
