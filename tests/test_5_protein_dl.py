@@ -266,7 +266,7 @@ def test_mutation_in_each_exon_all_variance():
     ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
     gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
     fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
-    vcf_file = 'tests/data/test1.vcf.gz'
+    vcf_file = 'tests/data/test_1.2.vcf.gz'
     protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
     vs = VarianceSeq(fasta_file,vcf_file,gtf_file)  
     transcript_id = 'ENST00000381176'
