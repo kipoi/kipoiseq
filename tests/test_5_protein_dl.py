@@ -260,8 +260,51 @@ class VarianceSeq:
         seq_list=[translate(seq) for seq in seq_list]
         return seq_list
 
+def test_mutation_in_each_exon_all_variance():
+    from pathlib import Path
+    ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
+    gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
+    fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
+    vcf_file = 'tests/data/test1.vcf.gz'
+    protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
+    vs = VarianceSeq(fasta_file,vcf_file,gtf_file)  
+    transcript_id = 'ENST00000381176'
+    s2 = vs.test_coding_seq_chr(transcript_id)
+    dfp = read_pep_fa(protein_file)
+    dfp['transcript_id'] = dfp.transcript.str.split(".", n=1, expand=True)[0]
+    assert not dfp['transcript_id'].duplicated().any()
+    dfp = dfp.set_index("transcript_id")
+    dfp = dfp[~dfp.chromosome.isnull()]
+    s1 = dfp.loc[transcript_id].seq
+    for i in range(len(s1)):
+        if s1[i]!=s2[i]:
+            assert s2[i] in ['L','A','K'],'Unexepcted AA: '+s2[i]+'. Should be: ' + s1[i]
+
+def test_mutation_single_variance():
+    from pathlib import Path
+    ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
+    gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
+    fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
+    vcf_file2 = 'tests/data/test_1.1.vcf.gz'
+    protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
+    vs2 = VarianceSeq(fasta_file,vcf_file2,gtf_file)  
+    transcript_id = 'ENST00000381176'
+    s2 = vs2.test_coding_seq_chr_var(transcript_id)
+    dfp = read_pep_fa(protein_file)
+    dfp['transcript_id'] = dfp.transcript.str.split(".", n=1, expand=True)[0]
+    assert not dfp['transcript_id'].duplicated().any()
+    dfp = dfp.set_index("transcript_id")
+    dfp = dfp[~dfp.chromosome.isnull()]
+    s1 = dfp.loc[transcript_id].seq
+    for seq in s2:
+        for a in range(len(seq)):
+            if s1[a]!=seq[a]:
+                assert seq[a] in ['I','T','L'],'Unexepcted AA: '+ seq[a]
 
 
+
+
+"""
 dfp = read_pep_fa(protein_file)
 dfp['transcript_id'] = dfp.transcript.str.split(".", n=1, expand=True)[0]
 assert not dfp['transcript_id'].duplicated().any()
@@ -327,3 +370,4 @@ err_transcripts = pd.DataFrame(err_transcripts)
 #    assert translate("TTTATGGAC") == 'FMD'
 #    with pytest.raises(ValueError):
 #        translate("TGAATGGA")
+"""
