@@ -260,6 +260,7 @@ class VarianceSeq:
         seq_list=[translate(seq) for seq in seq_list]
         return seq_list
 
+<<<<<<< HEAD
 def test_mutation_in_each_exon_all_variance():
     from pathlib import Path
     ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
@@ -305,6 +306,10 @@ def test_mutation_single_variance():
 
 
 """
+=======
+
+
+>>>>>>> 86ee4a3eb63859d18054898baa6d583e5c6db0b1
 dfp = read_pep_fa(protein_file)
 dfp['transcript_id'] = dfp.transcript.str.split(".", n=1, expand=True)[0]
 assert not dfp['transcript_id'].duplicated().any()
@@ -370,4 +375,7 @@ err_transcripts = pd.DataFrame(err_transcripts)
 #    assert translate("TTTATGGAC") == 'FMD'
 #    with pytest.raises(ValueError):
 #        translate("TGAATGGA")
+<<<<<<< HEAD
 """
+=======
+>>>>>>> 86ee4a3eb63859d18054898baa6d583e5c6db0b1
