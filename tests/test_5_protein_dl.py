@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 from kipoiseq.transforms.functional import translate, rc_dna
 from kipoiseq.extractors import FastaStringExtractor
+from kipoiseq.extractors.vcf_seq import SingleSeqVCFSeqExtractor,SingleVariantVCFSeqExtractor
 from tqdm import tqdm
 
 
@@ -167,6 +168,98 @@ class GenomeCDSSeq:
         # this will generate (variant, cds_exon) pairs
         # cds_exon will contain also the information about the order in the transcript
         return self.cds_exons.join(variant)
+    
+class VarianceSeq:
+    
+    def __init__(self,fasta_file,vcf_file,gtf_file):
+        self.gtf_file = str(gtf_file)
+        self.fasta_file = str(fasta_file)
+        self.vcf_file=str(vcf_file)
+        self.gps = GenomeCDSSeq(self.gtf_file, self.fasta_file)
+        self.sse=SingleSeqVCFSeqExtractor(self.fasta_file, self.vcf_file)
+        self.sve=SingleVariantVCFSeqExtractor(self.fasta_file, self.vcf_file)
+
+    def coding_seq_chr(self):
+        for transcript_id in tqdm(self.gps.transcripts):
+            intervals,strand = self.gps.get_cds_exons(transcript_id)
+            seq=""
+            for interval in intervals:
+                interval = Interval(interval[0],int(interval[1]),int(interval[2]))
+                seq="".join([seq,self.sse.extract(interval,anchor=1)])
+            if strand == '-':
+                seq = rc_dna(seq)
+            # optionally reverse complement
+            seq=self.cut_seq(seq)
+            yield translate(seq)
+            
+    def cut_seq(self,seq):
+        while(len(seq)%3!=0):
+            seq=seq[:-1]
+        return seq    
+    def coding_seq_chr_var(self):
+        import itertools
+
+        for transcript_id in tqdm(self.gps.transcripts):
+            seq_list=[""]
+            intervals,strand = self.gps.get_cds_exons(transcript_id)
+            for interval in intervals:
+                interval = Interval(interval[0],int(interval[1]),int(interval[2]))
+                gen_of_seq=self.sve.extract(interval,anchor=1)
+                list_of_seq = []
+                for gs in gen_of_seq: list_of_seq.append(gs)
+                if len(list_of_seq)==0: list_of_seq.append(self.sse.extract(interval,anchor=1))
+                result=itertools.product(seq_list,list_of_seq)
+                list_of_seq.clear()
+                for r in result: list_of_seq.append(r)
+                seq_list.clear()
+                for min_seq in list_of_seq: seq_list.append("".join([seq for seq in min_seq]))
+            if strand == '-':
+            # optionally reverse complement
+               seq_list = [rc_dna(seq) for seq in seq_list]
+            seq_list=[self.cut_seq(seq) for seq in seq_list]
+            seq_list=[translate(seq) for seq in seq_list]
+            yield seq_list
+            
+            
+    #function to test seq with all variants
+    def test_coding_seq_chr(self,transcript_id):
+        intervals,strand = self.gps.get_cds_exons(transcript_id)
+        seq=""
+        for interval in intervals:
+            interval = Interval(interval[0],int(interval[1]),int(interval[2]))
+            seq="".join([seq,self.sse.extract(interval,anchor=1)])
+        if strand == '-':
+            seq = rc_dna(seq)
+        # optionally reverse complement
+        seq=self.cut_seq(seq)
+        return translate(seq)
+    
+    #function to test single variant in seq
+    def test_coding_seq_chr_var(self,transcript_id):
+        import itertools
+        intervals,strand = self.gps.get_cds_exons(transcript_id)
+        seq_list=[""]
+        for interval in intervals:
+            interval = Interval(interval[0],int(interval[1]),int(interval[2]))
+            gen_of_seq=self.sve.extract(interval,anchor=1)
+            list_of_seq = []
+            for gs in gen_of_seq:
+                list_of_seq.append(gs)
+            if len(list_of_seq)==0:
+                list_of_seq.append(self.sse.extract(interval,anchor=1))
+            result=itertools.product(seq_list,list_of_seq)
+            list_of_seq.clear()
+            for r in result:
+                list_of_seq.append(r)
+            seq_list.clear()
+            for min_seq in list_of_seq: seq_list.append("".join([se for se in min_seq]))
+        if strand == '-':
+        # optionally reverse complement
+            seq_list = [rc_dna(seq) for seq in seq_list]
+        seq_list=[self.cut_seq(seq)for seq in seq_list]
+        seq_list=[translate(seq) for seq in seq_list]
+        return seq_list
+
 
 
 dfp = read_pep_fa(protein_file)
@@ -226,11 +319,11 @@ err_transcripts = pd.DataFrame(err_transcripts)
 # 359 26 1802
 
 # now: 0 115 1802
-print(div3_error, seq_mismatch_err, len(gps))
+#print(div3_error, seq_mismatch_err, len(gps))
 # TODO - fix all the errors
 
-def test_translate():
-    assert translate("TGAATGGAC") == '_MD'
-    assert translate("TTTATGGAC") == 'FMD'
-    with pytest.raises(ValueError):
-        translate("TGAATGGA")
+#def test_translate():
+#    assert translate("TGAATGGAC") == '_MD'
+#    assert translate("TTTATGGAC") == 'FMD'
+#    with pytest.raises(ValueError):
+#        translate("TGAATGGA")
