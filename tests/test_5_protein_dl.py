@@ -190,7 +190,6 @@ class AminoAcidVCFSeqExtractor:
 class SingleSeqAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
     
     #function for a concrete protein id
-    #sample_id no functionality
     def extract(self,transcript_id,anchor,sample_id=None):
         intervals,strand = self.gps.get_cds_exons(transcript_id)
         seq=""
@@ -206,7 +205,7 @@ class SingleSeqAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
     def coding_single_seq(self):
         anchor=1
         for transcript_id in tqdm(self.gps.transcripts):
-            yield self.coding_single_seq_concrete_protein(transcript_id)
+            yield self.extract(transcript_id,anchor)
 
             
             
@@ -214,7 +213,6 @@ class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
 
     
     #function for a concrete protein id
-    #sample_id no functionality
     def extract(self,transcript_id,anchor,sample_id=None):
         intervals,strand = self.gps.get_cds_exons(transcript_id)
         seq_list=[]
@@ -222,9 +220,8 @@ class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
         seq_now=""
         for interval in intervals:
             list_of_seq = []
-            for gs in self.sve.extract(Interval(interval[0],int(interval[1]),int(interval[2])),anchor=anchor): 
-                list_of_seq.append(gs)
-            if len(list_of_seq)!=0: 
+            for gs in self.sve.extract(Interval(interval[0],int(interval[1]),int(interval[2])),anchor=anchor): list_of_seq.append(gs)
+            if len(list_of_seq)!=0:
                 list_of_seq=[seq_start+seq for seq in list_of_seq]
             seq_now=self.gps.fae.extract(interval)
             seq_start+=seq_now
@@ -239,7 +236,7 @@ class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
     def coding_variant_seq(self):
         anchor=1
         for transcript_id in tqdm(self.gps.transcripts):
-            yield self.coding_variant_seq_concrete_protein(transcript_id,anchor)
+            yield self.extract(transcript_id,anchor)
             
 
     
@@ -276,6 +273,8 @@ def test_mutation_single_variance():
         assert seq in control_seq_list,'Seq mismatch'
         control_seq_list.remove(seq)
     assert len(control_seq_list)==0, '# of expected varSeq!= # of generated varSeq'
+
+
 
 
 """
