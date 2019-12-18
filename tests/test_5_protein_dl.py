@@ -169,7 +169,8 @@ class GenomeCDSSeq:
         # cds_exon will contain also the information about the order in the transcript
         return self.cds_exons.join(variant)
     
-class VarianceSeq:
+
+class AminoAcidVCFSeqExtractor:
     
     def __init__(self,fasta_file,vcf_file,gtf_file):
         self.gtf_file = str(gtf_file)
@@ -178,51 +179,18 @@ class VarianceSeq:
         self.gps = GenomeCDSSeq(self.gtf_file, self.fasta_file)
         self.sse=SingleSeqVCFSeqExtractor(self.fasta_file, self.vcf_file)
         self.sve=SingleVariantVCFSeqExtractor(self.fasta_file, self.vcf_file)
-
-    def coding_seq_chr(self):
-        for transcript_id in tqdm(self.gps.transcripts):
-            intervals,strand = self.gps.get_cds_exons(transcript_id)
-            seq=""
-            for interval in intervals:
-                interval = Interval(interval[0],int(interval[1]),int(interval[2]))
-                seq="".join([seq,self.sse.extract(interval,anchor=1)])
-            if strand == '-':
-                seq = rc_dna(seq)
-            # optionally reverse complement
-            seq=self.cut_seq(seq)
-            yield translate(seq)
-            
+    
+    #if the dna seq is not %3==0, there are unnecessary bases at the end
+    #should be called only after all exons are connected!
     def cut_seq(self,seq):
         while(len(seq)%3!=0):
             seq=seq[:-1]
-        return seq    
-    def coding_seq_chr_var(self):
-        import itertools
+        return seq
 
-        for transcript_id in tqdm(self.gps.transcripts):
-            seq_list=[""]
-            intervals,strand = self.gps.get_cds_exons(transcript_id)
-            for interval in intervals:
-                interval = Interval(interval[0],int(interval[1]),int(interval[2]))
-                gen_of_seq=self.sve.extract(interval,anchor=1)
-                list_of_seq = []
-                for gs in gen_of_seq: list_of_seq.append(gs)
-                if len(list_of_seq)==0: list_of_seq.append(self.sse.extract(interval,anchor=1))
-                result=itertools.product(seq_list,list_of_seq)
-                list_of_seq.clear()
-                for r in result: list_of_seq.append(r)
-                seq_list.clear()
-                for min_seq in list_of_seq: seq_list.append("".join([seq for seq in min_seq]))
-            if strand == '-':
-            # optionally reverse complement
-               seq_list = [rc_dna(seq) for seq in seq_list]
-            seq_list=[self.cut_seq(seq) for seq in seq_list]
-            seq_list=[translate(seq) for seq in seq_list]
-            yield seq_list
-            
-            
-    #function to test seq with all variants
-    def test_coding_seq_chr(self,transcript_id):
+class SingleSeqAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
+    
+    #function for a concrete protein id
+    def coding_single_seq_concrete_protein(self,transcript_id):
         intervals,strand = self.gps.get_cds_exons(transcript_id)
         seq=""
         for interval in intervals:
@@ -234,9 +202,17 @@ class VarianceSeq:
         seq=self.cut_seq(seq)
         return translate(seq)
     
-    #function to test single variant in seq
-    def test_coding_seq_chr_var(self,transcript_id):
-        import itertools
+    def coding_single_seq(self):
+        for transcript_id in tqdm(self.gps.transcripts):
+            yield self.coding_single_seq_concrete_protein(transcript_id)
+
+            
+            
+class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
+
+    
+    #function for a concrete protein id
+    def coding_variant_seq_concrete_protein(self,transcript_id):
         intervals,strand = self.gps.get_cds_exons(transcript_id)
         seq_list=[""]
         for interval in intervals:
@@ -259,50 +235,46 @@ class VarianceSeq:
         seq_list=[self.cut_seq(seq)for seq in seq_list]
         seq_list=[translate(seq) for seq in seq_list]
         return seq_list
+    
+    def coding_variant_seq(self):
+        for transcript_id in tqdm(self.gps.transcripts):
+            yield self.coding_variant_seq_concrete_protein(transcript_id)
+            
 
-<<<<<<< HEAD
+    
 def test_mutation_in_each_exon_all_variance():
-    from pathlib import Path
     ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
     gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
     fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
-    vcf_file = 'tests/data/test_1.2.vcf.gz'
+    vcf_file = 'tests/data/singleSeq_vcf_ENST000000381176.vcf.gz'
     protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
-    vs = VarianceSeq(fasta_file,vcf_file,gtf_file)  
+    vs = SingleSeqAminoAcidVCFSeqExtractor(fasta_file,vcf_file,gtf_file)  
     transcript_id = 'ENST00000381176'
-    s2 = vs.test_coding_seq_chr(transcript_id)
-    dfp = read_pep_fa(protein_file)
-    dfp['transcript_id'] = dfp.transcript.str.split(".", n=1, expand=True)[0]
-    assert not dfp['transcript_id'].duplicated().any()
-    dfp = dfp.set_index("transcript_id")
-    dfp = dfp[~dfp.chromosome.isnull()]
-    s1 = dfp.loc[transcript_id].seq
-    for i in range(len(s1)):
-        if s1[i]!=s2[i]:
-            assert s2[i] in ['L','A','K'],'Unexpected AA: '+s2[i]+'. Should be: ' + s1[i]
+    seq = vs.coding_single_seq_concrete_protein(transcript_id)
+    txt_file = 'tests/data/Output_singleSeq_vcf_ENST000000381176.txt'
+    f = open(txt_file)
+    control_seq = f.readline()
+    assert seq==control_seq,'Seq mismatch'
 
+            
 def test_mutation_single_variance():
-    from pathlib import Path
     ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
     gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
     fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
-    vcf_file2 = 'tests/data/test_1.1.vcf.gz'
+    vcf_file2 = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
     protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
-    vs2 = VarianceSeq(fasta_file,vcf_file2,gtf_file)  
+    vs = SingleVariantAminoAcidVCFSeqExtractor(fasta_file,vcf_file2,gtf_file)  
     transcript_id = 'ENST00000381176'
-    s2 = vs2.test_coding_seq_chr_var(transcript_id)
-    dfp = read_pep_fa(protein_file)
-    dfp['transcript_id'] = dfp.transcript.str.split(".", n=1, expand=True)[0]
-    assert not dfp['transcript_id'].duplicated().any()
-    dfp = dfp.set_index("transcript_id")
-    dfp = dfp[~dfp.chromosome.isnull()]
-    s1 = dfp.loc[transcript_id].seq
-    for seq in s2:
-        for a in range(len(seq)):
-            if s1[a]!=seq[a]:
-                assert seq[a] in ['I','T','L'],'Unexpected AA: '+ seq[a]
-
-
+    seq_list = vs.coding_variant_seq_concrete_protein(transcript_id)
+    assert len(seq_list)==3,'Number of seq!=number of variances'
+    txt_file = 'tests/data/Output_singleVar_vcf_ENST000000381176.txt'
+    f = open(txt_file)
+    control_seq_list=[]
+    for seq in f: control_seq_list.append(seq.replace('\n',''))
+    for seq in seq_list:
+        assert seq in control_seq_list,'Seq mismatch'
+        control_seq_list.remove(seq)
+    assert len(control_seq_list)==0, '# of expected varSeq!= # of generated varSeq'
 
 
 """
