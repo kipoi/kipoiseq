@@ -190,6 +190,7 @@ class AminoAcidVCFSeqExtractor:
 class SingleSeqAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
     
     #function for a concrete protein id
+    #sample_id no functionality
     def extract(self,transcript_id,anchor,sample_id=None):
         intervals,strand = self.gps.get_cds_exons(transcript_id)
         seq=""
@@ -213,6 +214,7 @@ class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
 
     
     #function for a concrete protein id
+    #sample_id no functionality
     def extract(self,transcript_id,anchor,sample_id=None):
         intervals,strand = self.gps.get_cds_exons(transcript_id)
         seq_list=[]
