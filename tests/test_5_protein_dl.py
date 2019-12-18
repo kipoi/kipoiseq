@@ -190,12 +190,12 @@ class AminoAcidVCFSeqExtractor:
 class SingleSeqAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
     
     #function for a concrete protein id
-    def coding_single_seq_concrete_protein(self,transcript_id):
+    def extract(self,transcript_id,anchor,sample_id=None):
         intervals,strand = self.gps.get_cds_exons(transcript_id)
         seq=""
         for interval in intervals:
             interval = Interval(interval[0],int(interval[1]),int(interval[2]))
-            seq="".join([seq,self.sse.extract(interval,anchor=1)])
+            seq="".join([seq,self.sse.extract(interval,anchor=anchor)])
         if strand == '-':
             seq = rc_dna(seq)
         # optionally reverse complement
@@ -203,6 +203,7 @@ class SingleSeqAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
         return translate(seq)
     
     def coding_single_seq(self):
+        anchor=1
         for transcript_id in tqdm(self.gps.transcripts):
             yield self.coding_single_seq_concrete_protein(transcript_id)
 
@@ -212,33 +213,31 @@ class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
 
     
     #function for a concrete protein id
-    def coding_variant_seq_concrete_protein(self,transcript_id):
+    def extract(self,transcript_id,anchor,sample_id=None):
         intervals,strand = self.gps.get_cds_exons(transcript_id)
-        seq_list=[""]
+        seq_list=[]
+        seq_start=""
+        seq_now=""
         for interval in intervals:
-            interval = Interval(interval[0],int(interval[1]),int(interval[2]))
-            gen_of_seq=self.sve.extract(interval,anchor=1)
             list_of_seq = []
-            for gs in gen_of_seq:
+            for gs in self.sve.extract(Interval(interval[0],int(interval[1]),int(interval[2])),anchor=anchor): 
                 list_of_seq.append(gs)
-            if len(list_of_seq)==0:
-                list_of_seq.append(self.sse.extract(interval,anchor=1))
-            result=itertools.product(seq_list,list_of_seq)
-            list_of_seq.clear()
-            for r in result:
-                list_of_seq.append(r)
-            seq_list.clear()
-            for min_seq in list_of_seq: seq_list.append("".join([se for se in min_seq]))
+            if len(list_of_seq)!=0: 
+                list_of_seq=[seq_start+seq for seq in list_of_seq]
+            seq_now=self.gps.fae.extract(interval)
+            seq_start+=seq_now
+            seq_list=[exon+seq_now for exon in seq_list]+list_of_seq
         if strand == '-':
         # optionally reverse complement
             seq_list = [rc_dna(seq) for seq in seq_list]
         seq_list=[self.cut_seq(seq)for seq in seq_list]
         seq_list=[translate(seq) for seq in seq_list]
         return seq_list
-    
+
     def coding_variant_seq(self):
+        anchor=1
         for transcript_id in tqdm(self.gps.transcripts):
-            yield self.coding_variant_seq_concrete_protein(transcript_id)
+            yield self.coding_variant_seq_concrete_protein(transcript_id,anchor)
             
 
     
@@ -250,7 +249,7 @@ def test_mutation_in_each_exon_all_variance():
     protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
     vs = SingleSeqAminoAcidVCFSeqExtractor(fasta_file,vcf_file,gtf_file)  
     transcript_id = 'ENST00000381176'
-    seq = vs.coding_single_seq_concrete_protein(transcript_id)
+    seq = vs.extract(transcript_id,1)
     txt_file = 'tests/data/Output_singleSeq_vcf_ENST000000381176.txt'
     f = open(txt_file)
     control_seq = f.readline()
@@ -265,7 +264,7 @@ def test_mutation_single_variance():
     protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
     vs = SingleVariantAminoAcidVCFSeqExtractor(fasta_file,vcf_file2,gtf_file)  
     transcript_id = 'ENST00000381176'
-    seq_list = vs.coding_variant_seq_concrete_protein(transcript_id)
+    seq_list = vs.extract(transcript_id,1)
     assert len(seq_list)==3,'Number of seq!=number of variances'
     txt_file = 'tests/data/Output_singleVar_vcf_ENST000000381176.txt'
     f = open(txt_file)
