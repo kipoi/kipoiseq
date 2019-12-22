@@ -106,11 +106,11 @@ def test_MultiSampleVCF__regions_from_variants(multi_sample_vcf):
     ]
     regions = multi_sample_vcf._regions_from_variants(variants)
 
-    assert regions == [
+    assert set(regions) == set([
         Interval('chr1', 4, 25),
         Interval('chr1', 55525, 55525),
         Interval('chr10', 55525, 55525)
-    ]
+    ])
 
 
 def test_MultiSampleVCF_VariantQueryable_to_vcf(tmpdir, multi_sample_vcf):
