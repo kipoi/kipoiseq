@@ -26,6 +26,7 @@ test_requirements = [
     "jedi",
     "pytest>=3.3.1",
     "pytest-xdist",  # running tests in parallel
+    "pytest-mock",
     "pytest-pep8",  # see https://github.com/kipoi/kipoi/issues/91
     "pytest-cov",
     "coveralls",
@@ -36,7 +37,7 @@ test_requirements = [
     # "genomelake",
     "keras",
     "tensorflow",
-    "pybedtools"
+    "pybedtools",
 ]
 
 setup(
