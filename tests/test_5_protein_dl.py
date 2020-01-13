@@ -80,7 +80,7 @@ def gtf_row2interval(row):
                     strand=str(row.Strand))
 
 
-class GenomeCDSSeq:
+class GenomeCDSFetcher:
 
     def __init__(self, gtf_file, fasta_file):
         """Protein sequences in the genome
@@ -127,6 +127,15 @@ class GenomeCDSSeq:
                          for i, row in cds_exons.loc[transcript_id].sort_values("Start").iterrows()]
         return intervals, strand
 
+    # if the dna seq is not %3==0, there are unnecessary bases at the end
+    # should be called only after all exons are connected!
+
+    def cut_seq(self, seq):
+        while(len(seq) % 3 != 0):
+            seq = seq[:-1]
+        return seq
+    
+    
     def get_seq(self, transcript_id):
         exons, strand = self.get_cds_exons(transcript_id)
         # merge the sequences
@@ -140,17 +149,6 @@ class GenomeCDSSeq:
             seq = seq[:-1]
         return seq
 
-    def get_seq_variants(self, transcript_id, variants):
-        exons, strand = self.get_cds_exons(transcript_id)
-        # merge the sequences
-
-        # TODO - insert genetic variants here
-        seq = "".join([self.fae.extract(exon) for exon in exons])
-
-        if strand == '-':
-            # optionally reverse complement
-            seq = rc_dna(seq)
-        return seq
 
     def __getitem__(self, idx):
         return self.get_seq(self.transcripts[idx])
@@ -176,73 +174,73 @@ class AminoAcidVCFSeqExtractor:
         self.gtf_file = str(gtf_file)
         self.fasta_file = str(fasta_file)
         self.vcf_file = str(vcf_file)
-        self.gps = GenomeCDSSeq(self.gtf_file, self.fasta_file)
-        self.sse = SingleSeqVCFSeqExtractor(self.fasta_file, self.vcf_file)
-        self.sve = SingleVariantVCFSeqExtractor(self.fasta_file, self.vcf_file)
-    # if the dna seq is not %3==0, there are unnecessary bases at the end
+        self.genome_cds_fetcher = GenomeCDSFetcher(self.gtf_file, self.fasta_file)
 
-    # should be called only after all exons are connected!
-
-    def cut_seq(self, seq):
-        while(len(seq) % 3 != 0):
-            seq = seq[:-1]
-        return seq
 
 
 class SingleSeqAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
 
+    def __init__(self, fasta_file, vcf_file, gtf_file):
+        AminoAcidVCFSeqExtractor.__init__(self, fasta_file, vcf_file, gtf_file)
+        self.single_seq_vcf_seq_extractor = SingleSeqVCFSeqExtractor(self.fasta_file, self.vcf_file)
+
+
+
     # function for a concrete protein id
 
-    def extract(self, transcript_id, anchor, sample_id=None):
-        intervals, strand = self.gps.get_cds_exons(transcript_id)
-        seq = ""
-        for interval in intervals:
-            interval = Interval(interval[0], int(interval[1]), int(interval[2]))
-            seq = "".join([seq, self.sse.extract(interval, anchor=anchor)])
+    def extract(self, transcript_id, sample_id=None):
+        intervals, strand = self.genome_cds_fetcher.get_cds_exons(transcript_id)
+        seq = "".join([self.single_seq_vcf_seq_extractor.extract(Interval(interval[0], int(interval[1]), int(interval[2])), anchor=0,sample_id=sample_id) for interval in intervals])
         if strand == '-':
             seq = rc_dna(seq)
         # optionally reverse complement
-        seq = self.cut_seq(seq)
+        seq = self.genome_cds_fetcher.cut_seq(seq)
+        
         return translate(seq)
 
     def coding_single_seq(self):
-        anchor = 1
-        for transcript_id in tqdm(self.gps.transcripts):
-            yield self.extract(transcript_id, anchor)
+        for transcript_id in tqdm(self.genome_cds_fetcher.transcripts):
+            yield self.extract(transcript_id)
 
 
 class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
 
+    def __init__(self, fasta_file, vcf_file, gtf_file):
+        AminoAcidVCFSeqExtractor.__init__(self, fasta_file, vcf_file, gtf_file)
+        self.single_variant_vcf_seq_extractor = SingleVariantVCFSeqExtractor(self.fasta_file, self.vcf_file)
+
     # function for a concrete protein id
 
-    def extract(self, transcript_id, anchor, sample_id=None):
-        intervals, strand = self.gps.get_cds_exons(transcript_id)
-        seq_list = []
-        seq_start = ""
-        seq_now = ""
+    def extract(self, transcript_id, sample_id=None):
+        intervals, strand = self.genome_cds_fetcher.get_cds_exons(transcript_id)
+        seq_ref = [self.genome_cds_fetcher.fae.extract(Interval(interval[0], int(interval[1]), int(interval[2]))) for interval in intervals]
+        num_interval = 0
         for interval in intervals:
-            list_of_seq = []
-            for gs in self.sve.extract(Interval(interval[0], int(interval[1]), int(interval[2])), anchor=anchor):
-                list_of_seq.append(gs)
-            if len(list_of_seq) != 0:
-                list_of_seq = [seq_start + seq for seq in list_of_seq]
-            seq_now = self.gps.fae.extract(interval)
-            seq_start += seq_now
-            seq_list = [exon + seq_now for exon in seq_list] + list_of_seq
+            seq_list=[]
+            num_interval += 1
+            list_of_seq = list(self.single_variant_vcf_seq_extractor.extract(Interval(interval[0], int(interval[1]), int(interval[2])), anchor=0,sample_id=sample_id))
+            if len(list_of_seq) == 0:
+                continue
+            seq_start_ref = "".join(seq_ref[ : num_interval-1])
+            seq_end_ref = "".join(seq_ref[num_interval: ])
+            for exon in list_of_seq:
+                single_seq_list = [seq_start_ref,exon,seq_end_ref]
+                seq_list.append("".join(single_seq_list))
+            # optionally reverse complement
+            if strand == '-':
+                seq_list = [rc_dna(seq) for seq in seq_list]
+            
+            seq_list = [self.genome_cds_fetcher.cut_seq(seq)for seq in seq_list]
+            seq_list = [translate(seq) for seq in seq_list]
+            
+            yield seq_list
+        
 
-        # optionally reverse complement
-
-        if strand == '-':
-            seq_list = [rc_dna(seq) for seq in seq_list]
-        seq_list = [self.cut_seq(seq)for seq in seq_list]
-        seq_list = [translate(seq) for seq in seq_list]
-        return seq_list
+        
 
     def coding_variant_seq(self):
-        anchor = 1
-        for transcript_id in tqdm(self.gps.transcripts):
-
-            yield self.extract(transcript_id, anchor)
+        for transcript_id in tqdm(self.genome_cds_fetcher.transcripts):
+            yield self.extract(transcript_id)
 
 
 def test_mutation_in_each_exon_all_variance():
@@ -254,7 +252,7 @@ def test_mutation_in_each_exon_all_variance():
     vs = SingleSeqAminoAcidVCFSeqExtractor(fasta_file, vcf_file, gtf_file)
 
     transcript_id = 'ENST00000381176'
-    seq = vs.extract(transcript_id, 1)
+    seq = vs.extract(transcript_id)
     txt_file = 'tests/data/Output_singleSeq_vcf_ENST000000381176.txt'
     f = open(txt_file)
     control_seq = f.readline()
@@ -270,7 +268,12 @@ def test_mutation_single_variance():
     vs = SingleVariantAminoAcidVCFSeqExtractor(fasta_file, vcf_file2, gtf_file)
 
     transcript_id = 'ENST00000381176'
-    seq_list = vs.extract(transcript_id, 1)
+    seq_list = []
+    seq_list_all = vs.extract(transcript_id)
+    for seq_list_min in seq_list_all:
+        for seq in seq_list_min:
+            seq_list.append(seq)
+            
     assert len(seq_list) == 3, 'Number of seq!=number of variances'
     txt_file = 'tests/data/Output_singleVar_vcf_ENST000000381176.txt'
     f = open(txt_file)
@@ -281,16 +284,25 @@ def test_mutation_single_variance():
         assert seq in control_seq_list, 'Seq mismatch'
         control_seq_list.remove(seq)
     assert len(control_seq_list) == 0, '# of expected varSeq!= # of generated varSeq'
+    
+def test_cut_seq():
+    ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
+    gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
+    fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
+    gps = GenomeCDSFetcher(gtf_file, fasta_file)
+    seq = 'ATCGATG'
+    seq = gps.cut_seq(seq)
+    assert len(seq) == 6, 'cut_seq does not work proper! Expected length 6, but was '+str(len(seq))
 
-
-
+    
+    
 dfp = read_pep_fa(protein_file)
 dfp['transcript_id'] = dfp.transcript.str.split(".", n=1, expand=True)[0]
 assert not dfp['transcript_id'].duplicated().any()
 dfp = dfp.set_index("transcript_id")
 dfp = dfp[~dfp.chromosome.isnull()]
 
-gps = GenomeCDSSeq(gtf_full_file, fasta_file)
+gps = GenomeCDSFetcher(gtf_full_file, fasta_file)
 assert len(gps) > 100
 assert gps.transcripts.isin(dfp.index).all()
 
@@ -323,8 +335,8 @@ for transcript_id in tqdm(gps.transcripts):
         # print("prot:", dfp.loc[transcript_id].seq)
         # print("seq: ", prot_seq)
 err_transcripts = pd.DataFrame(err_transcripts)
-#err_cds.to_csv("data/protein/err_cds.csv")
-#err_transcripts.to_csv("data/protein/err_transcripts.csv")
+# err_cds.to_csv("data/protein/err_cds.csv")
+# err_transcripts.to_csv("data/protein/err_transcripts.csv")
 # len(dna_seq) % 3 != 0: ENST00000625258
 # len(dna_seq) % 3 != 0: ENST00000485079
 # len(dna_seq) % 3 != 0: ENST00000638880
