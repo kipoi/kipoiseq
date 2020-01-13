@@ -70,6 +70,10 @@ def read_pep_fa(protein_file):
 # transcript_id = 'ENST00000252835'
 # transcript_id = 'ENST00000395590'
 
+def cut_seq(seq):
+        while(len(seq) % 3 != 0):
+            seq = seq[:-1]
+        return seq
 
 def gtf_row2interval(row):
     """Note: GTF is 1-based
@@ -129,11 +133,6 @@ class GenomeCDSFetcher:
 
     # if the dna seq is not %3==0, there are unnecessary bases at the end
     # should be called only after all exons are connected!
-
-    def cut_seq(self, seq):
-        while(len(seq) % 3 != 0):
-            seq = seq[:-1]
-        return seq
     
     
     def get_seq(self, transcript_id):
@@ -145,8 +144,7 @@ class GenomeCDSFetcher:
         if strand == '-':
             # optionally reverse complement
             seq = rc_dna(seq)
-        while(len(seq) % 3 != 0):
-            seq = seq[:-1]
+        seq = cut_seq(seq)
         return seq
 
 
@@ -190,11 +188,11 @@ class SingleSeqAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
 
     def extract(self, transcript_id, sample_id=None):
         intervals, strand = self.genome_cds_fetcher.get_cds_exons(transcript_id)
-        seq = "".join([self.single_seq_vcf_seq_extractor.extract(Interval(interval[0], int(interval[1]), int(interval[2])), anchor=0,sample_id=sample_id) for interval in intervals])
+        seq = "".join([self.single_seq_vcf_seq_extractor.extract(Interval(interval[0], int(interval[1]), int(interval[2])),anchor=0,sample_id=sample_id) for interval in intervals])
         if strand == '-':
             seq = rc_dna(seq)
         # optionally reverse complement
-        seq = self.genome_cds_fetcher.cut_seq(seq)
+        seq = cut_seq(seq)
         
         return translate(seq)
 
@@ -214,10 +212,8 @@ class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
     def extract(self, transcript_id, sample_id=None):
         intervals, strand = self.genome_cds_fetcher.get_cds_exons(transcript_id)
         seq_ref = [self.genome_cds_fetcher.fae.extract(Interval(interval[0], int(interval[1]), int(interval[2]))) for interval in intervals]
-        num_interval = 0
-        for interval in intervals:
+        for num_interval, interval in enumerate(intervals,start=1):
             seq_list=[]
-            num_interval += 1
             list_of_seq = list(self.single_variant_vcf_seq_extractor.extract(Interval(interval[0], int(interval[1]), int(interval[2])), anchor=0,sample_id=sample_id))
             if len(list_of_seq) == 0:
                 continue
@@ -225,18 +221,14 @@ class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
             seq_end_ref = "".join(seq_ref[num_interval: ])
             for exon in list_of_seq:
                 single_seq_list = [seq_start_ref,exon,seq_end_ref]
-                seq_list.append("".join(single_seq_list))
+                seq = "".join(single_seq_list)
+                if strand == '-':
+                    seq = rc_dna(seq)
+                # optionally reverse complement
+                seq = cut_seq(seq)
+                yield translate(seq)
             # optionally reverse complement
-            if strand == '-':
-                seq_list = [rc_dna(seq) for seq in seq_list]
-            
-            seq_list = [self.genome_cds_fetcher.cut_seq(seq)for seq in seq_list]
-            seq_list = [translate(seq) for seq in seq_list]
-            
-            yield seq_list
-        
 
-        
 
     def coding_variant_seq(self):
         for transcript_id in tqdm(self.genome_cds_fetcher.transcripts):
@@ -270,9 +262,8 @@ def test_mutation_single_variance():
     transcript_id = 'ENST00000381176'
     seq_list = []
     seq_list_all = vs.extract(transcript_id)
-    for seq_list_min in seq_list_all:
-        for seq in seq_list_min:
-            seq_list.append(seq)
+    for seq in seq_list_all:
+        seq_list.append(seq)
             
     assert len(seq_list) == 3, 'Number of seq!=number of variances'
     txt_file = 'tests/data/Output_singleVar_vcf_ENST000000381176.txt'
@@ -286,14 +277,9 @@ def test_mutation_single_variance():
     assert len(control_seq_list) == 0, '# of expected varSeq!= # of generated varSeq'
     
 def test_cut_seq():
-    ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
-    gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
-    fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
-    gps = GenomeCDSFetcher(gtf_file, fasta_file)
     seq = 'ATCGATG'
-    seq = gps.cut_seq(seq)
+    seq = cut_seq(seq)
     assert len(seq) == 6, 'cut_seq does not work proper! Expected length 6, but was '+str(len(seq))
-
     
     
 dfp = read_pep_fa(protein_file)
