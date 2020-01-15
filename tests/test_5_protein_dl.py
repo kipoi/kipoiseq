@@ -1,6 +1,5 @@
 """Test protein dataloader
 """
-from pybedtools import Interval 
 import pytest
 import pyranges as pr
 from concise.utils.fasta import read_fasta
@@ -9,8 +8,8 @@ import numpy as np
 from kipoiseq.transforms.functional import translate, rc_dna
 from kipoiseq.extractors import FastaStringExtractor
 from kipoiseq.extractors.vcf_seq import VariantSeqExtractor
-from tqdm import tqdm
 from kipoiseq.extractors.vcf import MultiSampleVCF
+from tqdm import tqdm
 
 from pathlib import Path
 ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
@@ -176,7 +175,7 @@ class AminoAcidVCFSeqExtractor:
         self.multi_sample_VCF = MultiSampleVCF(self.vcf_file)
         self.variant_seq_extractor = VariantSeqExtractor(self.fasta_file)
         
-    def strand_default(self,intervals):
+    def strand_default(self, intervals):
         for interval in intervals:
             interval.strand = "."
         return intervals
@@ -184,7 +183,7 @@ class AminoAcidVCFSeqExtractor:
 
 class SingleSeqAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
 
-    def extract_multiple(self, variant_interval_queryable, sample_id = None):
+    def extract_multiple(self, variant_interval_queryable, sample_id=None):
         seq_list = []
         for variants, interval in variant_interval_queryable.variant_intervals:
             variants = list(variants)
@@ -200,7 +199,7 @@ class SingleSeqAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
 
     def extract(self, transcript_id, sample_id=None):
         intervals, strand = self.genome_cds_fetcher.get_cds_exons(transcript_id)
-        intervals=self.strand_pass(intervals)
+        intervals = self.strand_pass(intervals)
 
         variant_interval_queryable = self.multi_sample_VCF.query_variants(intervals, sample_id=sample_id)
         
@@ -223,26 +222,26 @@ class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
 
     # function for a concrete protein id
 
-    def extract_sinlge(self, variant_interval_queryable, intervals, sample_id = None):
+    def extract_sinlge(self, variant_interval_queryable, intervals, sample_id=None):
         seq_ref = [(self.genome_cds_fetcher.fae.extract(interval)) for interval in intervals]
         for num_interval, pair in enumerate(variant_interval_queryable.variant_intervals, start=1):
             variants = list(pair[0])
             interval = pair[1]
             for variant in variants:
                 assert variant.ref != variant.alt, "Insertions and Deletions are not supported!"
-                seq_start_ref = "".join(seq_ref[ : num_interval-1])
-                seq_end_ref = "".join(seq_ref[num_interval: ])
+                seq_start_ref = "".join(seq_ref[: num_interval-1])
+                seq_end_ref = "".join(seq_ref[num_interval:])
                 seq_middle = self.variant_seq_extractor.extract(interval, [variant], anchor=0)
                 single_seq_list = [seq_start_ref, seq_middle, seq_end_ref]
                 yield "".join(single_seq_list)
     
     def extract(self, transcript_id, sample_id=None):
         intervals, strand = self.genome_cds_fetcher.get_cds_exons(transcript_id)
-        intervals=self.strand_pass(intervals)
+        intervals = self.strand_pass(intervals)
         
         variant_interval_queryable = self.multi_sample_VCF.query_variants(intervals, sample_id=sample_id)
         
-        for seq in self.extract_sinlge(variant_interval_queryable,intervals = intervals):
+        for seq in self.extract_sinlge(variant_interval_queryable, intervals=intervals):
             if strand == '-':
                 seq = rc_dna(seq)
             # optionally reverse complement
@@ -300,7 +299,7 @@ def test_mutation_single_variance():
 def test_cut_seq():
     seq = 'ATCGATG'
     seq = cut_seq(seq)
-    assert len(seq) == 6, 'cut_seq does not work proper! Expected length 6, but was '+str(len(seq))
+    assert len(seq) == 6, 'cut_seq does not work proper! Expected length 6, but was ' + str(len(seq))
 
 def test_strand_positive():
     ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
@@ -310,7 +309,7 @@ def test_strand_positive():
     protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
 
     'Interval.strand = "+"'
-    transcript_id ='ENST00000319363'
+    transcript_id = 'ENST00000319363'
     
     gps = GenomeCDSFetcher(gtf_file, fasta_file)
     ref_dna_seq = translate(gps.get_seq(transcript_id))
@@ -329,7 +328,7 @@ def test_strand_negative():
     protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
 
     'Interval.strand = "+"'
-    transcript_id ='ENST00000399798'
+    transcript_id = 'ENST00000399798'
     
     gps = GenomeCDSFetcher(gtf_file, fasta_file)
     ref_dna_seq = translate(gps.get_seq(transcript_id))
