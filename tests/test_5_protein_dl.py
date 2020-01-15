@@ -1,6 +1,6 @@
 """Test protein dataloader
 """
-from pybedtools import Interval
+from pybedtools import Interval 
 import pytest
 import pyranges as pr
 from concise.utils.fasta import read_fasta
@@ -8,9 +8,9 @@ import pandas as pd
 import numpy as np
 from kipoiseq.transforms.functional import translate, rc_dna
 from kipoiseq.extractors import FastaStringExtractor
-from kipoiseq.extractors.vcf_seq import SingleSeqVCFSeqExtractor, SingleVariantVCFSeqExtractor
+from kipoiseq.extractors.vcf_seq import VariantSeqExtractor
 from tqdm import tqdm
-
+from kipoiseq.extractors.vcf import MultiSampleVCF
 
 from pathlib import Path
 ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
@@ -137,8 +137,8 @@ class GenomeCDSFetcher:
     
     def get_seq(self, transcript_id):
         exons, strand = self.get_cds_exons(transcript_id)
+        
         # merge the sequences
-
         seq = "".join([self.fae.extract(exon) for exon in exons])
 
         if strand == '-':
@@ -173,22 +173,39 @@ class AminoAcidVCFSeqExtractor:
         self.fasta_file = str(fasta_file)
         self.vcf_file = str(vcf_file)
         self.genome_cds_fetcher = GenomeCDSFetcher(self.gtf_file, self.fasta_file)
-
-
+        self.multi_sample_VCF = MultiSampleVCF(self.vcf_file)
+        self.variant_seq_extractor = VariantSeqExtractor(self.fasta_file)
+        
+    def strand_pass(self,intervals):
+        for interval in intervals:
+            interval.strand = "."
+        return intervals
+    
 
 class SingleSeqAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
 
-    def __init__(self, fasta_file, vcf_file, gtf_file):
-        AminoAcidVCFSeqExtractor.__init__(self, fasta_file, vcf_file, gtf_file)
-        self.single_seq_vcf_seq_extractor = SingleSeqVCFSeqExtractor(self.fasta_file, self.vcf_file)
-
-
-
+    def extract_multiple(self, variant_interval_queryable, sample_id = None):
+        seq_list = []
+        for variants, interval in variant_interval_queryable.variant_intervals:
+            variants = list(variants)
+            seq_list.append(self.variant_seq_extractor.extract(interval, variants, anchor=0))
+            for variant in variants:
+                assert variant.ref != variant.alt, "Insertions and Deletions are not supported!"
+            
+            
+        return "".join(seq_list)
+    
+    
     # function for a concrete protein id
 
     def extract(self, transcript_id, sample_id=None):
         intervals, strand = self.genome_cds_fetcher.get_cds_exons(transcript_id)
-        seq = "".join([self.single_seq_vcf_seq_extractor.extract(Interval(interval[0], int(interval[1]), int(interval[2])),anchor=0,sample_id=sample_id) for interval in intervals])
+        intervals=self.strand_pass(intervals)
+
+        variant_interval_queryable = self.multi_sample_VCF.query_variants(intervals, sample_id=sample_id)
+        
+        seq = self.extract_multiple(variant_interval_queryable)
+
         if strand == '-':
             seq = rc_dna(seq)
         # optionally reverse complement
@@ -203,31 +220,35 @@ class SingleSeqAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
 
 class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
 
-    def __init__(self, fasta_file, vcf_file, gtf_file):
-        AminoAcidVCFSeqExtractor.__init__(self, fasta_file, vcf_file, gtf_file)
-        self.single_variant_vcf_seq_extractor = SingleVariantVCFSeqExtractor(self.fasta_file, self.vcf_file)
 
     # function for a concrete protein id
 
+    def extract_sinlge(self, variant_interval_queryable, intervals, sample_id = None):
+        seq_ref = [(self.genome_cds_fetcher.fae.extract(interval)) for interval in intervals]
+        for num_interval, pair in enumerate(variant_interval_queryable.variant_intervals, start=1):
+            variants = list(pair[0])
+            interval = pair[1]
+            for variant in variants:
+                assert variant.ref != variant.alt, "Insertions and Deletions are not supported!"
+                seq_start_ref = "".join(seq_ref[ : num_interval-1])
+                seq_end_ref = "".join(seq_ref[num_interval: ])
+                seq_middle = self.variant_seq_extractor.extract(interval, [variant], anchor=0)
+                single_seq_list = [seq_start_ref, seq_middle, seq_end_ref]
+                yield "".join(single_seq_list)
+    
     def extract(self, transcript_id, sample_id=None):
         intervals, strand = self.genome_cds_fetcher.get_cds_exons(transcript_id)
-        seq_ref = [self.genome_cds_fetcher.fae.extract(Interval(interval[0], int(interval[1]), int(interval[2]))) for interval in intervals]
-        for num_interval, interval in enumerate(intervals,start=1):
-            seq_list=[]
-            list_of_seq = list(self.single_variant_vcf_seq_extractor.extract(Interval(interval[0], int(interval[1]), int(interval[2])), anchor=0,sample_id=sample_id))
-            if len(list_of_seq) == 0:
-                continue
-            seq_start_ref = "".join(seq_ref[ : num_interval-1])
-            seq_end_ref = "".join(seq_ref[num_interval: ])
-            for exon in list_of_seq:
-                single_seq_list = [seq_start_ref,exon,seq_end_ref]
-                seq = "".join(single_seq_list)
-                if strand == '-':
-                    seq = rc_dna(seq)
-                # optionally reverse complement
-                seq = cut_seq(seq)
-                yield translate(seq)
+        intervals=self.strand_pass(intervals)
+        
+        variant_interval_queryable = self.multi_sample_VCF.query_variants(intervals, sample_id=sample_id)
+        
+        for seq in self.extract_sinlge(variant_interval_queryable,intervals = intervals):
+            if strand == '-':
+                seq = rc_dna(seq)
             # optionally reverse complement
+            seq = cut_seq(seq)
+        
+            yield translate(seq)
 
 
     def coding_variant_seq(self):
@@ -280,8 +301,46 @@ def test_cut_seq():
     seq = 'ATCGATG'
     seq = cut_seq(seq)
     assert len(seq) == 6, 'cut_seq does not work proper! Expected length 6, but was '+str(len(seq))
+
+def test_strand_positive():
+    ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
+    gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
+    fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
+    vcf_file = 'tests/data/singleSeq_vcf_ENST000000381176.vcf.gz'
+    protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
+
+    'Interval.strand = "+"'
+    transcript_id ='ENST00000319363'
+    
+    gps = GenomeCDSFetcher(gtf_file, fasta_file)
+    ref_dna_seq = translate(gps.get_seq(transcript_id))
+
+    
+    vs = SingleSeqAminoAcidVCFSeqExtractor(fasta_file, vcf_file, gtf_file)
+    test_dna_seq = vs.extract(transcript_id)
+
+    assert test_dna_seq == ref_dna_seq, "Seq mismatch for Interval.strand = "+""
+
+def test_strand_negative():
+    ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
+    gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
+    fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
+    vcf_file = 'tests/data/singleSeq_vcf_ENST000000381176.vcf.gz'
+    protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
+
+    'Interval.strand = "+"'
+    transcript_id ='ENST00000399798'
+    
+    gps = GenomeCDSFetcher(gtf_file, fasta_file)
+    ref_dna_seq = translate(gps.get_seq(transcript_id))
+    
+    vs = SingleSeqAminoAcidVCFSeqExtractor(fasta_file, vcf_file, gtf_file)
+    test_dna_seq = vs.extract(transcript_id)
+    
+    assert test_dna_seq == ref_dna_seq, "Seq mismatch for Interval.strand = "-""
     
     
+
 dfp = read_pep_fa(protein_file)
 dfp['transcript_id'] = dfp.transcript.str.split(".", n=1, expand=True)[0]
 assert not dfp['transcript_id'].duplicated().any()
@@ -346,4 +405,5 @@ err_transcripts = pd.DataFrame(err_transcripts)
 #    assert translate("TGAATGGAC") == '_MD'
 #    assert translate("TTTATGGAC") == 'FMD'
 #    with pytest.raises(ValueError):
-#        translate("TGAATGGA")
+#        translate("TGAATGGA") 
+
