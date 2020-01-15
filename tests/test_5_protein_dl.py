@@ -199,7 +199,7 @@ class SingleSeqAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
 
     def extract(self, transcript_id, sample_id=None):
         intervals, strand = self.genome_cds_fetcher.get_cds_exons(transcript_id)
-        intervals = self.strand_pass(intervals)
+        intervals = self.strand_default(intervals)
 
         variant_interval_queryable = self.multi_sample_VCF.query_variants(intervals, sample_id=sample_id)
         
@@ -237,7 +237,7 @@ class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
     
     def extract(self, transcript_id, sample_id=None):
         intervals, strand = self.genome_cds_fetcher.get_cds_exons(transcript_id)
-        intervals = self.strand_pass(intervals)
+        intervals = self.strand_default(intervals)
         
         variant_interval_queryable = self.multi_sample_VCF.query_variants(intervals, sample_id=sample_id)
         
@@ -346,7 +346,7 @@ assert not dfp['transcript_id'].duplicated().any()
 dfp = dfp.set_index("transcript_id")
 dfp = dfp[~dfp.chromosome.isnull()]
 
-gps = GenomeCDSFetcher(gtf_full_file, fasta_file)
+gps = GenomeCDSFetcher(gtf_file, fasta_file)
 assert len(gps) > 100
 assert gps.transcripts.isin(dfp.index).all()
 
@@ -405,4 +405,6 @@ err_transcripts = pd.DataFrame(err_transcripts)
 #    assert translate("TTTATGGAC") == 'FMD'
 #    with pytest.raises(ValueError):
 #        translate("TGAATGGA") 
+
+
 
