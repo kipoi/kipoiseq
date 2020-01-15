@@ -133,17 +133,22 @@ class GenomeCDSFetcher:
     # if the dna seq is not %3==0, there are unnecessary bases at the end
     # should be called only after all exons are connected!
     
+    def prepare_seq(self,seq, strand):
+        if strand == '-':
+            # optionally reverse complement
+            seq = rc_dna(seq)
+        seq = cut_seq(seq)
+        return seq
+    
     
     def get_seq(self, transcript_id):
         exons, strand = self.get_cds_exons(transcript_id)
         
         # merge the sequences
         seq = "".join([self.fae.extract(exon) for exon in exons])
-
-        if strand == '-':
-            # optionally reverse complement
-            seq = rc_dna(seq)
-        seq = cut_seq(seq)
+        
+        seq = self.prepare_seq(seq, strand)
+        
         return seq
 
 
@@ -187,10 +192,16 @@ class SingleSeqAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
         seq_list = []
         for variants, interval in variant_interval_queryable.variant_intervals:
             variants = list(variants)
-            seq_list.append(self.variant_seq_extractor.extract(interval, variants, anchor=0))
+            flag = True
             for variant in variants:
-                assert variant.ref != variant.alt, "Insertions and Deletions are not supported!"
-            
+                if len(variant.ref) == len(variant.alt) == 1:
+                    pass
+                else:
+                    print("(Insertion == Deletion == 1) == 'FALSE'")
+                    flag = False
+                    break
+                    
+            if flag: seq_list.append(self.variant_seq_extractor.extract(interval, variants, anchor=0))
             
         return "".join(seq_list)
     
@@ -205,10 +216,7 @@ class SingleSeqAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
         
         seq = self.extract_multiple(variant_interval_queryable)
 
-        if strand == '-':
-            seq = rc_dna(seq)
-        # optionally reverse complement
-        seq = cut_seq(seq)
+        seq = self.genome_cds_fetcher.prepare_seq(seq,strand)
         
         return translate(seq)
 
@@ -228,12 +236,15 @@ class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
             variants = list(pair[0])
             interval = pair[1]
             for variant in variants:
-                assert variant.ref != variant.alt, "Insertions and Deletions are not supported!"
-                seq_start_ref = "".join(seq_ref[: num_interval-1])
-                seq_end_ref = "".join(seq_ref[num_interval:])
-                seq_middle = self.variant_seq_extractor.extract(interval, [variant], anchor=0)
-                single_seq_list = [seq_start_ref, seq_middle, seq_end_ref]
-                yield "".join(single_seq_list)
+                
+                if len(variant.ref) == len(variant.alt) == 1:
+                    seq_start_ref = "".join(seq_ref[: num_interval-1])
+                    seq_end_ref = "".join(seq_ref[num_interval:])
+                    seq_middle = self.variant_seq_extractor.extract(interval, [variant], anchor=0)
+                    single_seq_list = [seq_start_ref, seq_middle, seq_end_ref]
+                    yield "".join(single_seq_list)
+                else:
+                    print("(Insertion == Deletion == 1) == 'FALSE'")
     
     def extract(self, transcript_id, sample_id=None):
         intervals, strand = self.genome_cds_fetcher.get_cds_exons(transcript_id)
@@ -242,10 +253,8 @@ class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
         variant_interval_queryable = self.multi_sample_VCF.query_variants(intervals, sample_id=sample_id)
         
         for seq in self.extract_sinlge(variant_interval_queryable, intervals=intervals):
-            if strand == '-':
-                seq = rc_dna(seq)
-            # optionally reverse complement
-            seq = cut_seq(seq)
+            
+            seq = self.genome_cds_fetcher.prepare_seq(seq,strand)
         
             yield translate(seq)
 
@@ -404,7 +413,4 @@ err_transcripts = pd.DataFrame(err_transcripts)
 #    assert translate("TGAATGGAC") == '_MD'
 #    assert translate("TTTATGGAC") == 'FMD'
 #    with pytest.raises(ValueError):
-#        translate("TGAATGGA") 
-
-
-
+#        translate("TGAATGGA")
