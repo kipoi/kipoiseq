@@ -176,7 +176,7 @@ class AminoAcidVCFSeqExtractor:
         self.multi_sample_VCF = MultiSampleVCF(self.vcf_file)
         self.variant_seq_extractor = VariantSeqExtractor(self.fasta_file)
         
-    def strand_pass(self,intervals):
+    def strand_default(self,intervals):
         for interval in intervals:
             interval.strand = "."
         return intervals
