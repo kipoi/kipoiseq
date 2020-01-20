@@ -36,7 +36,8 @@ test_requirements = [
     # "genomelake",
     "keras",
     "tensorflow",
-    "pybedtools"
+    "pybedtools",
+    "concise"
 ]
 
 setup(
