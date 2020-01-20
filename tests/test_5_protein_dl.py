@@ -16,10 +16,11 @@ from kipoiseq import Interval
 from pathlib import Path
 ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
 
-gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
-gtf_full_file = ddir / 'Homo_sapiens.GRCh37.75.gtf'
+ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
+gtf_file = 'tests/data/sample_3_proteins.gtf'
 fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
-protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
+vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
+protein_file = 'tests/data/3_proteins.Homo_sapiens.GRCh37.75.pep.all.fa'
 
 
 # gff_file = 'data/protein/Homo_sapiens.GRCh38.97.chromosome.22.gff3.gz'
@@ -265,10 +266,10 @@ class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
 
 def test_mutation_in_each_exon_all_variance():
     ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
-    gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
+    gtf_file = 'tests/data/sample_3_proteins.gtf'
     fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
-    vcf_file = 'tests/data/singleSeq_vcf_ENST000000381176.vcf.gz'
-    protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
+    vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
+    protein_file = 'tests/data/3_proteins.Homo_sapiens.GRCh37.75.pep.all.fa'
     vs = SingleSeqAminoAcidVCFSeqExtractor(fasta_file, vcf_file, gtf_file)
 
     transcript_id = 'ENST00000381176'
@@ -281,10 +282,10 @@ def test_mutation_in_each_exon_all_variance():
 
 def test_mutation_single_variance():
     ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
-    gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
+    gtf_file = 'tests/data/sample_3_proteins.gtf'
     fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
     vcf_file2 = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
-    protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
+    protein_file = 'tests/data/3_proteins.Homo_sapiens.GRCh37.75.pep.all.fa'
     vs = SingleVariantAminoAcidVCFSeqExtractor(fasta_file, vcf_file2, gtf_file)
 
     transcript_id = 'ENST00000381176'
@@ -292,7 +293,6 @@ def test_mutation_single_variance():
     seq_list_all = vs.extract(transcript_id)
     for seq in seq_list_all:
         seq_list.append(seq)
-
     assert len(seq_list) == 3, 'Number of seq!=number of variances'
     txt_file = 'tests/data/Output_singleVar_vcf_ENST000000381176.txt'
     f = open(txt_file)
@@ -311,10 +311,10 @@ def test_cut_seq():
 
 def test_strand_positive():
     ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
-    gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
+    gtf_file = 'tests/data/sample_3_proteins.gtf'
     fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
-    vcf_file = 'tests/data/singleSeq_vcf_ENST000000381176.vcf.gz'
-    protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
+    vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
+    protein_file = 'tests/data/3_proteins.Homo_sapiens.GRCh37.75.pep.all.fa'
 
     'Interval.strand = "+"'
     transcript_id = 'ENST00000319363'
@@ -330,12 +330,12 @@ def test_strand_positive():
 
 def test_strand_negative():
     ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
-    gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
+    gtf_file = 'tests/data/sample_3_proteins.gtf'
     fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
-    vcf_file = 'tests/data/singleSeq_vcf_ENST000000381176.vcf.gz'
-    protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
+    vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
+    protein_file = 'tests/data/3_proteins.Homo_sapiens.GRCh37.75.pep.all.fa'
 
-    'Interval.strand = "+"'
+    'Interval.strand = "-"'
     transcript_id = 'ENST00000399798'
     
     gps = GenomeCDSFetcher(gtf_file, fasta_file)
@@ -345,8 +345,7 @@ def test_strand_negative():
     test_dna_seq = vs.extract(transcript_id)
     
     assert test_dna_seq == ref_dna_seq, "Seq mismatch for Interval.strand = -"
-    
-    
+
 
 dfp = read_pep_fa(protein_file)
 dfp['transcript_id'] = dfp.transcript.str.split(".", n=1, expand=True)[0]
