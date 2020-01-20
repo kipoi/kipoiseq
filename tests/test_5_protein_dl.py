@@ -101,7 +101,7 @@ class GenomeCDSFetcher:
         df = pr.read_gtf(self.gtf_file, output_df=True)
         biotype_str = 'transcript_biotype' if 'transcript_biotype' in df else 'gene_biotype'
         self.cds = (df
-                    .query(f"({biotype_str} == 'protein_coding')")
+                    .query("{} == 'protein_coding'".format(biotype_str))
                     .query("(Feature == 'CDS') | (Feature == 'CCDS')")
                     .query("(tag == 'basic') | (tag == 'CCDS')")
                     .set_index('transcript_id'))
