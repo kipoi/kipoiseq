@@ -354,7 +354,7 @@ dfp = dfp.set_index("transcript_id")
 dfp = dfp[~dfp.chromosome.isnull()]
 
 gps = GenomeCDSFetcher(gtf_file, fasta_file)
-assert len(gps) > 100
+assert len(gps) == 3 #changed from > 100 to == 3 because I have only 3 ptoteins into my test data set
 assert gps.transcripts.isin(dfp.index).all()
 
 transcript_id = 'ENST00000485079'
