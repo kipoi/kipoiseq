@@ -335,7 +335,7 @@ def test_strand_positive():
 def test_strand_negative():
     gtf_file = 'tests/data/sample_1_protein.gtf'
     fasta_file = 'tests/data/demo_dna_seq.fa'
-    vcf_file = 'tests/data/test1.vcf.gz'
+    vcf_file = 'tests/data/singleSeq_vcf_ENST000000381176.vcf.gz'
     protein_file = 'tests/data/demo_proteins.pep.all.fa'
     txt_file = 'tests/data/dna_seq_ENST00000381176.txt'
 
