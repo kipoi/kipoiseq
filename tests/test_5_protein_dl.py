@@ -13,15 +13,19 @@ from tqdm import tqdm
 from kipoiseq import Interval
 
 
-from pathlib import Path
-ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
+#from pathlib import Path
+#ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
 
-ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
-gtf_file = 'tests/data/sample_3_proteins.gtf'
-fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
+#ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
+#gtf_file = 'tests/data/sample_3_proteins.gtf'
+#fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
+#vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
+#protein_file = 'tests/data/3_proteins.Homo_sapiens.GRCh37.75.pep.all.fa'
+
+gtf_file = 'tests/data/sample_1_protein.gtf'
+fasta_file = 'tests/data/demo_dna_seq.fa'
 vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
-protein_file = 'tests/data/3_proteins.Homo_sapiens.GRCh37.75.pep.all.fa'
-
+protein_file = 'tests/data/demo_proteins.pep.all.fa'
 
 # gff_file = 'data/protein/Homo_sapiens.GRCh38.97.chromosome.22.gff3.gz'
 # gtf_file = 'data/protein/Homo_sapiens.GRCh38.97.chr.chr22.gtf.gz'
@@ -265,11 +269,11 @@ class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
 
 
 def test_mutation_in_each_exon_all_variance():
-    ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
-    gtf_file = 'tests/data/sample_3_proteins.gtf'
-    fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
+    gtf_file = 'tests/data/sample_1_protein.gtf'
+    fasta_file = 'tests/data/demo_dna_seq.fa'
     vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
-    protein_file = 'tests/data/3_proteins.Homo_sapiens.GRCh37.75.pep.all.fa'
+    protein_file = 'tests/data/demo_proteins.pep.all.fa'
+    vs = SingleVariantAminoAcidVCFSeqExtractor(fasta_file, vcf_file, gtf_file)
     vs = SingleSeqAminoAcidVCFSeqExtractor(fasta_file, vcf_file, gtf_file)
 
     transcript_id = 'ENST00000381176'
@@ -281,12 +285,11 @@ def test_mutation_in_each_exon_all_variance():
 
 
 def test_mutation_single_variance():
-    ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
-    gtf_file = 'tests/data/sample_3_proteins.gtf'
-    fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
-    vcf_file2 = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
-    protein_file = 'tests/data/3_proteins.Homo_sapiens.GRCh37.75.pep.all.fa'
-    vs = SingleVariantAminoAcidVCFSeqExtractor(fasta_file, vcf_file2, gtf_file)
+    gtf_file = 'tests/data/sample_1_protein.gtf'
+    fasta_file = 'tests/data/demo_dna_seq.fa'
+    vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
+    protein_file = 'tests/data/demo_proteins.pep.all.fa'
+    vs = SingleVariantAminoAcidVCFSeqExtractor(fasta_file, vcf_file, gtf_file)
 
     transcript_id = 'ENST00000381176'
     seq_list = []
@@ -310,40 +313,44 @@ def test_cut_seq():
     assert len(seq) == 6, 'cut_seq does not work proper! Expected length 6, but was ' + str(len(seq))
 
 def test_strand_positive():
-    ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
-    gtf_file = 'tests/data/sample_3_proteins.gtf'
-    fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
+    gtf_file = 'tests/data/sample_1_protein.gtf'
+    fasta_file = 'tests/data/demo_dna_seq.fa'
     vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
-    protein_file = 'tests/data/3_proteins.Homo_sapiens.GRCh37.75.pep.all.fa'
+    protein_file = 'tests/data/demo_proteins.pep.all.fa'
+    txt_file = 'tests/data/dna_seq_ENST00000319363.txt'
+
 
     'Interval.strand = "+"'
     transcript_id = 'ENST00000319363'
-    
-    gps = GenomeCDSFetcher(gtf_file, fasta_file)
-    ref_dna_seq = translate(gps.get_seq(transcript_id))
-
-    
+    f = open(txt_file)
+    control_seq_list = []
+    for seq in f:
+        control_seq_list.append(seq.replace('\n', ''))
+        
     vs = SingleSeqAminoAcidVCFSeqExtractor(fasta_file, vcf_file, gtf_file)
     test_dna_seq = vs.extract(transcript_id)
 
-    assert test_dna_seq == ref_dna_seq, "Seq mismatch for Interval.strand = +"
+    assert test_dna_seq == translate(cut_seq("".join(control_seq_list))), "Seq mismatch for Interval.strand = +"
 
 def test_strand_negative():
-    ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
-    gtf_file = 'tests/data/sample_3_proteins.gtf'
-    fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
-    vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
-    protein_file = 'tests/data/3_proteins.Homo_sapiens.GRCh37.75.pep.all.fa'
+    gtf_file = 'tests/data/sample_1_protein.gtf'
+    fasta_file = 'tests/data/demo_dna_seq.fa'
+    vcf_file = 'tests/data/test1.vcf.gz'
+    protein_file = 'tests/data/demo_proteins.pep.all.fa'
+    txt_file = 'tests/data/dna_seq_ENST00000381176.txt'
 
     'Interval.strand = "-"'
-    transcript_id = 'ENST00000399798'
+    transcript_id = 'ENST00000381176'
     
-    gps = GenomeCDSFetcher(gtf_file, fasta_file)
-    ref_dna_seq = translate(gps.get_seq(transcript_id))
-    
+    f = open(txt_file)
+    control_seq_list = []
+    for seq in f:
+        control_seq_list.append(seq.replace('\n', ''))
+        
     vs = SingleSeqAminoAcidVCFSeqExtractor(fasta_file, vcf_file, gtf_file)
     test_dna_seq = vs.extract(transcript_id)
-    
+
+    ref_dna_seq = translate(cut_seq(rc_dna("".join(control_seq_list))))
     assert test_dna_seq == ref_dna_seq, "Seq mismatch for Interval.strand = -"
 
 
@@ -354,8 +361,8 @@ dfp = dfp.set_index("transcript_id")
 dfp = dfp[~dfp.chromosome.isnull()]
 
 gps = GenomeCDSFetcher(gtf_file, fasta_file)
-assert len(gps) == 3 #changed from > 100 to == 3 because I have only 3 ptoteins into my test data set
-assert gps.transcripts.isin(dfp.index).all()
+assert len(gps) == 2 #changed from > 100 to == 2 because I have only 2 ptoteins into my test data set
+#assert gps.transcripts.isin(dfp.index).all()
 
 transcript_id = 'ENST00000485079'
 div3_error = 0
@@ -367,20 +374,20 @@ for transcript_id in tqdm(gps.transcripts):
     # dna_seq = dna_seq[:(len(dna_seq) // 3) * 3]
     if len(dna_seq) % 3 != 0:
         div3_error += 1
-        print(f"len(dna_seq) % 3 != 0: {transcript_id}")
+        print("len(dna_seq) % 3 != 0: {}".format(transcript_id))
         err_transcripts.append({"transcript_id": transcript_id, "div3_err": True})
         continue
     prot_seq = translate(dna_seq)
     if dfp.loc[transcript_id].seq != prot_seq:
         seq_mismatch_err += 1
-        print(f"seq.mismatch: {transcript_id}")
+        print("seq.mismatch: {}".format(transcript_id))
         n_mismatch = 0
         for i in range(len(prot_seq)):
             a = dfp.loc[transcript_id].seq[i]
             b = prot_seq[i]
             if a != b:
                 n_mismatch += 1
-                print(f"{a} {b} {i}/{len(prot_seq)}")
+                print("{} {} {}/{}".format(a,b,i,len(prot_seq)))
         err_transcripts.append({"transcript_id": transcript_id, "div3_err": False,
                                 "n-seq-mismatch": n_mismatch})
         # print("prot:", dfp.loc[transcript_id].seq)
