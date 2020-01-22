@@ -2,7 +2,7 @@
 """
 import pytest
 import pyranges as pr
-from concise.utils.fasta import read_fasta
+from pyfaidx import Fasta
 import pandas as pd
 import numpy as np
 from kipoiseq.transforms.functional import translate, rc_dna
@@ -54,13 +54,13 @@ protein_file = 'tests/data/demo_proteins.pep.all.fa'
 
 
 def read_pep_fa(protein_file):
-    proteins = read_fasta(protein_file)
+    proteins = Fasta(protein_file)
     pl = []
-    for k, v in proteins.items():
-        names = k.split(" ", 8)
+    for v in proteins:
+        names = v.long_name.split(" ", 8)
         d = {"protein_id": names[0], 'protein_type': names[1]}
         d = {**d, **dict([n.split(":", 1) for n in names[2:]])}
-        d['seq'] = v
+        d['seq'] = str(proteins[v.name])
         pl.append(d)
     return pd.DataFrame(pl)
 
