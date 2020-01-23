@@ -75,8 +75,8 @@ class MultiSampleVCF(VCF):
                     .to_vcf(output_path)
             ```
         """
-        pairs = ((self.fetch_variants(i, sample_id=sample_id), i)
-                 for i in intervals)
+        pairs = [(self.fetch_variants(i, sample_id=sample_id), i)
+                 for i in intervals]
         return VariantIntervalQueryable(self, pairs, progress=progress)
 
     def get_variant(self, variant):

@@ -91,6 +91,10 @@ class VariantIntervalQueryable:
         for variants, interval in variant_intervals:
             yield from variants
 
+    def iter_intervals(self):
+        for _, interval in self.variant_intervals:
+            yield interval
+
     def filter(self, query: VariantQuery):
         """
         Filters variant given conduction.

@@ -208,6 +208,13 @@ class Interval:
     def neg_strand(self):
         return self.strand == "-"
 
+    def unstrand(self):
+        """Removes strand information.
+        """
+        obj = self.copy()
+        obj._strand = '.'
+        return obj
+
     def center(self, use_strand=True):
         """Compute the center of the interval
         """
