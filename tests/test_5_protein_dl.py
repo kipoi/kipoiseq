@@ -54,7 +54,7 @@ protein_file = 'tests/data/demo_proteins.pep.all.fa'
 
 
 def read_pep_fa(protein_file):
-    proteins = Fasta(protein_file)
+    proteins = Fasta(str(protein_file))
     pl = []
     for v in proteins:
         names = v.long_name.split(" ", 8)
