@@ -27,6 +27,7 @@ test_requirements = [
     "pytest>=3.3.1",
     "pytest-xdist",  # running tests in parallel
     "pytest-pep8",  # see https://github.com/kipoi/kipoi/issues/91
+    "pytest-mock",
     "pytest-cov",
     "coveralls",
     "scikit-learn",
