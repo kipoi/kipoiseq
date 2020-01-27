@@ -5,10 +5,26 @@ from kipoiseq.transforms.functional import rc_dna, translate
 from kipoiseq.extractors.base import FastaStringExtractor
 from kipoiseq.extractors.vcf import MultiSampleVCF
 from kipoiseq.extractors.vcf_seq import VariantSeqExtractor
+import os.path
+import pytest
+from pyfaidx import Fasta
+import pandas as pd
+import numpy as np
+from tqdm import tqdm
 
 # TODO: convert print to logs
 # TODO: documentation
 
+def read_pep_fa(protein_file):
+    proteins = Fasta(str(protein_file))
+    pl = []
+    for v in proteins:
+        names = v.long_name.split(" ", 8)
+        d = {"protein_id": names[0], 'protein_type': names[1]}
+        d = {**d, **dict([n.split(":", 1) for n in names[2:]])}
+        d['seq'] = str(proteins[v.name])
+        pl.append(d)
+    return pd.DataFrame(pl)
 
 def cut_transcript_seq(seq):
     # if the dna seq is not %3==0, there are unnecessary bases at the end
@@ -224,8 +240,8 @@ def test_mutation_in_each_exon_all_variance():
     fasta_file = 'tests/data/demo_dna_seq.fa'
     vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
     protein_file = 'tests/data/demo_proteins.pep.all.fa'
-    vs = SingleVariantAminoAcidVCFSeqExtractor(fasta_file, vcf_file, gtf_file)
-    vs = SingleSeqAminoAcidVCFSeqExtractor(fasta_file, vcf_file, gtf_file)
+    vs = SingleVariantProteinVCFSeqExtractor(gtf_file, fasta_file, vcf_file)
+    vs = SingleSeqProteinVCFSeqExtractor(gtf_file, fasta_file, vcf_file)
 
     transcript_id = 'ENST00000381176'
     seq = vs.extract(transcript_id)
@@ -240,7 +256,7 @@ def test_mutation_single_variance():
     fasta_file = 'tests/data/demo_dna_seq.fa'
     vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
     protein_file = 'tests/data/demo_proteins.pep.all.fa'
-    vs = SingleVariantAminoAcidVCFSeqExtractor(fasta_file, vcf_file, gtf_file)
+    vs = SingleVariantProteinVCFSeqExtractor(gtf_file, fasta_file, vcf_file)
 
     transcript_id = 'ENST00000381176'
     seq_list = []
@@ -278,7 +294,7 @@ def test_strand_positive():
     for seq in f:
         control_seq_list.append(seq.replace('\n', ''))
         
-    vs = SingleSeqAminoAcidVCFSeqExtractor(fasta_file, vcf_file, gtf_file)
+    vs = SingleSeqProteinVCFSeqExtractor(gtf_file, fasta_file, vcf_file)
     test_dna_seq = vs.extract(transcript_id)
 
     assert test_dna_seq == translate(cut_seq("".join(control_seq_list))), "Seq mismatch for Interval.strand = +"
@@ -298,7 +314,7 @@ def test_strand_negative():
     for seq in f:
         control_seq_list.append(seq.replace('\n', ''))
         
-    vs = SingleSeqAminoAcidVCFSeqExtractor(fasta_file, vcf_file, gtf_file)
+    vs = SingleSeqProteinVCFSeqExtractor(gtf_file, fasta_file, vcf_file)
     test_dna_seq = vs.extract(transcript_id)
 
     ref_dna_seq = translate(cut_seq(rc_dna("".join(control_seq_list))))
@@ -322,7 +338,7 @@ def test_all_proteins_translation():
     dfp = dfp.set_index("transcript_id")
     dfp = dfp[~dfp.chromosome.isnull()]
 
-    gps = GenomeCDSFetcher(gtf_full_file, fasta_file)
+    gps = TranscriptSeqExtractor(gtf_file, fasta_file)
     assert len(gps) >100
     assert gps.transcripts.isin(dfp.index).all()
 
