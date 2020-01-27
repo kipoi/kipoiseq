@@ -353,6 +353,14 @@ def test_strand_negative():
     ref_dna_seq = translate(cut_seq(rc_dna("".join(control_seq_list))))
     assert test_dna_seq == ref_dna_seq, "Seq mismatch for Interval.strand = -"
 
+    
+"""
+from pathlib import Path
+ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
+gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
+gtf_full_file = ddir / 'Homo_sapiens.GRCh37.75.gtf'
+fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
+protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
 
 dfp = read_pep_fa(protein_file)
 dfp['transcript_id'] = dfp.transcript.str.split(".", n=1, expand=True)[0]
@@ -361,8 +369,8 @@ dfp = dfp.set_index("transcript_id")
 dfp = dfp[~dfp.chromosome.isnull()]
 
 gps = GenomeCDSFetcher(gtf_file, fasta_file)
-assert len(gps) == 2 #changed from > 100 to == 2 because I have only 2 ptoteins into my test data set
-#assert gps.transcripts.isin(dfp.index).all()
+assert len(gps) >100
+assert gps.transcripts.isin(dfp.index).all()
 
 transcript_id = 'ENST00000485079'
 div3_error = 0
@@ -419,3 +427,4 @@ err_transcripts = pd.DataFrame(err_transcripts)
 #    assert translate("TTTATGGAC") == 'FMD'
 #    with pytest.raises(ValueError):
 #        translate("TGAATGGA")
+"""
