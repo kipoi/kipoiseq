@@ -1,91 +1,26 @@
-"""Test protein dataloader
-"""
-import pytest
-import pyranges as pr
-from pyfaidx import Fasta
-import pandas as pd
+from itertools import chain, islice
 import numpy as np
-from kipoiseq.transforms.functional import translate, rc_dna
-from kipoiseq.extractors import FastaStringExtractor
-from kipoiseq.extractors.vcf_seq import VariantSeqExtractor
+from kipoiseq.dataclasses import Interval
+from kipoiseq.transforms.functional import rc_dna, translate
+from kipoiseq.extractors.base import FastaStringExtractor
 from kipoiseq.extractors.vcf import MultiSampleVCF
-from tqdm import tqdm
-from kipoiseq import Interval
+from kipoiseq.extractors.vcf_seq import VariantSeqExtractor
+
+# TODO: convert print to logs
+# TODO: documentation
 
 
-#from pathlib import Path
-#ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
-
-#ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
-#gtf_file = 'tests/data/sample_3_proteins.gtf'
-#fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
-#vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
-#protein_file = 'tests/data/3_proteins.Homo_sapiens.GRCh37.75.pep.all.fa'
-
-gtf_file = 'tests/data/sample_1_protein.gtf'
-fasta_file = 'tests/data/demo_dna_seq.fa'
-vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
-protein_file = 'tests/data/demo_proteins.pep.all.fa'
-
-# gff_file = 'data/protein/Homo_sapiens.GRCh38.97.chromosome.22.gff3.gz'
-# gtf_file = 'data/protein/Homo_sapiens.GRCh38.97.chr.chr22.gtf.gz'
-# gtf_full_file = 'data/protein/Homo_sapiens.GRCh38.97.chr.gtf.gz'
-# fasta_file = 'data/protein/Homo_sapiens.GRCh38.dna.primary_assembly.fa'
-# protein_file = 'data/protein/Homo_sapiens.GRCh38.pep.all.fa'
-
-# gtf = pr.read_gtf(gtf_file, output_df=True)
-
-# gtf_full = pr.read_gtf(gtf_full_file, output_df=True)
-
-# gff = pr.read_gff(gff_file, full=True)
-
-# df = gtf_full
-
-# df = df[(df.transcript_biotype == 'protein_coding')]
-# df[(df.transcript_biotype == 'protein_coding') & (~df.protein_id.isna()) & (df.exon_number == '1')]
-# np.sum((df.transcript_biotype == 'protein_coding') & (df.Feature == 'transcript'))
-# dict(df.Feature.value_counts())
-# df[df.Feature == 'transcript'].transcript_biotype.value_counts()
-# # 43469
-
-# assert not df[df.Feature == 'transcript'].transcript_id.duplicated().any()
-
-# len(df)
-
-
-def read_pep_fa(protein_file):
-    proteins = Fasta(str(protein_file))
-    pl = []
-    for v in proteins:
-        names = v.long_name.split(" ", 8)
-        d = {"protein_id": names[0], 'protein_type': names[1]}
-        d = {**d, **dict([n.split(":", 1) for n in names[2:]])}
-        d['seq'] = str(proteins[v.name])
-        pl.append(d)
-    return pd.DataFrame(pl)
-
-
-# dfp = read_pep_fa(protein_file)
-# dfp.transcript_biotype.value_counts()
-# assert not dfp.transcript.duplicated().any()
-
-# df[df.Feature == 'transcript'].transcript_id.duplicated().any()
-
-# cds = df[(df.Feature == 'CDS')].set_index('transcript_id')
-
-# transcript_id = 'ENST00000252835'
-# transcript_id = 'ENST00000395590'
-
-
-def cut_seq(seq):
-    
-        while(len(seq) % 3 != 0):
-            seq = seq[:-1]
-        return seq
+def cut_transcript_seq(seq):
+    # if the dna seq is not %3==0, there are unnecessary bases at the end
+    # should be called only after all exons are connected!
+    while(len(seq) % 3 != 0):
+        seq = seq[:-1]
+    return seq
 
 
 def gtf_row2interval(row):
-    """Note: GTF is 1-based
+    """
+    Convert gtf row object into interval class.
     """
     return Interval(str(row.Chromosome),
                     int(row.Start) - 1,
@@ -93,80 +28,99 @@ def gtf_row2interval(row):
                     strand=str(row.Strand))
 
 
-class GenomeCDSFetcher:
+class CDSFetcher:
 
-    def __init__(self, gtf_file, fasta_file):
+    def __init__(self, gtf_file):
         """Protein sequences in the genome
         """
         self.gtf_file = str(gtf_file)
-        self.fasta_file = str(fasta_file)
-
-        self.fae = FastaStringExtractor(self.fasta_file, use_strand=False)
-        df = pr.read_gtf(self.gtf_file, output_df=True)
-        biotype_str = 'transcript_biotype' if 'transcript_biotype' in df else 'gene_biotype'
-        self.cds = (df
-                    .query("{} == 'protein_coding'".format(biotype_str))
-                    .query("(Feature == 'CDS') | (Feature == 'CCDS')")
-                    .query("(tag == 'basic') | (tag == 'CCDS')")
-                    .set_index('transcript_id'))
-        # filter valid transcripts
-        if 'transcript_support_level' in self.cds:
-            self.cds = self.cds[~self.cds.transcript_support_level.isnull()]
-            self.cds = self.cds[self.cds.transcript_support_level != 'NA']
-            self.cds.transcript_support_level = self.cds.transcript_support_level.astype(int)
-            self.cds = self.cds[~self.cds.transcript_support_level.isna()]
-        else:
-            print("Transcript support level not in gtf. Skipping the associated filters.")
-        self.cds_exons = pr.PyRanges(self.cds.reset_index())
+        self.cds = self._read_cds(self.gtf_file)
         self.transcripts = self.cds.index.unique()
+
+    @staticmethod
+    def _read_cds(gtf_file):
+        import pyranges
+        df = pyranges.read_gtf(gtf_file, output_df=True)
+
+        cds = CDSFetcher._get_cds_from_gtf(df)
+        cds = CDSFetcher._filter_valid_transcripts(cds)
+        return cds
+
+    @staticmethod
+    def _get_cds_from_gtf(df):
+        biotype_str = CDSFetcher._get_biotype_str(df)
+        return (df
+                .query("{} == 'protein_coding'".format(biotype_str))
+                .query("(Feature == 'CDS') | (Feature == 'CCDS')")
+                .query("(tag == 'basic') | (tag == 'CCDS')")
+                .set_index('transcript_id'))
+
+    @staticmethod
+    def _get_biotype_str(df):
+        if 'transcript_biotype' in df:
+            return 'transcript_biotype'
+        elif 'gene_biotype' in df:
+            return 'gene_biotype'
+        else:
+            raise ValueError('Cannot obtain `biotype_str` from gtf file')
+
+    @staticmethod
+    def _filter_valid_transcripts(cds):
+        if 'transcript_support_level' in cds:
+            cds = cds[~cds.transcript_support_level.isnull()]
+            cds = cds[cds.transcript_support_level != 'NA']
+            cds.transcript_support_level = cds.transcript_support_level.astype(
+                int)
+            cds = cds[~cds.transcript_support_level.isna()]
+        else:
+            print('Transcript support level not in gtf.'
+                  'Skipping the associated filters.')
+        return cds
 
     def __len__(self):
         return len(self.transcripts)
 
-    def get_cds_exons(self, transcript_id):
-        cds_exons = self.cds.loc[transcript_id]
+    def get_cds(self, transcript_id):
+        cds = self.cds.loc[[transcript_id]]
+        assert np.all(cds.iloc[0].Strand == cds.Strand)
 
-        # get cds intervals
-        if isinstance(cds_exons, pd.Series):
-            # single exon
-            strand = cds_exons.Strand
-            intervals = [gtf_row2interval(cds_exons)]
-        else:
-            # multiple exons
-            strand = cds_exons.iloc[0].Strand
-            assert np.all(strand == cds_exons.Strand)
-
-            intervals = [gtf_row2interval(row)
-                         for i, row in cds_exons.loc[transcript_id].sort_values("Start").iterrows()]
-        return intervals, strand
+        return [
+            gtf_row2interval(row)
+            for i, row in cds.sort_values("Start").iterrows()
+        ]
 
 
-    # if the dna seq is not %3==0, there are unnecessary bases at the end
-    # should be called only after all exons are connected!
-    
-    def prepare_seq(self, seq, strand):
+class TranscriptSeqExtractor:
+
+    def __init__(self, gtf_file, fasta_file):
+        self.fasta_file = str(fasta_file)
+        self.gtf_file = str(gtf_file)
+        self.fasta = FastaStringExtractor(self.fasta_file, use_strand=False)
+        self.cds_fetcher = CDSFetcher(self.gtf_file)
+        self.transcripts = self.cds_fetcher.transcripts
+
+    def __len__(self):
+        return len(self.cds_fetcher)
+
+    @staticmethod
+    def _prepare_seq(seqs, strand):
+        seq = "".join(seqs)
         if strand == '-':
             # optionally reverse complement
             seq = rc_dna(seq)
-        seq = cut_seq(seq)
+        seq = cut_transcript_seq(seq)
         return seq
-    
-    
+
     def get_seq(self, transcript_id):
-        exons, strand = self.get_cds_exons(transcript_id)
-        
-        # merge the sequences
-        seq = "".join([self.fae.extract(exon) for exon in exons])
-
-        return self.prepare_seq(seq, strand)
-
+        cds = self.cds_fetcher.get_cds(transcript_id)
+        seqs = [self.fasta.extract(i) for i in cds]
+        return self._prepare_seq(seqs, cds[0].strand)
 
     def __getitem__(self, idx):
         return self.get_seq(self.transcripts[idx])
 
-    def overlaped_exons(self, variant):
+    def overlaped_cds(self, variants):
         """Which exons are overlapped by a variant
-
         Overall strategy:
         1. given the variant, get all the affected transcripts
         2. Given the transcript and the variants,
@@ -176,97 +130,94 @@ class GenomeCDSFetcher:
         # https://github.com/gagneurlab/MMSplice/blob/master/mmsplice/vcf_dataloader.py#L136-L190
         # this will generate (variant, cds_exon) pairs
         # cds_exon will contain also the information about the order in the transcript
-        return self.cds_exons.join(variant)
+        raise NotImplementedError()
 
 
-class AminoAcidVCFSeqExtractor:
+class ProteinSeqExtractor(TranscriptSeqExtractor):
 
-    def __init__(self, fasta_file, vcf_file, gtf_file):
+    @staticmethod
+    def _prepare_seq(seqs, strand):
+        return translate(TranscriptSeqExtractor._prepare_seq(seqs, strand))
+
+
+class ProteinVCFSeqExtractor:
+
+    def __init__(self, gtf_file, fasta_file, vcf_file):
         self.gtf_file = str(gtf_file)
         self.fasta_file = str(fasta_file)
         self.vcf_file = str(vcf_file)
-        self.genome_cds_fetcher = GenomeCDSFetcher(self.gtf_file, self.fasta_file)
+        self.cds_fetcher = CDSFetcher(self.gtf_file)
+        self.transcripts = self.cds_fetcher.transcripts
+        self.fasta = FastaStringExtractor(self.fasta_file)
         self.multi_sample_VCF = MultiSampleVCF(self.vcf_file)
         self.variant_seq_extractor = VariantSeqExtractor(self.fasta_file)
 
-    def strand_default(self, intervals):
-        return [Interval(interval.chrom, interval.start, interval.end, interval.name, interval.score, strand=".") for interval in intervals]    
+    @staticmethod
+    def _unstrand(intervals):
+        return [i.unstrand() for i in intervals]
 
-class SingleSeqAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
+    def extract_cds(self, cds, sample_id=None):
+        intervals = self._unstrand(cds)
 
-    def extract_multiple(self, variant_interval_queryable, sample_id=None):
-        seq_list = []
+        variant_interval_queryable = self.multi_sample_VCF.query_variants(
+            intervals, sample_id=sample_id)
+
+        iter_seqs = self.extract_query(variant_interval_queryable,
+                                       sample_id=sample_id)
+
+        for seqs in iter_seqs:
+            yield ProteinSeqExtractor._prepare_seq(seqs, cds[0].strand)
+
+    def extract(self, transcript_id, sample_id=None):
+        return self.extract_cds(self.cds_fetcher.get_cds(transcript_id),
+                                sample_id=sample_id)
+
+    def _ref_cds_seq(self, variant_interval_queryable):
+        intervals = variant_interval_queryable.iter_intervals()
+        return [self.fasta.extract(interval) for interval in intervals]
+
+
+class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
+
+    def _extract_query(self, variant_interval_queryable, sample_id=None):
         for variants, interval in variant_interval_queryable.variant_intervals:
-            variants = list(variants)
-            flag = True
             for variant in variants:
-                if len(variant.ref) == len(variant.alt) == 1:
-                    pass
+                if len(variant.ref) == len(variant.alt):
+                    yield self.variant_seq_extractor.extract(
+                        interval, variants, anchor=0)
                 else:
-                    print("(Insertion == Deletion == 1) == 'FALSE'")
-                    flag = False
-                    break
-                    
-            if flag:
-                seq_list.append(self.variant_seq_extractor.extract(interval, variants, anchor=0))
-        return "".join(seq_list)
+                    print('Current version of extractor ignores indel'
+                          ' to avoid shift in frame')
 
-    
-    # function for a concrete protein id
+    def extract_query(self, variant_interval_queryable, sample_id=None):
+        cds_seqs = list(self._extract_query(variant_interval_queryable,
+                                            sample_id=sample_id))
+        return cds_seqs if cds_seqs \
+            else self._ref_cds_seq(variant_interval_queryable)
 
-    def extract(self, transcript_id, sample_id=None):
-        intervals, strand = self.genome_cds_fetcher.get_cds_exons(transcript_id)
-        intervals = self.strand_default(intervals)
-
-        variant_interval_queryable = self.multi_sample_VCF.query_variants(intervals, sample_id=sample_id)
-        
-        seq = self.extract_multiple(variant_interval_queryable)
-
-        seq = self.genome_cds_fetcher.prepare_seq(seq, strand)
-        
-        return translate(seq)
-
-    def coding_single_seq(self):
-        for transcript_id in tqdm(self.genome_cds_fetcher.transcripts):
-            yield self.extract(transcript_id)
+    def extract_cds(self, cds, sample_id=None):
+        return next(super().extract_cds(cds, sample_id=sample_id))
 
 
-class SingleVariantAminoAcidVCFSeqExtractor(AminoAcidVCFSeqExtractor):
+class SingleVariantProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
 
+    def extract_query(self, variant_interval_queryable, sample_id=None):
+        ref_cds_seq = self._ref_cds_seq(variant_interval_queryable)
 
-    # function for a concrete protein id
+        for i, (variants, interval) in enumerate(
+                variant_interval_queryable.variant_intervals):
 
-    def extract_sinlge(self, variant_interval_queryable, intervals, sample_id=None):
-        seq_ref = [(self.genome_cds_fetcher.fae.extract(interval)) for interval in intervals]
-        for num_interval, (variants, interval) in enumerate(variant_interval_queryable.variant_intervals, start=1):
-            variants = list(variants)
-            
             for variant in variants:
-                if len(variant.ref) == len(variant.alt) == 1:
-                    seq_start_ref = "".join(seq_ref[: num_interval-1])
-                    seq_end_ref = "".join(seq_ref[num_interval:])
-                    seq_middle = self.variant_seq_extractor.extract(interval, [variant], anchor=0)
-                    single_seq_list = [seq_start_ref, seq_middle, seq_end_ref]
-                    yield "".join(single_seq_list)
+                if len(variant.ref) == len(variant.alt):
+                    yield [
+                        *ref_cds_seq[:i],
+                        self.variant_seq_extractor.extract(
+                            interval, [variant], anchor=0),
+                        *ref_cds_seq[(i+1):],
+                    ]
                 else:
-                    print("(Insertion == Deletion == 1) == 'FALSE'")
-    
-    def extract(self, transcript_id, sample_id=None):
-        intervals, strand = self.genome_cds_fetcher.get_cds_exons(transcript_id)
-        intervals = self.strand_default(intervals)
-        variant_interval_queryable = self.multi_sample_VCF.query_variants(intervals, sample_id=sample_id)
-
-        for seq in self.extract_sinlge(variant_interval_queryable, intervals=intervals):
-
-            seq = self.genome_cds_fetcher.prepare_seq(seq, strand)
-
-            yield translate(seq)
-
-
-    def coding_variant_seq(self):
-        for transcript_id in tqdm(self.genome_cds_fetcher.transcripts):
-            yield self.extract(transcript_id)
-
+                    print('Current version of extractor ignores indel'
+                          ' to avoid shift in frame')
 
 def test_mutation_in_each_exon_all_variance():
     gtf_file = 'tests/data/sample_1_protein.gtf'
@@ -353,8 +304,6 @@ def test_strand_negative():
     ref_dna_seq = translate(cut_seq(rc_dna("".join(control_seq_list))))
     assert test_dna_seq == ref_dna_seq, "Seq mismatch for Interval.strand = -"
 
-    
-"""
 from pathlib import Path
 ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
 gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
@@ -362,45 +311,50 @@ gtf_full_file = ddir / 'Homo_sapiens.GRCh37.75.gtf'
 fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
 protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
 
-dfp = read_pep_fa(protein_file)
-dfp['transcript_id'] = dfp.transcript.str.split(".", n=1, expand=True)[0]
-assert not dfp['transcript_id'].duplicated().any()
-dfp = dfp.set_index("transcript_id")
-dfp = dfp[~dfp.chromosome.isnull()]
+@pytest.mark.skipif(not os.path.isfile(protein_file),
+                    reason="No vep result file to test")
 
-gps = GenomeCDSFetcher(gtf_file, fasta_file)
-assert len(gps) >100
-assert gps.transcripts.isin(dfp.index).all()
+def test_all_proteins_translation():
 
-transcript_id = 'ENST00000485079'
-div3_error = 0
-seq_mismatch_err = 0
-err_transcripts = []
-for transcript_id in tqdm(gps.transcripts):
-    # make sure all ids can be found in the proteome
-    dna_seq = gps.get_seq(transcript_id)
-    # dna_seq = dna_seq[:(len(dna_seq) // 3) * 3]
-    if len(dna_seq) % 3 != 0:
-        div3_error += 1
-        print("len(dna_seq) % 3 != 0: {}".format(transcript_id))
-        err_transcripts.append({"transcript_id": transcript_id, "div3_err": True})
-        continue
-    prot_seq = translate(dna_seq)
-    if dfp.loc[transcript_id].seq != prot_seq:
-        seq_mismatch_err += 1
-        print("seq.mismatch: {}".format(transcript_id))
-        n_mismatch = 0
-        for i in range(len(prot_seq)):
-            a = dfp.loc[transcript_id].seq[i]
-            b = prot_seq[i]
-            if a != b:
-                n_mismatch += 1
-                print("{} {} {}/{}".format(a,b,i,len(prot_seq)))
-        err_transcripts.append({"transcript_id": transcript_id, "div3_err": False,
+    dfp = read_pep_fa(protein_file)
+    dfp['transcript_id'] = dfp.transcript.str.split(".", n=1, expand=True)[0]
+    assert not dfp['transcript_id'].duplicated().any()
+    dfp = dfp.set_index("transcript_id")
+    dfp = dfp[~dfp.chromosome.isnull()]
+
+    gps = GenomeCDSFetcher(gtf_full_file, fasta_file)
+    assert len(gps) >100
+    assert gps.transcripts.isin(dfp.index).all()
+
+    transcript_id = 'ENST00000485079'
+    div3_error = 0
+    seq_mismatch_err = 0
+    err_transcripts = []
+    for transcript_id in tqdm(gps.transcripts):
+        # make sure all ids can be found in the proteome
+        dna_seq = gps.get_seq(transcript_id)
+        # dna_seq = dna_seq[:(len(dna_seq) // 3) * 3]
+        if len(dna_seq) % 3 != 0:
+            div3_error += 1
+            print("len(dna_seq) % 3 != 0: {}".format(transcript_id))
+            err_transcripts.append({"transcript_id": transcript_id, "div3_err": True})
+            continue
+        prot_seq = translate(dna_seq)
+        if dfp.loc[transcript_id].seq != prot_seq:
+            seq_mismatch_err += 1
+            print("seq.mismatch: {}".format(transcript_id))
+            n_mismatch = 0
+            for i in range(len(prot_seq)):
+                a = dfp.loc[transcript_id].seq[i]
+                b = prot_seq[i]
+                if a != b:
+                    n_mismatch += 1
+                    print("{} {} {}/{}".format(a,b,i,len(prot_seq)))
+            err_transcripts.append({"transcript_id": transcript_id, "div3_err": False,
                                 "n-seq-mismatch": n_mismatch})
-        # print("prot:", dfp.loc[transcript_id].seq)
-        # print("seq: ", prot_seq)
-err_transcripts = pd.DataFrame(err_transcripts)
+            # print("prot:", dfp.loc[transcript_id].seq)
+            # print("seq: ", prot_seq)
+    err_transcripts = pd.DataFrame(err_transcripts)
 # err_cds.to_csv("data/protein/err_cds.csv")
 # err_transcripts.to_csv("data/protein/err_transcripts.csv")
 # len(dna_seq) % 3 != 0: ENST00000625258
@@ -427,4 +381,3 @@ err_transcripts = pd.DataFrame(err_transcripts)
 #    assert translate("TTTATGGAC") == 'FMD'
 #    with pytest.raises(ValueError):
 #        translate("TGAATGGA")
-"""
