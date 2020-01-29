@@ -1,7 +1,12 @@
+from abc import ABC
+
 from pyfaidx import Sequence, complement
 from kipoiseq.dataclasses import Interval
-from kipoiseq.extractors import BaseExtractor, FastaStringExtractor, \
-    MultiSampleVCF
+from kipoiseq.extractors import (
+    BaseExtractor,
+    FastaStringExtractor,
+    MultiSampleVCF,
+)
 
 __all__ = [
     'VariantSeqExtractor',
@@ -15,10 +20,10 @@ class IntervalSeqBuilder(list):
     String builder for `pyfaidx.Sequence` and `Interval` objects.
     """
 
-    def restore(self, sequence):
+    def restore(self, sequence: Sequence):
         """
         Args:
-          seq: `pyfaidx.Sequence` which convert all interval inside
+          sequence: `pyfaidx.Sequence` which convert all interval inside
             to `Seqeunce` objects.
         """
         for i, interval in enumerate(self):
@@ -49,20 +54,35 @@ class IntervalSeqBuilder(list):
 
 class VariantSeqExtractor(BaseExtractor):
 
-    def __init__(self, fasta_file):
+    def __init__(self, fasta_file: str = None, ref_seq_extractor: BaseExtractor = None):
         """
+        Sequence extractor which allows to obtain the alternative sequence,
+        given some interval and variants inside this interval.
+
         Args:
           fasta_file: path to the fasta file (can be gzipped)
+          ref_seq_extractor: extractor returning the reference sequence given some interval
         """
-        self.fasta = FastaStringExtractor(fasta_file, use_strand=True)
+        if fasta_file is not None:
+            if ref_seq_extractor is not None:
+                raise ValueError("either fasta_file or ref_seq_extractor have to be specified")
+            self._ref_seq_extractor = FastaStringExtractor(fasta_file, use_strand=True)
+        else:
+            if ref_seq_extractor is None:
+                raise ValueError("either fasta_file or ref_seq_extractor have to be specified")
+            self._ref_seq_extractor = ref_seq_extractor
 
-    def extract(self, interval, variants, anchor, fixed_len=True):
+    @property
+    def ref_seq_extractor(self):
+        return self._ref_seq_extractor
+
+    def extract(self, interval, variants, anchor, fixed_len=True, **kwargs):
         """
 
         Args:
           interval: pybedtools.Interval Region of interest from
             which to query the sequence. 0-based
-          variants List[cyvcf2.Variant]: variants overlapping the `interval`.
+          variants: List[cyvcf2.Variant]: variants overlapping the `interval`.
             can also be indels. 1-based
           anchor: absolution position w.r.t. the interval start. (0-based).
             E.g. for an interval of `chr1:10-20` the anchor of 10 denotes
@@ -93,11 +113,14 @@ class VariantSeqExtractor(BaseExtractor):
         # and sort the variants in each interval
         upstream_variants = sorted(
             filter(lambda x: x[0].start >= anchor, variant_pairs),
-            key=lambda x: x[0].start)
+            key=lambda x: x[0].start
+        )
 
         downstream_variants = sorted(
             filter(lambda x: x[0].start < anchor, variant_pairs),
-            key=lambda x: x[0].start, reverse=True)
+            key=lambda x: x[0].start,
+            reverse=True
+        )
 
         # 3. Extend start and end position for deletions
         if fixed_len:
@@ -136,7 +159,8 @@ class VariantSeqExtractor(BaseExtractor):
 
         return seq
 
-    def _variant_to_sequence(self, variants):
+    @staticmethod
+    def _variant_to_sequence(variants):
         """
         Convert `cyvcf2.Variant` objects to `pyfaidx.Seqeunce` objects
         for reference and variants.
@@ -148,7 +172,8 @@ class VariantSeqExtractor(BaseExtractor):
                            start=v.start, end=v.start + len(v.alt))
             yield ref, alt
 
-    def _split_overlapping(self, variant_pairs, anchor, which='both'):
+    @staticmethod
+    def _split_overlapping(variant_pairs, anchor, which='both'):
         """
         Split the variants hitting the anchor into two
         """
@@ -162,7 +187,8 @@ class VariantSeqExtractor(BaseExtractor):
             else:
                 yield ref, alt
 
-    def _updated_interval(self, interval, up_variants, down_variants):
+    @staticmethod
+    def _updated_interval(interval, up_variants, down_variants):
         istart = interval.start
         iend = interval.end
 
@@ -178,7 +204,8 @@ class VariantSeqExtractor(BaseExtractor):
 
         return istart, iend
 
-    def _downstream_builder(self, down_variants, interval, anchor, istart):
+    @staticmethod
+    def _downstream_builder(down_variants, interval, anchor, istart):
         down_sb = IntervalSeqBuilder()
 
         prev = anchor
@@ -193,7 +220,8 @@ class VariantSeqExtractor(BaseExtractor):
 
         return down_sb
 
-    def _upstream_builder(self, up_variants, interval, anchor, iend):
+    @staticmethod
+    def _upstream_builder(up_variants, interval, anchor, iend):
         up_sb = IntervalSeqBuilder()
 
         prev = anchor
@@ -208,11 +236,12 @@ class VariantSeqExtractor(BaseExtractor):
         return up_sb
 
     def _fetch(self, interval, istart, iend):
-        seq = self.fasta.extract(Interval(interval.chrom, istart, iend))
+        seq = self._ref_seq_extractor.extract(Interval(interval.chrom, istart, iend))
         seq = Sequence(name=interval.chrom, seq=seq, start=istart, end=iend)
         return seq
 
-    def _cut_to_fix_len(self,  down_str, up_str, interval, anchor):
+    @staticmethod
+    def _cut_to_fix_len(down_str, up_str, interval, anchor):
         down_len = anchor - interval.start
         up_len = interval.end - anchor
         down_str = down_str[-down_len:] if down_len else ''
@@ -220,7 +249,7 @@ class VariantSeqExtractor(BaseExtractor):
         return down_str, up_str
 
 
-class BaseVCFSeqExtractor(BaseExtractor):
+class BaseVCFSeqExtractor(BaseExtractor, ABC):
     """
     Base class to fetch sequence in which variants applied based
     on given vcf file.
@@ -246,10 +275,12 @@ class SingleVariantVCFSeqExtractor(BaseVCFSeqExtractor):
 
     def extract(self, interval, anchor=None, sample_id=None, fixed_len=True):
         for variant in self.vcf.fetch_variants(interval, sample_id):
-            yield self.variant_extractor.extract(interval,
-                                                 variants=[variant],
-                                                 anchor=anchor,
-                                                 fixed_len=fixed_len)
+            yield self.variant_extractor.extract(
+                interval,
+                variants=[variant],
+                anchor=anchor,
+                fixed_len=fixed_len
+            )
 
 
 class SingleSeqVCFSeqExtractor(BaseVCFSeqExtractor):
@@ -259,5 +290,8 @@ class SingleSeqVCFSeqExtractor(BaseVCFSeqExtractor):
 
     def extract(self, interval, anchor=None, sample_id=None, fixed_len=True):
         return self.variant_extractor.extract(
-            interval, variants=self.vcf.fetch_variants(interval, sample_id),
-            anchor=anchor, fixed_len=fixed_len)
+            interval,
+            variants=self.vcf.fetch_variants(interval, sample_id),
+            anchor=anchor,
+            fixed_len=fixed_len
+        )

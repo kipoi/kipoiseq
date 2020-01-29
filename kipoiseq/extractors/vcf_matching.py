@@ -3,7 +3,6 @@ import pandas as pd
 from kipoiseq.dataclasses import Variant, Interval
 from kipoiseq.extractors import MultiSampleVCF
 
-
 __all__ = [
     'variants_to_pyranges',
     'SingleVariantMatcher',
@@ -12,12 +11,12 @@ __all__ = [
 
 
 def variants_to_pyranges(variants: List[Variant]):
-    '''
+    """
     Create pyrange object given list of variant objects.
 
     Args:
       variants: list of variant objects have CHROM, POS, REF, ALT properties.
-    '''
+    """
     df = pd.DataFrame([
         (
             v.chrom,
@@ -31,7 +30,7 @@ def variants_to_pyranges(variants: List[Variant]):
     return pyranges.PyRanges(df)
 
 
-def pyranges_to_intervals(pr,  interval_attrs=None):
+def pyranges_to_intervals(pr, interval_attrs=None):
     """
     Convert pyranges into list of intervals.
 
@@ -77,9 +76,17 @@ def intervals_to_pyranges(intervals):
 
 class BaseVariantMatcher:
 
-    def __init__(self, vcf_file, gtf_path=None, bed_path=None, pranges=None,
-                 intervals=None, interval_attrs=None, vcf_lazy=True,
-                 variant_batch_size=10000):
+    def __init__(
+            self,
+            vcf_file,
+            gtf_path=None,
+            bed_path=None,
+            pranges=None,
+            intervals=None,
+            interval_attrs=None,
+            vcf_lazy=True,
+            variant_batch_size=10000
+    ):
         """
         Base variant intervals matcher
         """
@@ -175,12 +182,25 @@ class SingleVariantMatcher(BaseVariantMatcher):
 
 class MultiVariantsMatcher(BaseVariantMatcher):
 
-    def __init__(self, vcf_file, gtf_path=None, pranges=None, intervals=None,
-                 interval_attrs=None, vcf_lazy=True, variant_batch_size=10000):
-        super().__init__(vcf_file, gtf_path=gtf_path, pranges=pranges,
-                         intervals=intervals, interval_attrs=interval_attrs,
-                         vcf_lazy=vcf_lazy,
-                         variant_batch_size=variant_batch_size)
+    def __init__(
+            self,
+            vcf_file,
+            gtf_path=None,
+            pranges=None,
+            intervals=None,
+            interval_attrs=None,
+            vcf_lazy=True,
+            variant_batch_size=10000
+    ):
+        super().__init__(
+            vcf_file,
+            gtf_path=gtf_path,
+            pranges=pranges,
+            intervals=intervals,
+            interval_attrs=interval_attrs,
+            vcf_lazy=vcf_lazy,
+            variant_batch_size=variant_batch_size
+        )
         if hasattr(self.pr, 'intervals'):
             self.intervals = self.pr.intervals
         else:

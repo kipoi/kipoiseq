@@ -7,7 +7,6 @@ try:
 except ImportError:
     VCF = object
 
-
 __all__ = [
     'MultiSampleVCF'
 ]
@@ -26,14 +25,16 @@ class MultiSampleVCF(VCF):
             if sample_id is None or self.has_variant(v, sample_id):
                 yield v
 
-    def _region(self, interval):
+    @staticmethod
+    def _region(interval):
         return '%s:%d-%d' % (interval.chrom, interval.start, interval.end)
 
     def has_variant(self, variant, sample_id):
         gt_type = variant.source.gt_types[self.sample_mapping[sample_id]]
         return self._has_variant_gt(gt_type)
 
-    def _has_variant_gt(self, gt_type):
+    @staticmethod
+    def _has_variant_gt(gt_type):
         return gt_type != 0 and gt_type != 2
 
     def __next__(self):

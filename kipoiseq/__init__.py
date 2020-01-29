@@ -4,8 +4,11 @@ __author__ = 'Kipoi team'
 __email__ = 'avsec@in.tum.de'
 __version__ = '0.3.1'
 
+# first import dataclasses
+from .dataclasses import Variant, Interval
+
 from . import dataloaders
 from . import extractors
 from . import transforms
 
-from .dataclasses import Variant, Interval
+
