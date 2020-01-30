@@ -32,7 +32,7 @@ test_requirements = [
     "scikit-learn",
     "cython",
     "cyvcf2",
-    "pyranges",
+    "pyranges<=0.0.70",
     # "genomelake",
     "keras",
     "tensorflow",

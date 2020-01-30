@@ -1,5 +1,7 @@
 import abc
 
+from kipoiseq import Interval
+
 __all__ = ["BaseExtractor", "FastaStringExtractor"]  # "BigWigExtractor"]
 
 
@@ -8,7 +10,7 @@ class BaseExtractor(object):
 
     # main method
     @abc.abstractmethod
-    def extract(self, interval):
+    def extract(self, interval: Interval, *args, **kwargs) -> str:
         raise NotImplementedError
 
     # closing files
@@ -42,13 +44,28 @@ class FastaStringExtractor(BaseExtractor):
         self.fasta = Fasta(self.fasta_file)
         self.force_upper = force_upper
 
-    def extract(self, interval):
+    def extract(self, interval: Interval, **kwargs) -> str:
+        """
+        Returns the FASTA sequence in some given interval as string
+
+        Args:
+            interval: the interval to query
+            **kwargs:
+
+        Returns:
+            sequence of requested interval
+
+        """
         # reverse-complement seq the negative strand
         rc = self.use_strand and interval.strand == "-"
 
         # pyfaidx wants a 1-based interval
-        seq = str(self.fasta.get_seq(interval.chrom,
-                                     interval.start + 1, interval.stop, rc=rc).seq)
+        seq = str(self.fasta.get_seq(
+            interval.chrom,
+            interval.start + 1,
+            interval.stop,
+            rc=rc
+        ).seq)
 
         # optionally, force upper-case letters
         if self.force_upper:
@@ -57,7 +74,6 @@ class FastaStringExtractor(BaseExtractor):
 
     def close(self):
         return self.fasta.close()
-
 
 # class BigWigExtractor(BaseExtractor):
 #     """Big-wig file extractor
