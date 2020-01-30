@@ -2,14 +2,14 @@
 - Interval
 - Variant
 """
-from collections import Mapping, OrderedDict
+# from collections import Mapping, OrderedDict
 from copy import deepcopy
-from kipoi_utils.data_utils import numpy_collate, numpy_collate_concat
+# from kipoi_utils.data_utils import numpy_collate, numpy_collate_concat
 import math
-import numpy as np
+# import numpy as np
 # -------------------------------------------
 # basepair implementation
-import attr
+# import attr
 
 
 class Variant:
@@ -287,7 +287,7 @@ class Interval:
         obj._end += downstream
         return obj
 
-    def is_valid(self, chrom_len=np.iinfo("int").max):
+    def is_valid(self, chrom_len=math.inf):
         """Check if the interval is valid
         """
         return self.start >= 0 and self.end < chrom_len
