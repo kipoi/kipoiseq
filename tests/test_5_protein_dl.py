@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
+
 # TODO: convert print to logs
 # TODO: documentation
 
@@ -32,7 +33,6 @@ def cut_transcript_seq(seq):
     while(len(seq) % 3 != 0):
         seq = seq[:-1]
     return seq
-
 
 def gtf_row2interval(row):
     """
@@ -117,6 +117,11 @@ class TranscriptSeqExtractor:
 
     def __len__(self):
         return len(self.cds_fetcher)
+    
+    def get_seq1(self, transcript_id):
+        cds = self.cds_fetcher.get_cds(transcript_id)
+        seqs = [self.fasta.extract(i) for i in cds]
+        return self._prepare_seq(seqs, cds[0].strand)
 
     @staticmethod
     def _prepare_seq(seqs, strand):
@@ -126,11 +131,87 @@ class TranscriptSeqExtractor:
             seq = rc_dna(seq)
         seq = cut_transcript_seq(seq)
         return seq
+    
+    def seq_translation_positive_strand(self, transcript_id, cds):
+        interval_ref = cds[len(cds)-1]
+        interval_with_end = Interval(interval_ref.chrom, interval_ref.start, interval_ref.end+3, interval_ref.name, interval_ref.score, interval_ref.strand, interval_ref.attrs)
+        end_codon = self.fasta.extract(interval_with_end)[-3:]
+        if end_codon not in ['TGA', 'TAA', 'TAG', 'TG.','TA.']:
+            index = 1
+            while True and index<=1:
+                interval = Interval(interval_with_end.chrom, interval_with_end.start, interval_with_end.end+index, interval_with_end.name, interval_with_end.score, interval_with_end.strand, interval_with_end.attrs)
+                end_codon = self.fasta.extract(interval)[-3:]
+                if end_codon in ['TGA', 'TAA', 'TAG']:
+                    cds[len(cds)-1] = Interval(interval_ref.chrom, interval_ref.start, interval_ref.end+index, interval_ref.name, interval_ref.score, interval_ref.strand, interval_ref.attrs)
+                    break
+                index +=1
+        seqs = "".join([self.fasta.extract(i) for i in cds])
+        flag = False
+        if len(seqs) % (1 or 0) != 0 and end_codon in ['TGA', 'TAA', 'TAG', 'TG.','TA.']:
+            flag = True
+            while True:
+                seqs = seqs[1:]
+                if len(seqs) % 3 == 0:
+                    break
+        seq_end_codon_fixed = self._prepare_seq(seqs, cds[0].strand)    
+        sequence_acid = translate(seq_end_codon_fixed)
+        if '_' in sequence_acid and sequence_acid[0] not in ['M','L']:
+            index=1
+            while '_' in sequence_acid and index<=2:
+                flag = False
+                seq = ['X']
+                seq.append(translate(seq_end_codon_fixed[index:-1-(index%2)]))
+                sequence_acid = "".join(seq)
+                index+=1
+        if flag:
+            sequence_acid = "".join(["X",sequence_acid])
+        return sequence_acid
+    
+    def seq_translation_negative_strand(self, transcript_id, cds):
+        interval_ref = cds[0]
+        interval_with_end = Interval(interval_ref.chrom, interval_ref.start-3, interval_ref.end, interval_ref.name, interval_ref.score, interval_ref.strand, interval_ref.attrs)
+        end_codon = rc_dna(self.fasta.extract(interval_with_end)[:3])
+        if end_codon not in ['TGA', 'TAA', 'TAG', 'TG.','TA.']:
+            index = 1
+            while True and index <= 1:
+                interval = Interval(interval_with_end.chrom, interval_with_end.start-index, interval_with_end.end, interval_with_end.name, interval_with_end.score, interval_with_end.strand, interval_with_end.attrs)
+                end_codon = rc_dna(self.fasta.extract(interval)[:3])
+                if end_codon in ['TGA', 'TAA', 'TAG']:
+                    cds[0] = Interval(interval_ref.chrom, interval_ref.start-index, interval_ref.end, interval_ref.name, interval_ref.score, interval_ref.strand, interval_ref.attrs)
+                    break
+                index +=1
+        seqs = "".join([self.fasta.extract(i) for i in cds])
+        flag = False
+        if len(seqs) % 3 != (1 or 0) and end_codon in ['TGA', 'TAA', 'TAG', 'TG.','TA.']:
+            flag = True
+            while True:
+                seqs = seqs[:-1]
+                if len(seqs) % 3 == 0:
+                    break
+        seq_end_codon_fixed = self._prepare_seq(seqs, cds[0].strand)    
+        sequence_acid = translate(seq_end_codon_fixed)
+        if '_' in sequence_acid and sequence_acid[0] not in ['M','L']:
+            index=1
+            while '_' in sequence_acid and index<=2:
+                flag = False
+                seq = ['X']
+                seq.append(translate(seq_end_codon_fixed[index:-1-(index%2)]))
+                sequence_acid = "".join(seq)
+                index+=1
+        if flag:
+            sequence_acid = "".join(["X",sequence_acid])
+        return sequence_acid
 
     def get_seq(self, transcript_id):
         cds = self.cds_fetcher.get_cds(transcript_id)
         seqs = [self.fasta.extract(i) for i in cds]
-        return self._prepare_seq(seqs, cds[0].strand)
+        seq = translate(self._prepare_seq(seqs, cds[0].strand))
+        if seq[0] in ['M', 'L', 'V', 'K'] and '_' not in seq:
+            return seq
+        if cds[0].strand == '-':
+            return self.seq_translation_negative_strand(transcript_id, cds)
+        else:
+            return self.seq_translation_positive_strand(transcript_id, cds)
 
     def __getitem__(self, idx):
         return self.get_seq(self.transcripts[idx])
@@ -321,11 +402,14 @@ def test_strand_negative():
     assert test_dna_seq == ref_dna_seq, "Seq mismatch for Interval.strand = -"
 
 from pathlib import Path
-ddir = Path('/s/genomes/human/hg19/ensembl_GRCh37.p13_release75')
-gtf_file = ddir / 'Homo_sapiens.GRCh37.75.chr22.gtf'
-gtf_full_file = ddir / 'Homo_sapiens.GRCh37.75.gtf'
-fasta_file = ddir / 'Homo_sapiens.GRCh37.75.dna.primary_assembly.fa'
-protein_file = ddir / 'Homo_sapiens.GRCh37.75.pep.all.fa'
+ddir = Path('/s/genomes/human/hg38/ensembl_GRCh38')
+gtf_file = ddir / 'Homo_sapiens.GRCh38.99.gtf'
+#gtf_file = 'tests/data/38_sample.gtf.txt'
+protein_file = ddir / 'Homo_sapiens.GRCh38.pep.all.fa'
+
+fasta_file = ddir / 'Homo_sapiens.GRCh38.dna.alt.fa'
+
+fasta_file = ddir / 'Homo_sapiens.GRCh38.dna.primary_assembly.fa'
 
 @pytest.mark.skipif(not os.path.isfile(protein_file),
                     reason="No vep result file to test")
@@ -340,7 +424,7 @@ def test_all_proteins_translation():
 
     gps = TranscriptSeqExtractor(gtf_file, fasta_file)
     assert len(gps) >100
-    assert gps.transcripts.isin(dfp.index).all()
+    #assert gps.transcripts.isin(dfp.index).all()
 
     transcript_id = 'ENST00000485079'
     div3_error = 0
@@ -350,12 +434,12 @@ def test_all_proteins_translation():
         # make sure all ids can be found in the proteome
         dna_seq = gps.get_seq(transcript_id)
         # dna_seq = dna_seq[:(len(dna_seq) // 3) * 3]
-        if len(dna_seq) % 3 != 0:
-            div3_error += 1
-            print("len(dna_seq) % 3 != 0: {}".format(transcript_id))
-            err_transcripts.append({"transcript_id": transcript_id, "div3_err": True})
-            continue
-        prot_seq = translate(dna_seq)
+        #if len(dna_seq) % 3 != 0:
+         #   div3_error += 1
+          #  print("len(dna_seq) % 3 != 0: {}".format(transcript_id))
+           # err_transcripts.append({"transcript_id": transcript_id, "div3_err": True})
+            #continue
+        prot_seq = dna_seq
         if dfp.loc[transcript_id].seq != prot_seq:
             seq_mismatch_err += 1
             print("seq.mismatch: {}".format(transcript_id))
