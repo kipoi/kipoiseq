@@ -106,7 +106,6 @@ class BaseVariantMatcher:
         if gtf_path:
             import pyranges
             pranges = pyranges.read_gtf(gtf_path)
-            pranges.Start -= 1
 
         elif bed_path:
             import pyranges

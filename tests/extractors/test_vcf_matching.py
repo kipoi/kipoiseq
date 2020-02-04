@@ -97,7 +97,7 @@ def test_BaseVariantMatcher__read_intervals():
 
     pr = BaseVariantMatcher._read_intervals(pranges=pranges)
     assert pr.Chromosome.tolist() == ['chr1'] * 5
-    assert pr.Start.tolist() == [201, 201, 201, 1050, 3030]
+    assert pr.Start.tolist() == [200, 200, 200, 1049, 3029]
     assert pr.End.tolist() == [4230, 4230, 402, 1340, 4230]
     # assert len(pr.intervals.tolist()) == 5
 
