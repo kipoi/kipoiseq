@@ -28,6 +28,7 @@ def variants_to_pyranges(variants: List[Variant]):
         )
         for v in variants
     ], columns=['Chromosome', 'Start', 'End', 'variant'])
+    import pyranges
     return pyranges.PyRanges(df)
 
 
@@ -117,7 +118,6 @@ class BaseVariantMatcher:
                              '`intervals` or should given as input.')
         if gtf_path:
             pranges = pyranges.read_gtf(gtf_path, )
-            pranges.Start -= 1
 
         elif bed_path:
             pranges = pyranges.read_bed(bed_path)
