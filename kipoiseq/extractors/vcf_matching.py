@@ -3,7 +3,11 @@ import pandas as pd
 from kipoiseq.dataclasses import Variant, Interval
 from kipoiseq.extractors import MultiSampleVCF
 
-import pyranges
+# pyranges is optional
+try:
+    import pyranges
+except ImportError:
+    pyranges = None
 
 __all__ = [
     'variants_to_pyranges',
@@ -12,13 +16,14 @@ __all__ = [
 ]
 
 
-def variants_to_pyranges(variants: List[Variant]):
+def variants_to_pyranges(variants: List[Variant]) -> pyranges.PyRanges:
     """
     Create pyrange object given list of variant objects.
 
     Args:
       variants: list of variant objects have CHROM, POS, REF, ALT properties.
     """
+    import pyranges
     df = pd.DataFrame([
         (
             v.chrom,
@@ -28,7 +33,6 @@ def variants_to_pyranges(variants: List[Variant]):
         )
         for v in variants
     ], columns=['Chromosome', 'Start', 'End', 'variant'])
-    import pyranges
     return pyranges.PyRanges(df)
 
 
@@ -63,6 +67,7 @@ def intervals_to_pyranges(intervals):
     Returns:
       pyranges.Pyranges: Pyranges object.
     """
+    import pyranges
     chromosomes, starts, ends, strands = zip(*[
         (i.chrom, i.start, i.end, i.strand)
         for i in intervals
@@ -161,16 +166,19 @@ class SingleVariantMatcher(BaseVariantMatcher):
         Reads vcf and returns batch of pyranges objects.
 
         Args:
-          vcf_file: path of vcf file.
           batch_size: size of each batch.
         """
         for batch in self.vcf.batch_iter(batch_size):
             yield variants_to_pyranges(batch)
 
-    def iter_pyranges(self):
+    def iter_pyranges(self) -> pyranges.PyRanges:
         """
+
         Iter matched variants with intervals as pyranges.
-         """
+
+        Returns:
+
+        """
         for pr_variants in self._read_vcf_pyranges():
             pr_join = self.pr.join(pr_variants, suffix='_variant')
             if not hasattr(pr_join, 'intervals'):

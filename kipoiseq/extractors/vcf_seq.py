@@ -1,4 +1,5 @@
-from abc import ABC
+import abc
+from typing import Union
 
 from pyfaidx import Sequence, complement
 from kipoiseq.dataclasses import Interval
@@ -7,6 +8,9 @@ from kipoiseq.extractors import (
     FastaStringExtractor,
     MultiSampleVCF,
 )
+
+from kipoiseq import __version__
+from deprecation import deprecated
 
 __all__ = [
     'VariantSeqExtractor',
@@ -54,29 +58,42 @@ class IntervalSeqBuilder(list):
 
 class VariantSeqExtractor(BaseExtractor):
 
-    def __init__(self, fasta_file: str = None, ref_seq_extractor: BaseExtractor = None):
+    def __init__(self, fasta_file: str = None, reference_sequence: Union[str, BaseExtractor] = None):
         """
         Sequence extractor which allows to obtain the alternative sequence,
         given some interval and variants inside this interval.
 
         Args:
           fasta_file: path to the fasta file (can be gzipped)
-          ref_seq_extractor: extractor returning the reference sequence given some interval
+          reference_sequence: extractor returning the reference sequence given some interval
         """
         if fasta_file is not None:
-            if ref_seq_extractor is not None:
+            if reference_sequence is not None:
                 raise ValueError("either fasta_file or ref_seq_extractor have to be specified")
             self._ref_seq_extractor = FastaStringExtractor(fasta_file, use_strand=True)
         else:
-            if ref_seq_extractor is None:
+            if reference_sequence is None:
                 raise ValueError("either fasta_file or ref_seq_extractor have to be specified")
-            self._ref_seq_extractor = ref_seq_extractor
+            self._ref_seq_extractor = _infer_sequence_extractor(reference_sequence)
 
     @property
-    def ref_seq_extractor(self):
+    @deprecated(deprecated_in="1.0",
+                # removed_in="2.0",
+                current_version=__version__,
+                details="Use `ref_seq_extractor` instead")
+    def fasta(self):
         return self._ref_seq_extractor
 
-    def extract(self, interval, variants, anchor, fixed_len=True, **kwargs):
+    @property
+    def ref_seq_extractor(self) -> BaseExtractor:
+        """
+
+        Returns:
+            The reference sequence extractor of this object
+        """
+        return self._ref_seq_extractor
+
+    def extract(self, interval, variants=None, anchor=None, fixed_len=True, **kwargs):
         """
 
         Args:
@@ -93,6 +110,12 @@ class VariantSeqExtractor(BaseExtractor):
         Returns:
           A single sequence (`str`) with all the variants applied.
         """
+        if not variants:
+            raise ValueError("Missing argument: variants")
+
+        if not anchor:
+            raise ValueError("Missing argument: anchor")
+
         # Preprocessing
         anchor = max(min(anchor, interval.end), interval.start)
         variant_pairs = self._variant_to_sequence(variants)
@@ -249,7 +272,7 @@ class VariantSeqExtractor(BaseExtractor):
         return down_str, up_str
 
 
-class BaseVCFSeqExtractor(BaseExtractor, ABC):
+class _BaseVCFSeqExtractor(BaseExtractor, metaclass=abc.ABCMeta):
     """
     Base class to fetch sequence in which variants applied based
     on given vcf file.
@@ -266,8 +289,12 @@ class BaseVCFSeqExtractor(BaseExtractor, ABC):
         self.variant_extractor = VariantSeqExtractor(fasta_file)
         self.vcf = MultiSampleVCF(vcf_file)
 
+    @abc.abstractmethod
+    def extract(self, interval: Interval, *args, **kwargs) -> str:
+        raise NotImplementedError()
 
-class SingleVariantVCFSeqExtractor(BaseVCFSeqExtractor):
+
+class SingleVariantVCFSeqExtractor(_BaseVCFSeqExtractor):
     """
     Fetch list of sequence in which each variant applied based
     on given vcf file.
@@ -283,7 +310,7 @@ class SingleVariantVCFSeqExtractor(BaseVCFSeqExtractor):
             )
 
 
-class SingleSeqVCFSeqExtractor(BaseVCFSeqExtractor):
+class SingleSeqVCFSeqExtractor(_BaseVCFSeqExtractor):
     """
     Fetch sequence in which all variant applied based on given vcf file.
     """
