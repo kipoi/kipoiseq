@@ -122,9 +122,11 @@ class BaseVariantMatcher:
             raise ValueError('only one of `gth_path`, `bed_path`, `pranges`,'
                              '`intervals` or should given as input.')
         if gtf_path:
-            pranges = pyranges.read_gtf(gtf_path, )
+            import pyranges
+            pranges = pyranges.read_gtf(gtf_path)
 
         elif bed_path:
+            import pyranges
             pranges = pyranges.read_bed(bed_path)
 
         elif intervals:
