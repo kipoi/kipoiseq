@@ -93,7 +93,7 @@ class VariantSeqExtractor(BaseExtractor):
         """
         return self._ref_seq_extractor
 
-    def extract(self, interval, variants=None, anchor=None, fixed_len=True, **kwargs):
+    def extract(self, interval, variants, anchor, fixed_len=True, **kwargs):
         """
 
         Args:
@@ -110,12 +110,6 @@ class VariantSeqExtractor(BaseExtractor):
         Returns:
           A single sequence (`str`) with all the variants applied.
         """
-        if not variants:
-            raise ValueError("Missing argument: variants")
-
-        if not anchor:
-            raise ValueError("Missing argument: anchor")
-
         # Preprocessing
         anchor = max(min(anchor, interval.end), interval.start)
         variant_pairs = self._variant_to_sequence(variants)
