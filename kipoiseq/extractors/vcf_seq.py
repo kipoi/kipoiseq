@@ -58,7 +58,7 @@ class IntervalSeqBuilder(list):
 
 class VariantSeqExtractor(BaseExtractor):
 
-    def __init__(self, fasta_file: str = None, reference_sequence: Union[str, BaseExtractor] = None):
+    def __init__(self, fasta_file: str = None, reference_sequence: BaseExtractor = None):
         """
         Sequence extractor which allows to obtain the alternative sequence,
         given some interval and variants inside this interval.
@@ -74,7 +74,7 @@ class VariantSeqExtractor(BaseExtractor):
         else:
             if reference_sequence is None:
                 raise ValueError("either fasta_file or ref_seq_extractor have to be specified")
-            self._ref_seq_extractor = _infer_sequence_extractor(reference_sequence)
+            self._ref_seq_extractor = reference_sequence
 
     @property
     @deprecated(deprecated_in="1.0",
