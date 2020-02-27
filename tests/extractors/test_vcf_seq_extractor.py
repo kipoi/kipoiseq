@@ -4,7 +4,7 @@ from cyvcf2 import VCF
 from pyfaidx import Sequence
 from kipoiseq.dataclasses import Variant, Interval
 from kipoiseq.extractors.vcf_seq import IntervalSeqBuilder, \
-    VariantSeqExtractor, SingleSeqVCFSeqExtractor, SingleVariantVCFSeqExtractor
+    VariantSeqExtractor, SingleSeqVCFSeqExtractor, SingleVariantVCFSeqExtractor, FastaStringExtractor
 
 fasta_file = sample_5kb_fasta_file
 
@@ -140,6 +140,12 @@ def test_extract(variant_seq_extractor):
 
     interval = Interval('chr1', 0, 3, strand='+')
     seq = variant_seq_extractor.extract(
+        interval, variants, anchor=10, fixed_len=False)
+    assert seq == 'ACG'
+
+    interval = Interval('chr1', 0, 3, strand='+')
+    ref_seq_extractor = FastaStringExtractor(fasta_file, use_strand=True)
+    seq = VariantSeqExtractor(reference_sequence=ref_seq_extractor).extract(
         interval, variants, anchor=10, fixed_len=False)
     assert seq == 'ACG'
 
