@@ -3,11 +3,12 @@ import pandas as pd
 from kipoiseq.dataclasses import Variant, Interval
 from kipoiseq.extractors import MultiSampleVCF
 
-# pyranges is optional
 try:
-    import pyranges
+    from pyranges import PyRanges
 except ImportError:
-    pyranges = None
+    from typing import Any
+    PyRanges = Any
+
 
 __all__ = [
     'variants_to_pyranges',
@@ -16,7 +17,7 @@ __all__ = [
 ]
 
 
-def variants_to_pyranges(variants: List[Variant]) -> pyranges.PyRanges:
+def variants_to_pyranges(variants: List[Variant]) -> PyRanges:
     """
     Create pyrange object given list of variant objects.
 
@@ -36,7 +37,7 @@ def variants_to_pyranges(variants: List[Variant]) -> pyranges.PyRanges:
     return pyranges.PyRanges(df)
 
 
-def pyranges_to_intervals(pr: pyranges.PyRanges, interval_attrs: List[str] = None):
+def pyranges_to_intervals(pr: PyRanges, interval_attrs: List[str] = None):
     """
     Convert pyranges into list of intervals.
 
@@ -90,7 +91,7 @@ class BaseVariantMatcher:
             vcf_file: str,
             gtf_path: str = None,
             bed_path: str = None,
-            pranges: pyranges.PyRanges = None,
+            pranges: PyRanges = None,
             intervals: List[Interval] = None,
             interval_attrs: List[str] = None,
             vcf_lazy: bool = True,
@@ -173,7 +174,7 @@ class SingleVariantMatcher(BaseVariantMatcher):
         for batch in self.vcf.batch_iter(batch_size):
             yield variants_to_pyranges(batch)
 
-    def iter_pyranges(self) -> pyranges.PyRanges:
+    def iter_pyranges(self) -> PyRanges:
         """
 
         Iter matched variants with intervals as pyranges.
