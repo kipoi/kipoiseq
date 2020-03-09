@@ -33,7 +33,7 @@ def test_gtf_row2interval():
         'End': 20,
         'Strand': '-'
     })
-    expected_interval = Interval(chrom='22', start=9,
+    expected_interval = Interval(chrom='22', start=10,
                                  end=20, name='', strand='-')
 
     assert gtf_row2interval(row) == expected_interval
@@ -44,10 +44,10 @@ def test_CDSFetcher__read_cds():
     assert cds.shape[0] == 2
 
     assert cds.iloc[0].Chromosome == '22'
-    assert cds.iloc[0].Start == 599
+    assert cds.iloc[0].Start == 598
     assert cds.iloc[0].End == 3196
 
-    assert cds.iloc[1].Start == 1
+    assert cds.iloc[1].Start == 3
     assert cds.iloc[1].End == 598
 
 
@@ -159,6 +159,9 @@ def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein):
     txt_file = 'tests/data/Output_singleSeq_vcf_ENST000000381176.txt'
     expected_seq = open(txt_file).readline()
     assert seq == expected_seq
+    
+    #import pdb
+    #pdb.set_trace()
 
     transcript_id = 'ENST00000319363'
     seq = single_seq_protein.extract(transcript_id)

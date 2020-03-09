@@ -23,7 +23,7 @@ def gtf_row2interval(row):
     Convert gtf row object into interval class.
     """
     return Interval(str(row.Chromosome),
-                    int(row.Start) - 1,
+                    int(row.Start),
                     int(row.End),
                     strand=str(row.Strand))
 
