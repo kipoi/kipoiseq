@@ -265,7 +265,7 @@ TRANSLATION_TABLE = {
     'TCA': 'S', 'TCC': 'S', 'TCG': 'S', 'TCT': 'S',
     'TTC': 'F', 'TTT': 'F', 'TTA': 'L', 'TTG': 'L',
     'TAC': 'Y', 'TAT': 'Y', 'TAA': '_', 'TAG': '_',
-    'TGC': 'C', 'TGT': 'C', 'TGA': '_', 'TGG': 'W',
+    'TGC': 'C', 'TGT': 'C', 'TGA': 'U', 'TGG': 'W', # TGA to U instead of STOP codon
 }
 
 
