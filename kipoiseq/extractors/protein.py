@@ -10,11 +10,25 @@ from kipoiseq.extractors.vcf_seq import VariantSeqExtractor
 # TODO: documentation
 
 
-def cut_transcript_seq(seq):
+def cut_transcript_seq(seq, tag):
     # if the dna seq is not %3==0, there are unnecessary bases at the end
     # should be called only after all exons are connected!
-    while(len(seq) % 3 != 0):
-        seq = seq[:-1]
+    if "cds_end_NF" in tag and "cds_start_NF" not in tag:
+        while(len(seq) % 3 != 0):
+            seq = seq[:-1]
+        if seq[-3:] in ["TAA", "TAG"]:
+            seq = seq[:-3]
+    elif "cds_end_NF" not in tag and "cds_start_NF" in tag and len(seq) % 3 != 0:
+        while(len(seq) % 3 != 0):
+            seq = seq[1:]
+        seq = "XXX"+seq
+    elif "cds_end_NF" in tag and "cds_start_NF" in tag:
+        print("Ambiguous start and end!")
+        seq = "XXX"
+    elif "cds_end_NF" not in tag and "cds_start_NF" not in tag and len(seq) % 3 != 0:
+        print("No tags for ambiguous start and end, but len % 3 != 0")
+        seq = "XXX"
+        
     return seq
 
 
@@ -25,7 +39,8 @@ def gtf_row2interval(row):
     return Interval(str(row.Chromosome),
                     int(row.Start),
                     int(row.End),
-                    strand=str(row.Strand))
+                    strand=str(row.Strand),
+                   attrs={"tag": str(row.tag)})
 
 
 class CDSFetcher:
@@ -40,7 +55,7 @@ class CDSFetcher:
     @staticmethod
     def _read_cds(gtf_file):
         import pyranges
-        df = pyranges.read_gtf(gtf_file, output_df=True)
+        df = pyranges.read_gtf(gtf_file, output_df=True, duplicate_attr=True)
 
         cds = CDSFetcher._get_cds_from_gtf(df)
         cds = CDSFetcher._filter_valid_transcripts(cds)
@@ -49,11 +64,11 @@ class CDSFetcher:
     @staticmethod
     def _get_cds_from_gtf(df):
         biotype_str = CDSFetcher._get_biotype_str(df)
-        return (df
+        df = (df
                 .query("{} == 'protein_coding'".format(biotype_str))
                 .query("(Feature == 'CDS') | (Feature == 'CCDS')")
-                .query("(tag == 'basic') | (tag == 'CCDS')")
-                .set_index('transcript_id'))
+                )
+        return df[df["tag"].str.contains("basic|CCDS")].set_index('transcript_id')
 
     @staticmethod
     def _get_biotype_str(df):
@@ -103,18 +118,18 @@ class TranscriptSeqExtractor:
         return len(self.cds_fetcher)
 
     @staticmethod
-    def _prepare_seq(seqs, strand):
+    def _prepare_seq(seqs, strand, tag):
         seq = "".join(seqs)
         if strand == '-':
             # optionally reverse complement
             seq = rc_dna(seq)
-        seq = cut_transcript_seq(seq)
+        seq = cut_transcript_seq(seq, tag)
         return seq
 
     def get_seq(self, transcript_id):
         cds = self.cds_fetcher.get_cds(transcript_id)
         seqs = [self.fasta.extract(i) for i in cds]
-        return self._prepare_seq(seqs, cds[0].strand)
+        return self._prepare_seq(seqs, cds[0].strand, cds[0].attrs["tag"])
 
     def __getitem__(self, idx):
         return self.get_seq(self.transcripts[idx])
