@@ -33,7 +33,7 @@ test_requirements = [
     "scikit-learn",
     "cython",
     "cyvcf2",
-    "pyranges",
+    "pyranges>=0.0.71",
     # "genomelake",
     "keras",
     "tensorflow",
@@ -43,7 +43,7 @@ test_requirements = [
 
 setup(
     name='kipoiseq',
-    version='0.3.1',
+    version='0.3.3',
     description="kipoiseq: sequence-based data-laoders for Kipoi",
     author="Kipoi team",
     author_email='avsec@in.tum.de',

@@ -2,13 +2,14 @@
 - Interval
 - Variant
 """
-from collections import Mapping, OrderedDict
+# from collections import Mapping, OrderedDict
 from copy import deepcopy
-from kipoi_utils.data_utils import numpy_collate, numpy_collate_concat
+# from kipoi_utils.data_utils import numpy_collate, numpy_collate_concat
 import math
+# import numpy as np
 # -------------------------------------------
 # basepair implementation
-import attr
+# import attr
 
 
 class Variant:
@@ -197,12 +198,14 @@ class Interval:
 
     def to_pybedtools(self):
         import pybedtools
-        return pybedtools.create_interval_from_list([self.chrom,
-                                                     self.start,
-                                                     self.end,
-                                                     self.name,
-                                                     self.score,
-                                                     self.strand])
+        return pybedtools.create_interval_from_list([
+            self.chrom,
+            self.start,
+            self.end,
+            self.name,
+            self.score,
+            self.strand
+        ])
 
     @property
     def neg_strand(self):
@@ -265,7 +268,7 @@ class Interval:
         return hash((self.chrom, self.start, self.end, self.strand))
 
     def __str__(self):
-        return ("{}:{}-{}:{}".format(self.chrom, self.start, self.end, self.strand))
+        return "{}:{}-{}:{}".format(self.chrom, self.start, self.end, self.strand)
 
     def __repr__(self):
         return ("Interval(chrom='{}', start={}, end={}, name='{}', strand='{}', ...)"
