@@ -28,6 +28,7 @@ def cut_transcript_seq(seq, tag):
     elif "cds_end_NF" not in tag and "cds_start_NF" not in tag and len(seq) % 3 != 0:
         print("No tags for ambiguous start and end, but len % 3 != 0")
         seq = "XXX"
+        print(tag)
         
     return seq
 
@@ -40,7 +41,7 @@ def gtf_row2interval(row):
                     int(row.Start),
                     int(row.End),
                     strand=str(row.Strand),
-                   attrs={"tag": str(row.tag)})
+                   attrs={'tag': str(row.tag)})
 
 
 class CDSFetcher:
@@ -182,7 +183,7 @@ class ProteinVCFSeqExtractor:
                                        sample_id=sample_id)
 
         for seqs in iter_seqs:
-            yield ProteinSeqExtractor._prepare_seq(seqs, cds[0].strand, cds[0].attrs["tag"])
+            yield ProteinSeqExtractor._prepare_seq(seqs, cds[0].strand, cds[0].attrs['tag'])
 
     def extract(self, transcript_id, sample_id=None):
         return self.extract_cds(self.cds_fetcher.get_cds(transcript_id),

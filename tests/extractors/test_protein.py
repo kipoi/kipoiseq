@@ -15,14 +15,14 @@ vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
 
 
 intervals = [
-    Interval('22', 580, 596, strand='+'),
-    Interval('22', 597, 610, strand='+')
+    Interval('22', 580, 596, strand='+', attrs={'tag': 'cds_end_NF'}),
+    Interval('22', 597, 610, strand='+', attrs={'tag': 'cds_end_NF'})
 ]
 
 
 def test_cut_seq():
     seq = 'ATCGATG'
-    seq = cut_transcript_seq(seq, 'normal_tag')
+    seq = cut_transcript_seq(seq, 'cds_end_NF')
     assert len(seq) == 6
 
 
@@ -31,10 +31,11 @@ def test_gtf_row2interval():
         'Chromosome': '22',
         'Start': 10,
         'End': 20,
-        'Strand': '-'
+        'Strand': '-',
+        'tag': 'cds_end_NF'
     })
     expected_interval = Interval(chrom='22', start=10,
-                                 end=20, name='', strand='-')
+                                 end=20, name='', strand='-', attrs={'tag': 'cds_end_NF'})
 
     assert gtf_row2interval(row) == expected_interval
 
@@ -74,8 +75,8 @@ def transcript_seq_extractor():
 
 def test_TranscriptSeqExtractor_prepare_seq():
     seqs = ['ATCGATG']
-    assert 'ATCGAT' == TranscriptSeqExtractor._prepare_seq(seqs, '+', 'normal_tag')
-    assert 'CATCGA' == TranscriptSeqExtractor._prepare_seq(seqs, '-', 'normal_tag')
+    assert 'ATCGAT' == TranscriptSeqExtractor._prepare_seq(seqs, '+', 'cds_end_NF')
+    assert 'CATCGA' == TranscriptSeqExtractor._prepare_seq(seqs, '-', 'cds_end_NF')
 
 
 def test_TranscriptSeqExtractor_get_seq(transcript_seq_extractor):
@@ -96,10 +97,10 @@ def protein_seq_extractor():
 def test_ProteinSeqExtractor_prepare_seq(protein_seq_extractor):
     seqs = ['ATCGATG']
 
-    pro_seq = protein_seq_extractor._prepare_seq(seqs, '+', 'normal_tag')
+    pro_seq = protein_seq_extractor._prepare_seq(seqs, '+', 'cds_end_NF')
     assert pro_seq == 'ID'
 
-    pro_seq = protein_seq_extractor._prepare_seq(seqs, '-', 'normal_tag')
+    pro_seq = protein_seq_extractor._prepare_seq(seqs, '-', 'cds_end_NF')
     assert pro_seq == 'HR'
 
 
@@ -142,6 +143,8 @@ def test_ProteinVCFSeqExtractor_extract_cds(protein_vcf_seq):
 
 
 def test_ProteinVCFSeqExtractor_extract(protein_vcf_seq):
+    #import pdb
+    #pdb.set_trace()
     protein_seqs = list(protein_vcf_seq.extract(transcript_id))
     assert protein_seqs[0] == 'ID'
     assert protein_seqs[1] == 'HR'
@@ -159,14 +162,12 @@ def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein):
     txt_file = 'tests/data/Output_singleSeq_vcf_ENST000000381176.txt'
     expected_seq = open(txt_file).readline()
     assert seq == expected_seq
-    
-    #import pdb
-    #pdb.set_trace()
+   
 
     transcript_id = 'ENST00000319363'
     seq = single_seq_protein.extract(transcript_id)
     txt_file = 'tests/data/dna_seq_ENST00000319363.txt'
-    expected_seq = translate(cut_transcript_seq(open(txt_file).readline()))
+    expected_seq = translate(cut_transcript_seq(open(txt_file).readline(), 'cds_end_NF'))
     assert seq == expected_seq
 
     vcf_file = 'tests/data/singleSeq_vcf_ENST000000381176.vcf.gz'
@@ -177,7 +178,7 @@ def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein):
     seq = single_seq_protein.extract(transcript_id)
     txt_file = 'tests/data/dna_seq_ENST00000381176.txt'
     expected_seq = translate(cut_transcript_seq(
-        rc_dna(open(txt_file).readline())))
+        rc_dna(open(txt_file).readline()), 'cds_end_NF'))
     assert seq == expected_seq
 
 
