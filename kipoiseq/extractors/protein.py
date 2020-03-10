@@ -53,11 +53,12 @@ class CDSFetcher:
         self.cds = self._read_cds(self.gtf_file)
         self.transcripts = self.cds.index.unique()
 
+            
+
     @staticmethod
     def _read_cds(gtf_file):
         import pyranges
         df = pyranges.read_gtf(gtf_file, output_df=True, duplicate_attr=True)
-
         cds = CDSFetcher._get_cds_from_gtf(df)
         cds = CDSFetcher._filter_valid_transcripts(cds)
         return cds
@@ -184,7 +185,16 @@ class ProteinVCFSeqExtractor:
 
         for seqs in iter_seqs:
             yield ProteinSeqExtractor._prepare_seq(seqs, cds[0].strand, cds[0].attrs['tag'])
-
+    
+    
+    def extract_all(self):
+        for transcript_id in self.cds_fetcher.transcripts:
+            yield self.extract(transcript_id)
+    
+    def extract_list(self, list_with_transcript_id):
+        for transcript_id in list_with_transcript_id:
+            yield self.extract(transcript_id)
+    
     def extract(self, transcript_id, sample_id=None):
         return self.extract_cds(self.cds_fetcher.get_cds(transcript_id),
                                 sample_id=sample_id)
