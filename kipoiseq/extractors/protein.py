@@ -16,7 +16,7 @@ def cut_transcript_seq(seq, tag):
     if "cds_end_NF" in tag and "cds_start_NF" not in tag:
         while(len(seq) % 3 != 0):
             seq = seq[:-1]
-        if seq[-3:] in ["TAA", "TAG"]:
+        if seq[-3:] in ["TAA", "TAG", "TGA"]:
             seq = seq[:-3]
     elif "cds_end_NF" not in tag and "cds_start_NF" in tag and len(seq) % 3 != 0:
         while(len(seq) % 3 != 0):
@@ -152,8 +152,8 @@ class TranscriptSeqExtractor:
 class ProteinSeqExtractor(TranscriptSeqExtractor):
 
     @staticmethod
-    def _prepare_seq(seqs, strand):
-        return translate(TranscriptSeqExtractor._prepare_seq(seqs, strand))
+    def _prepare_seq(seqs, strand, tag):
+        return translate(TranscriptSeqExtractor._prepare_seq(seqs, strand, tag))
 
 
 class ProteinVCFSeqExtractor:
@@ -182,7 +182,7 @@ class ProteinVCFSeqExtractor:
                                        sample_id=sample_id)
 
         for seqs in iter_seqs:
-            yield ProteinSeqExtractor._prepare_seq(seqs, cds[0].strand)
+            yield ProteinSeqExtractor._prepare_seq(seqs, cds[0].strand, cds[0].attrs["tag"])
 
     def extract(self, transcript_id, sample_id=None):
         return self.extract_cds(self.cds_fetcher.get_cds(transcript_id),

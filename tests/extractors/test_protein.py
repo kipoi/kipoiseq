@@ -22,7 +22,7 @@ intervals = [
 
 def test_cut_seq():
     seq = 'ATCGATG'
-    seq = cut_transcript_seq(seq)
+    seq = cut_transcript_seq(seq, 'normal_tag')
     assert len(seq) == 6
 
 
@@ -74,8 +74,8 @@ def transcript_seq_extractor():
 
 def test_TranscriptSeqExtractor_prepare_seq():
     seqs = ['ATCGATG']
-    assert 'ATCGAT' == TranscriptSeqExtractor._prepare_seq(seqs, '+')
-    assert 'CATCGA' == TranscriptSeqExtractor._prepare_seq(seqs, '-')
+    assert 'ATCGAT' == TranscriptSeqExtractor._prepare_seq(seqs, '+', 'normal_tag')
+    assert 'CATCGA' == TranscriptSeqExtractor._prepare_seq(seqs, '-', 'normal_tag')
 
 
 def test_TranscriptSeqExtractor_get_seq(transcript_seq_extractor):
@@ -96,10 +96,10 @@ def protein_seq_extractor():
 def test_ProteinSeqExtractor_prepare_seq(protein_seq_extractor):
     seqs = ['ATCGATG']
 
-    pro_seq = protein_seq_extractor._prepare_seq(seqs, '+')
+    pro_seq = protein_seq_extractor._prepare_seq(seqs, '+', 'normal_tag')
     assert pro_seq == 'ID'
 
-    pro_seq = protein_seq_extractor._prepare_seq(seqs, '-')
+    pro_seq = protein_seq_extractor._prepare_seq(seqs, '-', 'normal_tag')
     assert pro_seq == 'HR'
 
 
