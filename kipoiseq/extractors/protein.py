@@ -28,7 +28,6 @@ def cut_transcript_seq(seq, tag):
     elif "cds_end_NF" not in tag and "cds_start_NF" not in tag and len(seq) % 3 != 0:
         print("No tags for ambiguous start and end, but len % 3 != 0")
         seq = "XXX"
-        print(tag)
         
     return seq
 
@@ -138,7 +137,6 @@ class TranscriptSeqExtractor:
 
     def overlaped_cds(self, variants):
         """Which exons are overlapped by a variant
-
         Overall strategy:
         1. given the variant, get all the affected transcripts
         2. Given the transcript and the variants,
@@ -155,7 +153,7 @@ class ProteinSeqExtractor(TranscriptSeqExtractor):
 
     @staticmethod
     def _prepare_seq(seqs, strand, tag):
-        return translate(TranscriptSeqExtractor._prepare_seq(seqs, strand, tag))
+        return translate(TranscriptSeqExtractor._prepare_seq(seqs, strand, tag),True)
 
 
 class ProteinVCFSeqExtractor:
@@ -196,6 +194,8 @@ class ProteinVCFSeqExtractor:
             yield self.extract(transcript_id)
     
     def extract(self, transcript_id, sample_id=None):
+        import pdb
+        pdb.set_trace()
         return self.extract_cds(self.cds_fetcher.get_cds(transcript_id),
                                 sample_id=sample_id)
 
@@ -207,14 +207,18 @@ class ProteinVCFSeqExtractor:
 class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
 
     def _extract_query(self, variant_interval_queryable, sample_id=None):
+        seqs = []
+        flag = True
         for variants, interval in variant_interval_queryable.variant_intervals:
             for variant in variants:
-                if len(variant.ref) == len(variant.alt):
-                    yield self.variant_seq_extractor.extract(
-                        interval, variants, anchor=0)
-                else:
+                if len(variant.ref) != len(variant.alt):
                     print('Current version of extractor ignores indel'
                           ' to avoid shift in frame')
+                    flag = False
+            if flag:
+                seqs.append(self.variant_seq_extractor.extract(
+                            interval, variants, anchor=0))
+        yield "".join(seqs)
 
     def extract_query(self, variant_interval_queryable, sample_id=None):
         cds_seqs = list(self._extract_query(variant_interval_queryable,
