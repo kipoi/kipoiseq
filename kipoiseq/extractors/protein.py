@@ -194,8 +194,6 @@ class ProteinVCFSeqExtractor:
             yield self.extract(transcript_id)
     
     def extract(self, transcript_id, sample_id=None):
-        import pdb
-        pdb.set_trace()
         return self.extract_cds(self.cds_fetcher.get_cds(transcript_id),
                                 sample_id=sample_id)
 
