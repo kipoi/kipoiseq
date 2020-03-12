@@ -10,7 +10,7 @@ from kipoiseq.extractors.vcf_seq import VariantSeqExtractor
 # TODO: documentation
 
 
-def cut_transcript_seq(seq, tag):
+def cut_transcript_seq(seq: str, tag: str):
     """
     Some of the sequences contain length % 3 != 0, because they have ambiguous
     start and/or end. If this is the case, they should be cut until length % 3 == 0
@@ -110,7 +110,7 @@ class CDSFetcher:
     def __len__(self):
         return len(self.transcripts)
 
-    def get_cds(self, transcript_id):
+    def get_cds(self, transcript_id: str):
         """
         Create Interval objects of the cds for given transcript_id
         """
@@ -136,7 +136,7 @@ class TranscriptSeqExtractor:
         return len(self.cds_fetcher)
 
     @staticmethod
-    def _prepare_seq(seqs, strand, tag):
+    def _prepare_seq(seqs: 'list of str', strand: str, tag: str):
         """
         Prepare the dna sequence in the final variant, which should be
         translated in amino acid sequence
@@ -153,7 +153,7 @@ class TranscriptSeqExtractor:
         seq = cut_transcript_seq(seq, tag)
         return seq
 
-    def get_seq(self, transcript_id):
+    def get_seq(self, transcript_id: str):
         """
         Extract the dna sequence for given transcript_id
         and prepare it in its final shape
@@ -184,7 +184,7 @@ class TranscriptSeqExtractor:
 class ProteinSeqExtractor(TranscriptSeqExtractor):
 
     @staticmethod
-    def _prepare_seq(seqs, strand, tag):
+    def _prepare_seq(seqs: 'list of str', strand: str, tag: str):
         """
         Prepare the dna sequence and translate it into amino acid sequence
         :param seqs: current dna sequence
@@ -208,13 +208,13 @@ class ProteinVCFSeqExtractor:
         self.variant_seq_extractor = VariantSeqExtractor(self.fasta_file)
 
     @staticmethod
-    def _unstrand(intervals):
+    def _unstrand(intervals: 'list of Intervals'):
         """
         Set strand of list of intervals to default - '.'
         """
         return [i.unstrand() for i in intervals]
 
-    def extract_cds(self, cds, sample_id=None):
+    def extract_cds(self, cds: 'list of Intervals', sample_id=None):
         """
         Extract cds with variants in their dna sequence. It depends on the
         child class if a sequence have all variants inserted or only one variant
@@ -242,7 +242,7 @@ class ProteinVCFSeqExtractor:
         for transcript_id in self.cds_fetcher.transcripts:
             yield self.extract(transcript_id)
     
-    def extract_list(self, list_with_transcript_id):
+    def extract_list(self, list_with_transcript_id: 'list of str'):
         """
         Extract all amino acid sequences for transcript_id given in the list
         :param list_with_transcript_id:
@@ -302,7 +302,7 @@ class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
         return cds_seqs if cds_seqs \
             else self._ref_cds_seq(variant_interval_queryable)
 
-    def extract_cds(self, cds, sample_id=None):
+    def extract_cds(self, cds: 'list of Intervals', sample_id=None):
         """
         Call parent method which inserts all variants into the dna sequence
         """
