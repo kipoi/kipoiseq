@@ -208,11 +208,13 @@ class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
         seqs = []
         flag = True
         for variants, interval in variant_interval_queryable.variant_intervals:
+            variants = list(variants)
             for variant in variants:
                 if len(variant.ref) != len(variant.alt):
                     print('Current version of extractor ignores indel'
                           ' to avoid shift in frame')
                     flag = False
+                    break
             if flag:
                 seqs.append(self.variant_seq_extractor.extract(
                             interval, variants, anchor=0))
