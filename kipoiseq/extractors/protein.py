@@ -11,8 +11,16 @@ from kipoiseq.extractors.vcf_seq import VariantSeqExtractor
 
 
 def cut_transcript_seq(seq, tag):
-    # if the dna seq is not %3==0, there are unnecessary bases at the end
-    # should be called only after all exons are connected!
+    """
+    Some of the sequences contain length % 3 != 0, because they have ambiguous
+    start and/or end. If this is the case, they should be cut until length % 3 == 0
+    There are sequences which have both ambiguous start and end => no solution yet
+    :param seq: dna sequences of the current protein
+    :param tag: tags, which contain information about ambiguous start and/or end
+    :return: correct dna sequence with length % 3 == 0
+    if ambiguous start and end or no tags provided, but the sequence has length % 3 != 0
+    seq = 'XXX'
+    """
     if "cds_end_NF" in tag and "cds_start_NF" not in tag:
         while(len(seq) % 3 != 0):
             seq = seq[:-1]
@@ -56,6 +64,9 @@ class CDSFetcher:
 
     @staticmethod
     def _read_cds(gtf_file):
+        """
+        Read, extract and filter valid cds from the given gtf_file
+        """
         import pyranges
         df = pyranges.read_gtf(gtf_file, output_df=True, duplicate_attr=True)
         cds = CDSFetcher._get_cds_from_gtf(df)
@@ -64,6 +75,9 @@ class CDSFetcher:
 
     @staticmethod
     def _get_cds_from_gtf(df):
+        """
+        Create DataFrame with valid cds
+        """
         biotype_str = CDSFetcher._get_biotype_str(df)
         df = (df
                 .query("{} == 'protein_coding'".format(biotype_str))
@@ -97,6 +111,9 @@ class CDSFetcher:
         return len(self.transcripts)
 
     def get_cds(self, transcript_id):
+        """
+        Create Interval objects of the cds for given transcript_id
+        """
         cds = self.cds.loc[[transcript_id]]
         assert np.all(cds.iloc[0].Strand == cds.Strand)
 
@@ -120,6 +137,15 @@ class TranscriptSeqExtractor:
 
     @staticmethod
     def _prepare_seq(seqs, strand, tag):
+        """
+        Prepare the dna sequence in the final variant, which should be
+        translated in amino acid sequence
+        :param seqs: current dna sequence
+        :param strand: dna strand, where the gene is located
+        :param tag: tags, which contain information about ambiguous start/end
+        :return: prepared dna sequence ready for translation into amino acid
+        sequence
+        """
         seq = "".join(seqs)
         if strand == '-':
             # optionally reverse complement
@@ -128,6 +154,12 @@ class TranscriptSeqExtractor:
         return seq
 
     def get_seq(self, transcript_id):
+        """
+        Extract the dna sequence for given transcript_id
+        and prepare it in its final shape
+        :param transcript_id:
+        :return: dna sequence for the given transcript_id
+        """
         cds = self.cds_fetcher.get_cds(transcript_id)
         seqs = [self.fasta.extract(i) for i in cds]
         return self._prepare_seq(seqs, cds[0].strand, cds[0].attrs["tag"])
@@ -153,6 +185,13 @@ class ProteinSeqExtractor(TranscriptSeqExtractor):
 
     @staticmethod
     def _prepare_seq(seqs, strand, tag):
+        """
+        Prepare the dna sequence and translate it into amino acid sequence
+        :param seqs: current dna sequence
+        :param strand: dna strand, where the gene is located
+        :param tag: tags, which contain information about ambiguous start/end
+        :return: amino acid sequence
+        """
         return translate(TranscriptSeqExtractor._prepare_seq(seqs, strand, tag),True)
 
 
@@ -170,9 +209,20 @@ class ProteinVCFSeqExtractor:
 
     @staticmethod
     def _unstrand(intervals):
+        """
+        Set strand of list of intervals to default - '.'
+        """
         return [i.unstrand() for i in intervals]
 
     def extract_cds(self, cds, sample_id=None):
+        """
+        Extract cds with variants in their dna sequence. It depends on the
+        child class if a sequence have all variants inserted or only one variant
+        is inserted into dna sequence
+        :param cds:
+        :param sample_id:
+        :return: sequence with variants
+        """
         intervals = self._unstrand(cds)
 
         variant_interval_queryable = self.multi_sample_VCF.query_variants(
@@ -186,18 +236,33 @@ class ProteinVCFSeqExtractor:
     
     
     def extract_all(self):
+        """
+        Extract all amino acid sequences for transcript_ids with variants
+        """
         for transcript_id in self.cds_fetcher.transcripts:
             yield self.extract(transcript_id)
     
     def extract_list(self, list_with_transcript_id):
+        """
+        Extract all amino acid sequences for transcript_id given in the list
+        :param list_with_transcript_id:
+        :return:
+        """
         for transcript_id in list_with_transcript_id:
             yield self.extract(transcript_id)
     
     def extract(self, transcript_id, sample_id=None):
+        """
+        Extract all amino acid sequences for transcript_id
+        """
         return self.extract_cds(self.cds_fetcher.get_cds(transcript_id),
                                 sample_id=sample_id)
 
     def _ref_cds_seq(self, variant_interval_queryable):
+        """
+        Extract amino acid sequence without variants, which can be used as
+        reference
+        """
         intervals = variant_interval_queryable.iter_intervals()
         return [self.fasta.extract(interval) for interval in intervals]
 
@@ -205,6 +270,13 @@ class ProteinVCFSeqExtractor:
 class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
 
     def _extract_query(self, variant_interval_queryable, sample_id=None):
+        """
+        Iterate through all intervals and extract dna sequence with all
+        variance inserted into
+        :param variant_interval_queryable:
+        :param sample_id:
+        :return: dna sequence with all variants
+        """
         seqs = []
         flag = True
         for variants, interval in variant_interval_queryable.variant_intervals:
@@ -220,19 +292,33 @@ class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
                             interval, variants, anchor=0))
         yield "".join(seqs)
 
+
     def extract_query(self, variant_interval_queryable, sample_id=None):
+        """
+        Extract dna sequence with all variants inserted
+        """
         cds_seqs = list(self._extract_query(variant_interval_queryable,
                                             sample_id=sample_id))
         return cds_seqs if cds_seqs \
             else self._ref_cds_seq(variant_interval_queryable)
 
     def extract_cds(self, cds, sample_id=None):
+        """
+        Call parent method which inserts all variants into the dna sequence
+        """
         return next(super().extract_cds(cds, sample_id=sample_id))
 
 
 class SingleVariantProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
 
     def extract_query(self, variant_interval_queryable, sample_id=None):
+        """
+        Iterate through all variants and creates a sequence for
+        each variant individually
+        :param variant_interval_queryable:
+        :param sample_id:
+        :return: for each variant a sequence with it
+        """
         ref_cds_seq = self._ref_cds_seq(variant_interval_queryable)
 
         for i, (variants, interval) in enumerate(
