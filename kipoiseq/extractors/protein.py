@@ -218,8 +218,8 @@ class ProteinVCFSeqExtractor:
         """
         Extract cds with variants in their dna sequence. It depends on the
         child class if a sequence have all variants inserted or only one variant
-        is inserted into dna sequence
-        :param cds:
+        is inserted per dna sequence
+        :param cds: list of Intervals
         :param sample_id:
         :return: sequence with variants
         """
@@ -245,8 +245,8 @@ class ProteinVCFSeqExtractor:
     def extract_list(self, list_with_transcript_id: 'list of str'):
         """
         Extract all amino acid sequences for transcript_id given in the list
-        :param list_with_transcript_id:
-        :return:
+        :param list_with_transcript_id: list which contains transcript_ids
+        :return: sequences with variants
         """
         for transcript_id in list_with_transcript_id:
             yield self.extract(transcript_id)
@@ -272,8 +272,9 @@ class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
     def _extract_query(self, variant_interval_queryable, sample_id=None):
         """
         Iterate through all intervals and extract dna sequence with all
-        variance inserted into
-        :param variant_interval_queryable:
+        variants inserted into it
+        :param variant_interval_queryable: Object which contains information
+        about the variants for current sequence
         :param sample_id:
         :return: dna sequence with all variants
         """
@@ -315,9 +316,10 @@ class SingleVariantProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
         """
         Iterate through all variants and creates a sequence for
         each variant individually
-        :param variant_interval_queryable:
+        :param variant_interval_queryable: Object which contains information
+        about the variants for current sequence
         :param sample_id:
-        :return: for each variant a sequence with it
+        :return: for each variant a sequence with a single variant
         """
         ref_cds_seq = self._ref_cds_seq(variant_interval_queryable)
 
