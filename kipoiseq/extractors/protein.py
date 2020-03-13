@@ -181,6 +181,11 @@ class TranscriptSeqExtractor:
         raise NotImplementedError()
     
     def get_protein_seq(self, transcript_id: str):
+        """
+        Extract amino acid sequence for given transcript_id
+        :param transcript_id: 
+        :return: amino acid sequence
+        """
         return translate(self.get_seq(transcript_id), hg38=True)
 
 class ProteinSeqExtractor(TranscriptSeqExtractor):
