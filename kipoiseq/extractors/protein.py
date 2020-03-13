@@ -179,7 +179,9 @@ class TranscriptSeqExtractor:
         # this will generate (variant, cds_exon) pairs
         # cds_exon will contain also the information about the order in the transcript
         raise NotImplementedError()
-
+    
+    def get_protein_seq(self, transcript_id: str):
+        return translate(self.get_seq(transcript_id), hg38=True)
 
 class ProteinSeqExtractor(TranscriptSeqExtractor):
 
