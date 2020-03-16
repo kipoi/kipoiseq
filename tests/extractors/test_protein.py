@@ -10,8 +10,8 @@ from kipoiseq.extractors.protein import cut_transcript_seq, gtf_row2interval, \
 
 gtf_file = 'tests/data/sample_1_protein.gtf'
 fasta_file = 'tests/data/demo_dna_seq.fa'
-transcript_id = 'ENST00000319363'
-vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
+transcript_id = 'enst_test1'
+vcf_file = 'tests/data/singleVar_vcf_enst_test2.vcf.gz'
 
 
 intervals = [
@@ -38,18 +38,18 @@ def test_gtf_row2interval():
                                  end=20, name='', strand='-', attrs={'tag': 'cds_end_NF'})
 
     assert gtf_row2interval(row) == expected_interval
-
+    
 
 def test_CDSFetcher__read_cds():
     cds = CDSFetcher._read_cds(gtf_file)
-    assert cds.shape[0] == 2
+    assert cds.shape[0] == 6
 
     assert cds.iloc[0].Chromosome == '22'
     assert cds.iloc[0].Start == 598
-    assert cds.iloc[0].End == 3196
+    assert cds.iloc[0].End == 3050
 
-    assert cds.iloc[1].Start == 3
-    assert cds.iloc[1].End == 598
+    assert cds.iloc[3].Start == 3
+    assert cds.iloc[3].End == 300
 
 
 @pytest.fixture
@@ -71,6 +71,14 @@ def test_CDSFetcher_get_cds(cds_fetcher):
 @pytest.fixture
 def transcript_seq_extractor():
     return TranscriptSeqExtractor(gtf_file, fasta_file)
+
+
+def test_get_protein_seq(transcript_seq_extractor):
+    transcript_id = 'enst_test2'
+    seq = transcript_seq_extractor.get_protein_seq(transcript_id)
+    txt_file = 'tests/data/Output_singleSeq_vcf_enst_test2.txt'
+    expected_seq = open(txt_file).readline()
+    assert seq[1:] == expected_seq[1:] # no expected mutation here
 
 
 def test_TranscriptSeqExtractor_prepare_seq():
@@ -143,8 +151,6 @@ def test_ProteinVCFSeqExtractor_extract_cds(protein_vcf_seq):
 
 
 def test_ProteinVCFSeqExtractor_extract(protein_vcf_seq):
-    #import pdb
-    #pdb.set_trace()
     protein_seqs = list(protein_vcf_seq.extract(transcript_id))
     assert protein_seqs[0] == 'ID'
     assert protein_seqs[1] == 'HR'
@@ -152,31 +158,31 @@ def test_ProteinVCFSeqExtractor_extract(protein_vcf_seq):
 
 @pytest.fixture
 def single_seq_protein():
-    vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
+    vcf_file = 'tests/data/singleVar_vcf_enst_test2.vcf.gz'
     return SingleSeqProteinVCFSeqExtractor(gtf_file, fasta_file, vcf_file)
 
 
 def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein):
-    transcript_id = 'ENST00000381176'
+    transcript_id = 'enst_test2'
     seq = single_seq_protein.extract(transcript_id)
-    txt_file = 'tests/data/Output_singleSeq_vcf_ENST000000381176.txt'
+    txt_file = 'tests/data/Output_singleSeq_vcf_enst_test2.txt'
     expected_seq = open(txt_file).readline()
     assert seq == expected_seq
    
 
-    transcript_id = 'ENST00000319363'
+    transcript_id = 'enst_test1'
     seq = single_seq_protein.extract(transcript_id)
-    txt_file = 'tests/data/dna_seq_ENST00000319363.txt'
+    txt_file = 'tests/data/dna_seq_enst_test1.txt'
     expected_seq = translate(cut_transcript_seq(open(txt_file).readline(), 'cds_end_NF'))
     assert seq == expected_seq
 
-    vcf_file = 'tests/data/singleSeq_vcf_ENST000000381176.vcf.gz'
+    vcf_file = 'tests/data/singleSeq_vcf_enst_test2.vcf.gz'
     single_seq_protein = SingleSeqProteinVCFSeqExtractor(
         gtf_file, fasta_file, vcf_file)
 
-    transcript_id = 'ENST00000381176'
+    transcript_id = 'enst_test2'
     seq = single_seq_protein.extract(transcript_id)
-    txt_file = 'tests/data/dna_seq_ENST00000381176.txt'
+    txt_file = 'tests/data/dna_seq_enst_test2.txt'
     expected_seq = translate(cut_transcript_seq(
         rc_dna(open(txt_file).readline()), 'cds_end_NF'))
     assert seq == expected_seq
@@ -184,14 +190,14 @@ def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein):
 
 @pytest.fixture
 def single_variant_seq():
-    vcf_file = 'tests/data/singleVar_vcf_ENST000000381176.vcf.gz'
+    vcf_file = 'tests/data/singleVar_vcf_enst_test2.vcf.gz'
     return SingleVariantProteinVCFSeqExtractor(gtf_file, fasta_file, vcf_file)
 
 
 def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq):
-    transcript_id = 'ENST00000381176'
+    transcript_id = 'enst_test2'
     seqs = list(single_variant_seq.extract(transcript_id))
-    txt_file = 'tests/data/Output_singleVar_vcf_ENST000000381176.txt'
+    txt_file = 'tests/data/Output_singleVar_vcf_enst_test2.txt'
     expected_seq = open(txt_file).read().splitlines()
     assert seqs[0] == expected_seq[0]
     assert seqs[1] == expected_seq[1]
