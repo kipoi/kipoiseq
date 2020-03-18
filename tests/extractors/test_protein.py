@@ -42,7 +42,7 @@ def test_gtf_row2interval():
 
 def test_CDSFetcher__read_cds():
     cds = CDSFetcher._read_cds(gtf_file)
-    assert cds.shape[0] == 6
+    assert cds.shape[0] == 7
 
     assert cds.iloc[0].Chromosome == '22'
     assert cds.iloc[0].Start == 598
@@ -58,7 +58,7 @@ def cds_fetcher():
 
 
 def test_CDSFetcher__len__(cds_fetcher):
-    assert len(cds_fetcher) == 2
+    assert len(cds_fetcher) == 3
 
 
 def test_CDSFetcher_get_cds(cds_fetcher):
