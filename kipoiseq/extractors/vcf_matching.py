@@ -124,7 +124,7 @@ class BaseVariantMatcher:
                              '`intervals` or should given as input.')
         if gtf_path:
             import pyranges
-            pranges = pyranges.read_gtf(gtf_path)
+            pranges = pyranges.read_gtf(gtf_path, duplicate_attr=True)
 
         elif bed_path:
             import pyranges
