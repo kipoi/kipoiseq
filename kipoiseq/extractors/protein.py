@@ -5,6 +5,7 @@ from kipoiseq.transforms.functional import rc_dna, translate
 from kipoiseq.extractors.base import FastaStringExtractor
 from kipoiseq.extractors.vcf import MultiSampleVCF
 from kipoiseq.extractors.vcf_seq import VariantSeqExtractor
+from kipoiseq.extractors.vcf_matching import SingleVariantMatcher
 
 # TODO: convert print to logs
 # TODO: documentation
@@ -74,7 +75,7 @@ class CDSFetcher:
         return cds
 
     @staticmethod
-    def _get_cds_from_gtf(df):
+    def _get_cds_from_gtf(df, transcript_index=True):
         """
         Create DataFrame with valid cds
         """
@@ -83,7 +84,10 @@ class CDSFetcher:
                 .query("{} == 'protein_coding'".format(biotype_str))
                 .query("(Feature == 'CDS') | (Feature == 'CCDS')")
                 )
-        return df[df["tag"].str.contains("basic|CCDS")].set_index('transcript_id')
+        df = df[df["tag"].str.contains("basic|CCDS")]
+        if transcript_index:
+            df = df.set_index('transcript_id')
+        return df
 
     @staticmethod
     def _get_biotype_str(df):
@@ -213,6 +217,9 @@ class ProteinVCFSeqExtractor:
         self.fasta = FastaStringExtractor(self.fasta_file)
         self.multi_sample_VCF = MultiSampleVCF(self.vcf_file)
         self.variant_seq_extractor = VariantSeqExtractor(self.fasta_file)
+        self.single_variant_matcher = SingleVariantMatcher(self.vcf_file, self.gtf_file)
+
+
 
     @staticmethod
     def _unstrand(intervals: 'list of Intervals'):
@@ -272,7 +279,14 @@ class ProteinVCFSeqExtractor:
         """
         intervals = variant_interval_queryable.iter_intervals()
         return [self.fasta.extract(interval) for interval in intervals]
-
+    
+    
+    def extract_all_from_vcf(self):
+        table = (list(self.single_variant_matcher.iter_pyranges())[0].df).dropna(subset=['tag'])
+        table = CDSFetcher._get_cds_from_gtf(table, transcript_index=False)
+        transcript_ids = CDSFetcher._filter_valid_transcripts(table).drop_duplicates(subset='transcript_id').transcript_id
+        for transcript_id in transcript_ids:
+            yield self.extract(transcript_id)
 
 class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
 
