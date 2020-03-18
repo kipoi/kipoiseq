@@ -28,7 +28,7 @@ class MultiSampleVCF(VCF):
 
     @staticmethod
     def _region(interval):
-        return '%s:%d-%d' % (interval.chrom, interval.start, interval.end)
+        return '%s:%d-%d' % (interval.chrom, interval.start+1, interval.end)
 
     def has_variant(self, variant, sample_id):
         gt_type = variant.source.gt_types[self.sample_mapping[sample_id]]
