@@ -207,6 +207,15 @@ def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq):
     assert seqs[0] == expected_seq[0]
     assert seqs[1] == expected_seq[1]
     assert seqs[2] == expected_seq[2]
+    
+    seqs = list(single_variant_seq.extract_all())
+    counter = 0
+    for t_id in seqs:
+        t_id = list(t_id)
+        counter += len(t_id)
+        for i, seq in enumerate(t_id):
+            assert seq == expected_seq[i]
+    assert counter == 3, 'Number of variants in vcf 3, but # of seq was: '+str(counter)
 
 
 # TODO: add for all proteins.pep.all.fa
