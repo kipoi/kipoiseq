@@ -217,8 +217,6 @@ class ProteinVCFSeqExtractor:
         self.fasta = FastaStringExtractor(self.fasta_file)
         self.multi_sample_VCF = MultiSampleVCF(self.vcf_file)
         self.variant_seq_extractor = VariantSeqExtractor(self.fasta_file)
-        self.single_variant_matcher = SingleVariantMatcher(self.vcf_file, self.gtf_file)
-
 
 
     @staticmethod
@@ -282,9 +280,25 @@ class ProteinVCFSeqExtractor:
     
     
     def extract_all_from_vcf(self):
-        table = (list(self.single_variant_matcher.iter_pyranges())[0].df).dropna(subset=['tag'])
+        """
+        Find all transcript_ids for which theare are variants
+        in the vcf file and extract for each variant a single
+        sequence
+        """
+        
+        """
+        initialise here, because:
+        1. it takes time and if the user do not want to use this
+        option, it does not make sense to wait for it at the beginning
+        """
+        single_variant_matcher = SingleVariantMatcher(self.vcf_file, self.gtf_file)
+        
+        
+        table = (list(single_variant_matcher.iter_pyranges())[0].df).dropna(subset=['tag'])
         table = CDSFetcher._get_cds_from_gtf(table, transcript_index=False)
         transcript_ids = CDSFetcher._filter_valid_transcripts(table).drop_duplicates(subset='transcript_id').transcript_id
+        
+        
         for transcript_id in transcript_ids:
             yield self.extract(transcript_id)
 
@@ -343,7 +357,6 @@ class SingleVariantProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
         :return: for each variant a sequence with a single variant
         """
         ref_cds_seq = self._ref_cds_seq(variant_interval_queryable)
-
         for i, (variants, interval) in enumerate(
                 variant_interval_queryable.variant_intervals):
 
