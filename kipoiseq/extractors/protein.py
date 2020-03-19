@@ -172,6 +172,14 @@ class TranscriptSeqExtractor:
         return self.get_seq(self.transcripts[idx])
 
     def overlaped_cds(self, variants):
+        """
+        19.03.20
+        This method is implemented in the ProteinVCFSeqExtractor as
+        extract_all_from_vcf()
+        
+        The infromation below is old.
+        
+        """
         """Which exons are overlapped by a variant
         Overall strategy:
         1. given the variant, get all the affected transcripts
