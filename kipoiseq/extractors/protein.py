@@ -54,40 +54,43 @@ def gtf_row2interval(row):
 
 class CDSFetcher:
 
-    def __init__(self, gtf_file):
+    def __init__(self, gtf_file, vcf_matcher_df=None):
         """Protein sequences in the genome
         """
         self.gtf_file = str(gtf_file)
-        self.cds = self._read_cds(self.gtf_file)
+        self.cds = self._read_cds(self.gtf_file, vcf_matcher_df)
         self.transcripts = self.cds.index.unique()
 
             
 
     @staticmethod
-    def _read_cds(gtf_file):
+    def _read_cds(gtf_file, vcf_matcher_df=None):
         """
         Read, extract and filter valid cds from the given gtf_file
         """
         import pyranges
         df = pyranges.read_gtf(gtf_file, output_df=True, duplicate_attr=True)
-        cds = CDSFetcher._get_cds_from_gtf(df)
+        cds = CDSFetcher._get_cds_from_gtf(df, vcf_matcher_df)
         cds = CDSFetcher._filter_valid_transcripts(cds)
         return cds
 
     @staticmethod
-    def _get_cds_from_gtf(df, transcript_index=True):
+    def _get_cds_from_gtf(df, vcf_matcher_df=None):
         """
         Create DataFrame with valid cds
         """
+        
+        if vcf_matcher_df is not None:
+          
+            vcf_matcher_df = (vcf_matcher_df.transcript_id).to_frame().drop_duplicates()
+            df = df.merge(vcf_matcher_df)
+        
         biotype_str = CDSFetcher._get_biotype_str(df)
         df = (df
                 .query("{} == 'protein_coding'".format(biotype_str))
                 .query("(Feature == 'CDS') | (Feature == 'CCDS')")
                 )
-        df = df[df["tag"].str.contains("basic|CCDS")]
-        if transcript_index:
-            df = df.set_index('transcript_id')
-        return df
+        return df[df["tag"].str.contains("basic|CCDS")].set_index('transcript_id')
 
     @staticmethod
     def _get_biotype_str(df):
@@ -175,7 +178,7 @@ class TranscriptSeqExtractor:
         """
         19.03.20
         This method is implemented in the ProteinVCFSeqExtractor as
-        extract_all_from_vcf()
+        extract_all()
         
         The infromation below is old.
         
@@ -220,8 +223,9 @@ class ProteinVCFSeqExtractor:
         self.gtf_file = str(gtf_file)
         self.fasta_file = str(fasta_file)
         self.vcf_file = str(vcf_file)
-        self.cds_fetcher = CDSFetcher(self.gtf_file)
-        self.transcripts = self.cds_fetcher.transcripts
+        single_variant_matcher = SingleVariantMatcher(self.vcf_file, self.gtf_file)
+        self.cds_fetcher = CDSFetcher(self.gtf_file, list(single_variant_matcher.iter_pyranges())[0].df)
+        self.transcripts = self.cds_fetcher.transcripts # only transcript_ids with variants
         self.fasta = FastaStringExtractor(self.fasta_file)
         self.multi_sample_VCF = MultiSampleVCF(self.vcf_file)
         self.variant_seq_extractor = VariantSeqExtractor(self.fasta_file)
@@ -258,6 +262,7 @@ class ProteinVCFSeqExtractor:
     def extract_all(self):
         """
         Extract all amino acid sequences for transcript_ids with variants
+        given into the vcf_file
         """
         for transcript_id in self.cds_fetcher.transcripts:
             yield self.extract(transcript_id)
@@ -286,29 +291,6 @@ class ProteinVCFSeqExtractor:
         intervals = variant_interval_queryable.iter_intervals()
         return [self.fasta.extract(interval) for interval in intervals]
     
-    
-    def extract_all_from_vcf(self):
-        """
-        Find all transcript_ids for which theare are variants
-        in the vcf file and extract for each variant a single
-        sequence
-        """
-        
-        """
-        initialise here, because:
-        1. it takes time and if the user do not want to use this
-        option, it does not make sense to wait for it at the beginning
-        """
-        single_variant_matcher = SingleVariantMatcher(self.vcf_file, self.gtf_file)
-        
-        
-        table = (list(single_variant_matcher.iter_pyranges())[0].df).dropna(subset=['tag'])
-        table = CDSFetcher._get_cds_from_gtf(table, transcript_index=False)
-        transcript_ids = CDSFetcher._filter_valid_transcripts(table).drop_duplicates(subset='transcript_id').transcript_id
-        
-        
-        for transcript_id in transcript_ids:
-            yield self.extract(transcript_id)
 
 class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
 
