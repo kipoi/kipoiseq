@@ -163,13 +163,28 @@ def single_seq_protein():
     return SingleSeqProteinVCFSeqExtractor(gtf_file, fasta_file, vcf_file)
 
 
-def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein):
+def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein, transcript_seq_extractor):
     transcript_id = 'enst_test2'
     seq = single_seq_protein.extract(transcript_id)
     txt_file = 'tests/data/Output_singleSeq_vcf_enst_test2.txt'
     expected_seq = open(txt_file).readline()
     assert seq == expected_seq
-   
+    
+    
+    
+    vcf_file = 'tests/data/singleVar_vcf_enst_test1_diff_type_of_variants.vcf.gz'
+    transcript_id = 'enst_test1'
+    single_seq_protein = SingleSeqProteinVCFSeqExtractor(
+        gtf_file, fasta_file, vcf_file)
+    
+    seq = single_seq_protein.extract(transcript_id)
+    ref_seq = transcript_seq_extractor.get_protein_seq(transcript_id)
+    
+
+    assert len(seq) == len(ref_seq)
+    count = diff_between_two_seq(seq, ref_seq)
+    assert count == 1
+    
     """ no mutationn for enst_test1
     transcript_id = 'enst_test1'
     seq = single_seq_protein.extract(transcript_id)
@@ -198,8 +213,14 @@ def single_variant_seq():
     vcf_file = 'tests/data/singleVar_vcf_enst_test2.vcf.gz'
     return SingleVariantProteinVCFSeqExtractor(gtf_file, fasta_file, vcf_file)
 
+def diff_between_two_seq(seq1, seq2):
+    count = 0
+    for i in range(len(seq1)):
+        if seq1[i] != seq2[i]:
+            count += 1
+    return count
 
-def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq):
+def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcript_seq_extractor):
     transcript_id = 'enst_test2'
     seqs = list(single_variant_seq.extract(transcript_id))
     txt_file = 'tests/data/Output_singleVar_vcf_enst_test2.txt'
@@ -216,6 +237,20 @@ def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq):
         for i, seq in enumerate(t_id):
             assert seq == expected_seq[i]
     assert counter == 3, 'Number of variants in vcf 3, but # of seq was: '+str(counter)
-
+    
+    
+    vcf_file = 'tests/data/singleVar_vcf_enst_test1_diff_type_of_variants.vcf.gz'
+    transcript_id = 'enst_test1'
+    single_seq_protein = SingleVariantProteinVCFSeqExtractor(
+        gtf_file, fasta_file, vcf_file)
+    
+    seqs = list(single_seq_protein.extract(transcript_id))
+    ref_seq = transcript_seq_extractor.get_protein_seq(transcript_id)
+    
+    assert len(seqs) == 1
+    for seq in seqs:
+        assert len(seq) == len(ref_seq)
+        count = diff_between_two_seq(seq, ref_seq)
+        assert count == 1
 
 # TODO: add for all proteins.pep.all.fa
