@@ -80,7 +80,7 @@ class CDSFetcher:
         Create DataFrame with valid cds
         """
         
-        if vcf_matcher_df is not None:
+        if vcf_matcher_df is not None and len(vcf_matcher_df) > 0: # '> 0 in case no vcf matches'
           
             vcf_matcher_df = (vcf_matcher_df.transcript_id).to_frame().drop_duplicates()
             df = df.merge(vcf_matcher_df)
@@ -304,18 +304,21 @@ class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
         :return: dna sequence with all variants
         """
         seqs = []
-        flag = True
+        flag = False
         for variants, interval in variant_interval_queryable.variant_intervals:
             variants = list(variants)
+            sov_variants = []
             for variant in variants:
-                if len(variant.ref) != len(variant.alt):
+                if len(variant.ref) == len(variant.alt) == 1:
+                    sov_variants.append(variant)
+                    flag = True
+                else:
                     print('Current version of extractor ignores indel'
                           ' to avoid shift in frame')
-                    flag = False
-                    break
-            if flag:
-                seqs.append(self.variant_seq_extractor.extract(
-                            interval, variants, anchor=0))
+                    
+            seqs.append(self.variant_seq_extractor.extract(
+                            interval, sov_variants, anchor=0))
+        
         yield "".join(seqs)
 
 
@@ -351,7 +354,7 @@ class SingleVariantProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
                 variant_interval_queryable.variant_intervals):
 
             for variant in variants:
-                if len(variant.ref) == len(variant.alt):
+                if len(variant.ref) == len(variant.alt) == 1: # only support SOVs
                     yield [
                         *ref_cds_seq[:i],
                         self.variant_seq_extractor.extract(
