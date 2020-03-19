@@ -183,7 +183,7 @@ def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein, transcript_
 
     assert len(seq) == len(ref_seq)
     count = diff_between_two_seq(seq, ref_seq)
-    assert count == 1
+    assert count == 1, f'Expected diff of 1 AA, but it was {count}'
     
     """ no mutationn for enst_test1
     transcript_id = 'enst_test1'
@@ -251,6 +251,6 @@ def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcr
     for seq in seqs:
         assert len(seq) == len(ref_seq)
         count = diff_between_two_seq(seq, ref_seq)
-        assert count == 1
+        assert count == 1, f'Expected diff of 1 AA, but it was {count}'
 
 # TODO: add for all proteins.pep.all.fa
