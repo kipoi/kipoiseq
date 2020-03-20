@@ -38,7 +38,7 @@ def test_gtf_row2interval():
                                  end=20, name='', strand='-', attrs={'tag': 'cds_end_NF'})
 
     assert gtf_row2interval(row) == expected_interval
-    
+
 
 def test_CDSFetcher__read_cds():
     cds = CDSFetcher._read_cds(gtf_file)
@@ -78,13 +78,15 @@ def test_get_protein_seq(transcript_seq_extractor):
     seq = transcript_seq_extractor.get_protein_seq(transcript_id)
     txt_file = 'tests/data/Output_singleSeq_vcf_enst_test2.txt'
     expected_seq = open(txt_file).readline()
-    assert seq[1:] == expected_seq[1:] # no expected mutation here
+    assert seq[1:] == expected_seq[1:]  # no expected mutation here
 
 
 def test_TranscriptSeqExtractor_prepare_seq():
     seqs = ['ATCGATG']
-    assert 'ATCGAT' == TranscriptSeqExtractor._prepare_seq(seqs, '+', 'cds_end_NF')
-    assert 'CATCGA' == TranscriptSeqExtractor._prepare_seq(seqs, '-', 'cds_end_NF')
+    assert 'ATCGAT' == TranscriptSeqExtractor._prepare_seq(
+        seqs, '+', 'cds_end_NF')
+    assert 'CATCGA' == TranscriptSeqExtractor._prepare_seq(
+        seqs, '-', 'cds_end_NF')
 
 
 def test_TranscriptSeqExtractor_get_seq(transcript_seq_extractor):
@@ -129,13 +131,13 @@ def protein_vcf_seq(mocker):
 
 def test_ProteinVCFSeqExtractor_extract_cds(protein_vcf_seq):
     protein_seqs = list(protein_vcf_seq.extract_cds(intervals))
-    
+
     assert protein_seqs[0] == 'ID'
     assert protein_seqs[1] == 'HR'
 
     query = list(protein_vcf_seq.extract_query
                  .call_args[0][0].variant_intervals)
-    
+
     variants = list(query[0][0])
     assert len(variants) == 1
     assert variants[0].pos == 596
@@ -169,22 +171,19 @@ def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein, transcript_
     txt_file = 'tests/data/Output_singleSeq_vcf_enst_test2.txt'
     expected_seq = open(txt_file).readline()
     assert seq == expected_seq
-    
-    
-    
+
     vcf_file = 'tests/data/singleVar_vcf_enst_test1_diff_type_of_variants.vcf.gz'
     transcript_id = 'enst_test1'
     single_seq_protein = SingleSeqProteinVCFSeqExtractor(
         gtf_file, fasta_file, vcf_file)
-    
+
     seq = single_seq_protein.extract(transcript_id)
     ref_seq = transcript_seq_extractor.get_protein_seq(transcript_id)
-    
 
     assert len(seq) == len(ref_seq)
     count = diff_between_two_seq(seq, ref_seq)
     assert count == 1, 'Expected diff of 1 AA, but it was: '+str(count)
-    
+
     """ no mutationn for enst_test1
     transcript_id = 'enst_test1'
     seq = single_seq_protein.extract(transcript_id)
@@ -192,7 +191,7 @@ def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein, transcript_
     expected_seq = translate(cut_transcript_seq(open(txt_file).readline(), 'cds_end_NF'))
     assert seq == expected_seq
     """
-    
+
     """ this test doesnt make sense, no mutations in the vcf file
     for current test gtf file
     vcf_file = 'tests/data/singleSeq_vcf_enst_test2.vcf.gz'
@@ -208,10 +207,12 @@ def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein, transcript_
     assert seq == expected_seq
     """
 
+
 @pytest.fixture
 def single_variant_seq():
     vcf_file = 'tests/data/singleVar_vcf_enst_test2.vcf.gz'
     return SingleVariantProteinVCFSeqExtractor(gtf_file, fasta_file, vcf_file)
+
 
 def diff_between_two_seq(seq1, seq2):
     count = 0
@@ -219,6 +220,7 @@ def diff_between_two_seq(seq1, seq2):
         if seq1[i] != seq2[i]:
             count += 1
     return count
+
 
 def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcript_seq_extractor):
     transcript_id = 'enst_test2'
@@ -228,7 +230,7 @@ def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcr
     assert seqs[0] == expected_seq[0]
     assert seqs[1] == expected_seq[1]
     assert seqs[2] == expected_seq[2]
-    
+
     seqs = list(single_variant_seq.extract_all())
     counter = 0
     for t_id in seqs:
@@ -236,17 +238,17 @@ def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcr
         counter += len(t_id)
         for i, seq in enumerate(t_id):
             assert seq == expected_seq[i]
-    assert counter == 3, 'Number of variants in vcf 3, but # of seq was: '+str(counter)
-    
-    
+    assert counter == 3, 'Number of variants in vcf 3, but # of seq was: ' + \
+        str(counter)
+
     vcf_file = 'tests/data/singleVar_vcf_enst_test1_diff_type_of_variants.vcf.gz'
     transcript_id = 'enst_test1'
     single_seq_protein = SingleVariantProteinVCFSeqExtractor(
         gtf_file, fasta_file, vcf_file)
-    
+
     seqs = list(single_seq_protein.extract(transcript_id))
     ref_seq = transcript_seq_extractor.get_protein_seq(transcript_id)
-    
+
     assert len(seqs) == 1
     for seq in seqs:
         assert len(seq) == len(ref_seq)

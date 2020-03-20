@@ -8,9 +8,6 @@ ready!
 """
 
 
-
-
-
 vcf_head = """##fileformat=VCFv4.0
 ##phasing=partial
 ##contig=<ID=1,length=16>
@@ -40,4 +37,5 @@ with open("vcf_file_for_testing_missense_mutations.vcf", 'w+') as vcf_file:
             if 'Position' in line:
                 continue
             line = line.split(',')
-            vcf_file.write(f"{line[0]}	{line[1]}	.	{line[3]}	{line[4]}	9.6	.	.	GT:HQ	./.:51,51	0|0:51,51	1/1:51,51\n")
+            vcf_file.write(
+                f"{line[0]}	{line[1]}	.	{line[3]}	{line[4]}	9.6	.	.	GT:HQ	./.:51,51	0|0:51,51	1/1:51,51\n")

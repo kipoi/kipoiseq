@@ -151,7 +151,8 @@ class ReorderedOneHot(object):
                 raise ValueError("dummy_axis can't be the same as dummy_axis")
             if not (dummy_axis >= 0 and dummy_axis <= 2):
                 raise ValueError("dummy_axis can be either 0,1 or 2")
-        assert alphabet_axis >= 0 and (alphabet_axis < 2 or (alphabet_axis <= 2 and dummy_axis is not None))
+        assert alphabet_axis >= 0 and (alphabet_axis < 2 or (
+            alphabet_axis <= 2 and dummy_axis is not None))
 
         self.alphabet_axis = alphabet_axis
         self.dummy_axis = dummy_axis
@@ -179,7 +180,8 @@ class ReorderedOneHot(object):
                    neutral_value=self.neutral_value,
                    dtype=self.dtype),  # one-hot-encode
             DummyAxis(self.dummy_axis),  # optionally inject the dummy axis
-            SwapAxes(existing_alphabet_axis, self.alphabet_axis),  # put the alphabet axis elsewhere
+            # put the alphabet axis elsewhere
+            SwapAxes(existing_alphabet_axis, self.alphabet_axis),
         ])
 
     def __call__(self, seq):
@@ -206,7 +208,8 @@ class ReorderedOneHot(object):
 
         # inject the dummy axis
         if self.dummy_axis is not None:
-            output_shape = output_shape[:self.dummy_axis] + (1,) + output_shape[self.dummy_axis:]
+            output_shape = output_shape[:self.dummy_axis] + \
+                (1,) + output_shape[self.dummy_axis:]
 
         # swap axes
         if alphabet_axis is not None:
@@ -278,9 +281,12 @@ class SplitSplicingSeq(object):
             intron3prime_len += lackr + 1
 
         intron5prime = x[:intron5prime_len - self.intron5prime_cut]
-        acceptor = x[(intron5prime_len - self.acceptor_intron_len):(intron5prime_len + self.acceptor_exon_len)]
-        exon = x[(intron5prime_len + self.exon_cut_l):(-intron3prime_len - self.exon_cut_r)]
-        donor = x[(-intron3prime_len - self.donor_exon_len):(-intron3prime_len + self.donor_intron_len)]
+        acceptor = x[(intron5prime_len - self.acceptor_intron_len)
+                      :(intron5prime_len + self.acceptor_exon_len)]
+        exon = x[(intron5prime_len + self.exon_cut_l)
+                  :(-intron3prime_len - self.exon_cut_r)]
+        donor = x[(-intron3prime_len - self.donor_exon_len)
+                   :(-intron3prime_len + self.donor_intron_len)]
         intron3prime = x[-intron3prime_len + self.intron3prime_cut:]
 
         import warnings

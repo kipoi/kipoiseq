@@ -60,7 +60,7 @@ def test_MultiSampleVCF_get_samples(multi_sample_vcf):
 
 
 def test_MultiSampleVCF_get_variant(multi_sample_vcf):
-    
+
     variant = multi_sample_vcf.get_variant("chr1:4:T>C")
     assert variant.chrom == 'chr1'
     assert variant.pos == 4
@@ -89,7 +89,7 @@ def test_MultiSampleVCF_get_variants(multi_sample_vcf):
 
     variants = multi_sample_vcf.get_variants(["chr1:4:T>C", "chr1:25:AACG>GA"])
     assert len(variants) == 2
-    
+
     variant = variants[0]
     assert variant.chrom == 'chr1'
     assert variant.pos == 4

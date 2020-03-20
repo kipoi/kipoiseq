@@ -244,7 +244,8 @@ def resize_interval(interval, width, anchor='center'):
         interval.start = center - half_len
         interval.end = center + half_len + width % 2
     else:
-        raise Exception("Interval resizing anchor point can only be 'start', 'end' or 'center'")
+        raise Exception(
+            "Interval resizing anchor point can only be 'start', 'end' or 'center'")
 
     return interval
 
@@ -284,9 +285,9 @@ TRANSLATION_TABLE_FOR_HG38 = {
     'TCA': 'S', 'TCC': 'S', 'TCG': 'S', 'TCT': 'S',
     'TTC': 'F', 'TTT': 'F', 'TTA': 'L', 'TTG': 'L',
     'TAC': 'Y', 'TAT': 'Y', 'TAA': '_', 'TAG': '_',
-    'TGC': 'C', 'TGT': 'C', 'TGA': 'U', 'TGG': 'W', # TGA to U instead of STOP codon
-    'XXX': 'X', # ambiguous start
-    'NNN': '' # empty string for ambiguous protein
+    'TGC': 'C', 'TGT': 'C', 'TGA': 'U', 'TGG': 'W',  # TGA to U instead of STOP codon
+    'XXX': 'X',  # ambiguous start
+    'NNN': ''  # empty string for ambiguous protein
 }
 
 
@@ -311,5 +312,5 @@ def translate(seq: str, hg38=False):
         for i in range(0, len(seq), 3):
             codon = seq[i:i + 3]
             outl[i // 3] = TRANSLATION_TABLE[codon]
-    
+
     return "".join(outl)

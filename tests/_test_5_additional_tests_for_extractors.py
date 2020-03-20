@@ -5,17 +5,17 @@ from kipoiseq.transforms.functional import translate
 from pyfaidx import Fasta
 
 
-
 ddir = Path('/s/genomes/human/hg38/ensembl_GRCh38')
 gtf_file = ddir / 'Homo_sapiens.GRCh38.99.gtf'
 #gtf_file = 'tests/data/38_sample.gtf.txt'
 protein_file = ddir / 'Homo_sapiens.GRCh38.pep.all.fa'
 fasta_file = ddir / 'Homo_sapiens.GRCh38.dna.primary_assembly.fa'
-vcf_file = 'data/vcf_file_for_testing_synonymous_mutations.vcf.gz' #NF1
+vcf_file = 'data/vcf_file_for_testing_synonymous_mutations.vcf.gz'  # NF1
 
 ssp = SingleSeqProteinVCFSeqExtractor(gtf_file, fasta_file, vcf_file)
 svp = SingleVariantProteinVCFSeqExtractor(gtf_file, fasta_file, vcf_file)
 tse = TranscriptSeqExtractor(gtf_file, fasta_file)
+
 
 def test_vcf_single_variant_synonymous_mutations():
     transcript_id = 'ENST00000356175'
@@ -24,17 +24,19 @@ def test_vcf_single_variant_synonymous_mutations():
     for seq in single_var_seq:
         assert seq == ref_seq, seq
     assert len(single_var_seq) == 337, 'Number of sequences != number of variants'
-    
+
     count = 0
     single_var_seq = list(svp.extract_all())
     for t_id in single_var_seq:
         count += len(list(t_id))
-    
+
     assert count == 825
+
 
 def test_vcf_single_seq_variants():
     single_seqs = list(ssp.extract_all())
     assert len(single_seqs) == 5
+
 
 def test_ensembl_uniprot_seq():
     ref_path = '/data/nasif12/home_if12/nonchev/code/kipoiseq/tests/data/uniprot_ref.txt'
@@ -43,26 +45,27 @@ def test_ensembl_uniprot_seq():
         key = ""
         for line in f:
             if '>' in line:
-                key = (line.replace('>','')).rstrip()
+                key = (line.replace('>', '')).rstrip()
             else:
                 id_and_seq[key] = line.rstrip()
-    
+
     for transkript_id, ref_seq in tqdm(id_and_seq.items()):
-        test_seq = translate(tse.get_seq(transkript_id),True)
-        assert test_seq == ref_seq, test_seq 
+        test_seq = translate(tse.get_seq(transkript_id), True)
+        assert test_seq == ref_seq, test_seq
 
 
 def read_pep_fa(protein_file):
-        import pandas as pd
-        proteins = Fasta(str(protein_file))
-        pl = []
-        for v in proteins:
-            names = v.long_name.split(" ", 8)
-            d = {"protein_id": names[0], 'protein_type': names[1]}
-            d = {**d, **dict([n.split(":", 1) for n in names[2:]])}
-            d['seq'] = str(proteins[v.name])
-            pl.append(d)
-        return pd.DataFrame(pl)
+    import pandas as pd
+    proteins = Fasta(str(protein_file))
+    pl = []
+    for v in proteins:
+        names = v.long_name.split(" ", 8)
+        d = {"protein_id": names[0], 'protein_type': names[1]}
+        d = {**d, **dict([n.split(":", 1) for n in names[2:]])}
+        d['seq'] = str(proteins[v.name])
+        pl.append(d)
+    return pd.DataFrame(pl)
+
 
 """
 def test_hg38():
