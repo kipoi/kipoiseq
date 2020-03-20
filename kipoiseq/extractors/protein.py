@@ -32,10 +32,10 @@ def cut_transcript_seq(seq: str, tag: str):
             seq = seq[1:]
         seq = "XXX"+seq
     elif "cds_end_NF" in tag and "cds_start_NF" in tag:
-        print("Ambiguous start and end!")
+        print("Ambiguous start and end! Skip seq!")
         seq = "NNN" # NNN will be translated as empty string
     elif "cds_end_NF" not in tag and "cds_start_NF" not in tag and len(seq) % 3 != 0:
-        print("No tags for ambiguous start and end, but len % 3 != 0")
+        print("No tags for ambiguous start and end, but len % 3 != 0. Skip seq!")
         seq = "NNN" # NNN will be translated as empty string
         
     return seq
