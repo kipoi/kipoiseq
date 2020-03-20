@@ -180,7 +180,7 @@ class TranscriptSeqExtractor:
         This method is implemented in the ProteinVCFSeqExtractor as
         extract_all()
         
-        The infromation below is old.
+        The information below is old.
         
         """
         """Which exons are overlapped by a variant
