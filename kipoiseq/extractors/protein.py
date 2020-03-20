@@ -20,7 +20,7 @@ def cut_transcript_seq(seq: str, tag: str):
     :param tag: tags, which contain information about ambiguous start and/or end
     :return: correct dna sequence with length % 3 == 0
     if ambiguous start and end or no tags provided, but the sequence has length % 3 != 0
-    seq = 'XXX'
+    seq = 'NNN'
     """
     if "cds_end_NF" in tag and "cds_start_NF" not in tag:
         while(len(seq) % 3 != 0):
@@ -33,10 +33,10 @@ def cut_transcript_seq(seq: str, tag: str):
         seq = "XXX"+seq
     elif "cds_end_NF" in tag and "cds_start_NF" in tag:
         print("Ambiguous start and end!")
-        seq = "XXX"
+        seq = "NNN" # NNN will be translated as empty string
     elif "cds_end_NF" not in tag and "cds_start_NF" not in tag and len(seq) % 3 != 0:
         print("No tags for ambiguous start and end, but len % 3 != 0")
-        seq = "XXX"
+        seq = "NNN" # NNN will be translated as empty string
         
     return seq
 
@@ -313,8 +313,8 @@ class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
                     flag = False
                     sov_variants.append(variant)
                 elif len(variant.ref) == len(variant.alt) > 1:
-                    print(f'Current version of extractor works only for len(variant.ref)'
-                          f' == len(variant.alt) == 1, but the len was: {len(variant.alt)}')
+                    print('Current version of extractor works only for len(variant.ref)'
+                          ' == len(variant.alt) == 1, but the len was: '+str(len(variant.alt)))
                 else:
                     print('Current version of extractor ignores indel'
                           ' to avoid shift in frame')
@@ -366,8 +366,8 @@ class SingleVariantProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
                         *ref_cds_seq[(i+1):],
                     ]
                 elif len(variant.ref) == len(variant.alt) > 1:
-                    print(f'Current version of extractor works only for len(variant.ref)'
-                          f' == len(variant.alt) == 1, but the len was: {len(variant.alt)}')
+                    print('Current version of extractor works only for len(variant.ref)'
+                          ' == len(variant.alt) == 1, but the len was: '+str(len(variant.alt)))
                 else:
                     print('Current version of extractor ignores indel'
                           ' to avoid shift in frame')

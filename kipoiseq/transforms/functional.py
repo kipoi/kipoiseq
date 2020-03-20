@@ -285,7 +285,8 @@ TRANSLATION_TABLE_FOR_HG38 = {
     'TTC': 'F', 'TTT': 'F', 'TTA': 'L', 'TTG': 'L',
     'TAC': 'Y', 'TAT': 'Y', 'TAA': '_', 'TAG': '_',
     'TGC': 'C', 'TGT': 'C', 'TGA': 'U', 'TGG': 'W', # TGA to U instead of STOP codon
-    'XXX': 'X' #ambiguous start
+    'XXX': 'X', # ambiguous start
+    'NNN': '' # empty string for ambiguous protein
 }
 
 
