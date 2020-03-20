@@ -84,7 +84,9 @@ class CDSFetcher:
             vcf_matcher_df = (
                 vcf_matcher_df.transcript_id).to_frame().drop_duplicates()
             df = df.merge(vcf_matcher_df)
-
+        elif vcf_matcher_df is not None and len(vcf_matcher_df) == 0:
+            df = df[0:0] # empty dataframe
+        
         biotype_str = CDSFetcher._get_biotype_str(df)
         df = (df
               .query("{} == 'protein_coding'".format(biotype_str))
