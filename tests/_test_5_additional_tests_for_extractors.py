@@ -25,8 +25,16 @@ def test_vcf_single_variant_synonymous_mutations():
         assert seq == ref_seq, seq
     assert len(single_var_seq) == 337, 'Number of sequences != number of variants'
     
+    count = 0
+    single_var_seq = list(svp.extract_all())
+    for t_id in single_var_seq:
+        count += len(list(t_id))
+    
+    assert count == 825
 
-
+def test_vcf_single_seq_variants():
+    single_seqs = list(ssp.extract_all())
+    assert len(single_seqs) == 5
 
 def test_ensembl_uniprot_seq():
     ref_path = '/data/nasif12/home_if12/nonchev/code/kipoiseq/tests/data/uniprot_ref.txt'
