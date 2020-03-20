@@ -192,20 +192,11 @@ def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein, transcript_
     assert seq == expected_seq
     """
 
-    """ this test doesnt make sense, no mutations in the vcf file
-    for current test gtf file
     vcf_file = 'tests/data/singleSeq_vcf_enst_test2.vcf.gz'
-
     single_seq_protein = SingleSeqProteinVCFSeqExtractor(
         gtf_file, fasta_file, vcf_file)
-
-    transcript_id = 'enst_test2'
-    seq = single_seq_protein.extract(transcript_id)
-    txt_file = 'tests/data/dna_seq_enst_test2.txt'
-    expected_seq = translate(cut_transcript_seq(
-        rc_dna(open(txt_file).readline()), 'cds_end_NF'))
-    assert seq == expected_seq
-    """
+    seq = list(single_seq_protein.extract_all())
+    assert len(seq) == 0
 
 
 @pytest.fixture
@@ -243,10 +234,10 @@ def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcr
 
     vcf_file = 'tests/data/singleVar_vcf_enst_test1_diff_type_of_variants.vcf.gz'
     transcript_id = 'enst_test1'
-    single_seq_protein = SingleVariantProteinVCFSeqExtractor(
+    single_var_protein = SingleVariantProteinVCFSeqExtractor(
         gtf_file, fasta_file, vcf_file)
 
-    seqs = list(single_seq_protein.extract(transcript_id))
+    seqs = list(single_var_protein.extract(transcript_id))
     ref_seq = transcript_seq_extractor.get_protein_seq(transcript_id)
 
     assert len(seqs) == 1
@@ -254,5 +245,15 @@ def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcr
         assert len(seq) == len(ref_seq)
         count = diff_between_two_seq(seq, ref_seq)
         assert count == 1, 'Expected diff of 1 AA, but it was: '+str(count)
+    
+    vcf_file = 'tests/data/singleSeq_vcf_enst_test2.vcf.gz'
+    single_var_protein = SingleVariantProteinVCFSeqExtractor(
+        gtf_file, fasta_file, vcf_file)
+    
+    length = 0
+    seqs = list(single_var_protein.extract_all())
+    for t_id in seqs:
+        length = len(list(t_id))
+    assert length == 0
 
 # TODO: add for all proteins.pep.all.fa
