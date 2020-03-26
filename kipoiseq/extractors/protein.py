@@ -6,7 +6,7 @@ from kipoiseq.extractors.base import FastaStringExtractor
 from kipoiseq.extractors.vcf import MultiSampleVCF
 from kipoiseq.extractors.vcf_seq import VariantSeqExtractor
 from kipoiseq.extractors.vcf_matching import SingleVariantMatcher
-
+from typing import List
 # TODO: convert print to logs
 # TODO: documentation
 
@@ -55,7 +55,11 @@ def gtf_row2interval(row):
 class CDSFetcher:
 
     def __init__(self, gtf_file, vcf_matcher_df=None):
-        """Protein sequences in the genome
+        """
+        Protein sequences in the genome
+        :param gtf_file:
+        :param vcf_matcher_df: DataFrame with transcript_ids which have variants; joint is
+        performed between the transcript_ids from gtf file and those transcript_ids
         """
         self.gtf_file = str(gtf_file)
         self.cds = self._read_cds(self.gtf_file, vcf_matcher_df)
@@ -65,6 +69,10 @@ class CDSFetcher:
     def _read_cds(gtf_file, vcf_matcher_df=None):
         """
         Read, extract and filter valid cds from the given gtf_file
+        :param gtf_file:
+        :param vcf_matcher_df: DataFrame with transcript_ids which have variants; joint is
+        performed between the transcript_ids from gtf file and those transcript_ids
+        :return:
         """
         import pyranges
         df = pyranges.read_gtf(gtf_file, output_df=True, duplicate_attr=True)
@@ -76,6 +84,10 @@ class CDSFetcher:
     def _get_cds_from_gtf(df, vcf_matcher_df=None):
         """
         Create DataFrame with valid cds
+        :param df:
+        :param vcf_matcher_df: DataFrame with transcript_ids which have variants; joint is
+        performed between the transcript_ids from gtf file and those transcript_ids
+        :return:
         """
 
         # '> 0 in case no vcf matches'
@@ -145,7 +157,7 @@ class TranscriptSeqExtractor:
         return len(self.cds_fetcher)
 
     @staticmethod
-    def _prepare_seq(seqs: 'list of str', strand: str, tag: str):
+    def _prepare_seq(seqs: List[str], strand: str, tag: str):
         """
         Prepare the dna sequence in the final variant, which should be
         translated in amino acid sequence
@@ -209,7 +221,7 @@ class TranscriptSeqExtractor:
 class ProteinSeqExtractor(TranscriptSeqExtractor):
 
     @staticmethod
-    def _prepare_seq(seqs: 'list of str', strand: str, tag: str):
+    def _prepare_seq(seqs: List[str], strand: str, tag: str):
         """
         Prepare the dna sequence and translate it into amino acid sequence
         :param seqs: current dna sequence
@@ -237,13 +249,13 @@ class ProteinVCFSeqExtractor:
         self.variant_seq_extractor = VariantSeqExtractor(self.fasta_file)
 
     @staticmethod
-    def _unstrand(intervals: 'list of Intervals'):
+    def _unstrand(intervals: List[Interval]):
         """
         Set strand of list of intervals to default - '.'
         """
         return [i.unstrand() for i in intervals]
 
-    def extract_cds(self, cds: 'list of Intervals', sample_id=None):
+    def extract_cds(self, cds: List[Interval], sample_id=None):
         """
         Extract cds with variants in their dna sequence. It depends on the
         child class if a sequence have all variants inserted or only one variant
@@ -271,7 +283,7 @@ class ProteinVCFSeqExtractor:
         for transcript_id in self.cds_fetcher.transcripts:
             yield self.extract(transcript_id)
 
-    def extract_list(self, list_with_transcript_id: 'list of str'):
+    def extract_list(self, list_with_transcript_id: List[str]):
         """
         Extract all amino acid sequences for transcript_id given in the list
         :param list_with_transcript_id: list which contains transcript_ids
