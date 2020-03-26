@@ -7,6 +7,7 @@ from kipoiseq.extractors.vcf import MultiSampleVCF
 from kipoiseq.extractors.vcf_seq import VariantSeqExtractor
 from kipoiseq.extractors.vcf_matching import SingleVariantMatcher
 from typing import List
+
 # TODO: convert print to logs
 # TODO: documentation
 
@@ -75,7 +76,7 @@ class CDSFetcher:
         :return:
         """
         import pyranges
-        df = pyranges.read_gtf(gtf_file, output_df=True, duplicate_attr=True)
+        df = pyranges.read_gtf(gtf_file, as_df=True, duplicate_attr=True)
         cds = CDSFetcher._get_cds_from_gtf(df, vcf_matcher_df)
         cds = CDSFetcher._filter_valid_transcripts(cds)
         return cds
