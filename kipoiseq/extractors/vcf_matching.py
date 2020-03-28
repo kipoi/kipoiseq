@@ -112,19 +112,19 @@ class BaseVariantMatcher:
         self.vcf = MultiSampleVCF(vcf_file, lazy=vcf_lazy)
         self.interval_attrs = interval_attrs
         self.pr = self._read_intervals(gtf_path, bed_path, pranges,
-                                       intervals, interval_attrs)
+                                       intervals, interval_attrs, duplicate_attr = True)
         self.variant_batch_size = variant_batch_size
 
     @staticmethod
     def _read_intervals(gtf_path=None, bed_path=None, pranges=None,
-                        intervals=None, interval_attrs=None):
+                        intervals=None, interval_attrs=None, duplicate_attr=False):
         alternatives = [bed_path, pranges, intervals, gtf_path]
         if sum(i is not None for i in alternatives) != 1:
             raise ValueError('only one of `gth_path`, `bed_path`, `pranges`,'
                              '`intervals` or should given as input.')
         if gtf_path:
             import pyranges
-            pranges = pyranges.read_gtf(gtf_path, duplicate_attr=True)
+            pranges = pyranges.read_gtf(gtf_path, duplicate_attr=duplicate_attr)
 
         elif bed_path:
             import pyranges
