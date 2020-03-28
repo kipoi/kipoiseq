@@ -7,6 +7,8 @@ from kipoiseq.extractors.vcf import MultiSampleVCF
 from kipoiseq.extractors.vcf_seq import VariantSeqExtractor
 from kipoiseq.extractors.vcf_matching import SingleVariantMatcher
 from typing import List
+import pyranges
+
 
 # TODO: convert print to logs
 # TODO: documentation
@@ -42,64 +44,48 @@ def cut_transcript_seq(seq: str, tag: str):
     return seq
 
 
-def gtf_row2interval(row):
+def gtf_row2interval(row, interval_attrs: List[str] = None):
     """
     Convert gtf row object into interval class.
     """
+    if interval_attrs:
+        interval_attrs = {i: row[i] for i in interval_attrs if i in row}
     return Interval(str(row.Chromosome),
                     int(row.Start),
                     int(row.End),
                     strand=str(row.Strand),
-                    attrs={'tag': str(row.tag)})
+                    attrs=interval_attrs)
 
 
 class CDSFetcher:
 
-    def __init__(self, gtf_file, vcf_matcher_df=None):
+    def __init__(self, gtf_file):
         """
         Protein sequences in the genome
         :param gtf_file:
-        :param vcf_matcher_df: DataFrame with transcript_ids which have variants; joint is
-        performed between the transcript_ids from gtf file and those transcript_ids
         """
         self.gtf_file = str(gtf_file)
-        self.cds = self._read_cds(self.gtf_file, vcf_matcher_df)
+        self.cds = self._read_cds(self.gtf_file, duplicate_attr=True)
         self.transcripts = self.cds.index.unique()
 
     @staticmethod
-    def _read_cds(gtf_file, vcf_matcher_df=None):
+    def _read_cds(gtf_file, duplicate_attr=False):
         """
         Read, extract and filter valid cds from the given gtf_file
         :param gtf_file:
-        :param vcf_matcher_df: DataFrame with transcript_ids which have variants; joint is
-        performed between the transcript_ids from gtf file and those transcript_ids
-        :return:
         """
-        import pyranges
-        df = pyranges.read_gtf(gtf_file, as_df=True, duplicate_attr=True)
-        cds = CDSFetcher._get_cds_from_gtf(df, vcf_matcher_df)
+        df = pyranges.read_gtf(gtf_file, as_df=True,
+                               duplicate_attr=duplicate_attr)
+        cds = CDSFetcher._get_cds_from_gtf(df)
         cds = CDSFetcher._filter_valid_transcripts(cds)
         return cds
 
     @staticmethod
-    def _get_cds_from_gtf(df, vcf_matcher_df=None):
+    def _get_cds_from_gtf(df):
         """
         Create DataFrame with valid cds
         :param df:
-        :param vcf_matcher_df: DataFrame with transcript_ids which have variants; joint is
-        performed between the transcript_ids from gtf file and those transcript_ids
-        :return:
         """
-
-        # '> 0 in case no vcf matches'
-        if vcf_matcher_df is not None and len(vcf_matcher_df) > 0:
-
-            vcf_matcher_df = (
-                vcf_matcher_df.transcript_id).to_frame().drop_duplicates()
-            df = df.merge(vcf_matcher_df)
-        elif vcf_matcher_df is not None and len(vcf_matcher_df) == 0:
-            df = df[0:0] # empty dataframe
-        
         biotype_str = CDSFetcher._get_biotype_str(df)
         df = (df
               .query("{} == 'protein_coding'".format(biotype_str))
@@ -140,7 +126,7 @@ class CDSFetcher:
         assert np.all(cds.iloc[0].Strand == cds.Strand)
 
         return [
-            gtf_row2interval(row)
+            gtf_row2interval(row, ['tag'])
             for i, row in cds.sort_values("Start").iterrows()
         ]
 
@@ -184,6 +170,7 @@ class TranscriptSeqExtractor:
         """
         cds = self.cds_fetcher.get_cds(transcript_id)
         seqs = [self.fasta.extract(i) for i in cds]
+
         return self._prepare_seq(seqs, cds[0].strand, cds[0].attrs["tag"])
 
     def __getitem__(self, idx):
@@ -239,12 +226,20 @@ class ProteinVCFSeqExtractor:
         self.gtf_file = str(gtf_file)
         self.fasta_file = str(fasta_file)
         self.vcf_file = str(vcf_file)
+        self.cds_fetcher = CDSFetcher(self.gtf_file)
+        # dataframe to pyranges
+        pr_cds = pyranges.PyRanges(self.cds_fetcher.cds.reset_index())
+        # match variant with transcript_id
         single_variant_matcher = SingleVariantMatcher(
-            self.vcf_file, self.gtf_file)
-        self.cds_fetcher = CDSFetcher(self.gtf_file, list(
-            single_variant_matcher.iter_pyranges())[0].df)
-        # only transcript_ids with variants
-        self.transcripts = self.cds_fetcher.transcripts
+            self.vcf_file, pranges=pr_cds)
+        df_with_variants = list(single_variant_matcher.iter_pyranges())[0].df
+        # in case: no varint matched with transcript_id
+        if len(df_with_variants) > 0:
+            self.transcripts = df_with_variants.transcript_id.drop_duplicates()
+        else:
+            self.transcripts = self.cds_fetcher.cds.reset_index()[
+                0:0].transcript_id
+            print('No matched variants with transcript_ids.')
         self.fasta = FastaStringExtractor(self.fasta_file)
         self.multi_sample_VCF = MultiSampleVCF(self.vcf_file)
         self.variant_seq_extractor = VariantSeqExtractor(self.fasta_file)
@@ -281,7 +276,7 @@ class ProteinVCFSeqExtractor:
         Extract all amino acid sequences for transcript_ids with variants
         given into the vcf_file
         """
-        for transcript_id in self.cds_fetcher.transcripts:
+        for transcript_id in self.transcripts:
             yield self.extract(transcript_id)
 
     def extract_list(self, list_with_transcript_id: List[str]):
@@ -308,6 +303,17 @@ class ProteinVCFSeqExtractor:
         intervals = variant_interval_queryable.iter_intervals()
         return [self.fasta.extract(interval) for interval in intervals]
 
+    def filter_variants(self, variants):
+        for variant in variants:
+            if len(variant.ref) == len(variant.alt) == 1:  # only SOVs supported
+                yield variant
+            elif len(variant.ref) == len(variant.alt) > 1:
+                print('Current version of extractor works only for len(variant.ref)'
+                      ' == len(variant.alt) == 1, but the len was: '+str(len(variant.alt)))
+            else:
+                print('Current version of extractor ignores indel'
+                      ' to avoid shift in frame')
+
 
 class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
 
@@ -323,21 +329,11 @@ class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
         seqs = []
         flag = True
         for variants, interval in variant_interval_queryable.variant_intervals:
-            variants = list(variants)
-            sov_variants = []
-            for variant in variants:
-                if len(variant.ref) == len(variant.alt) == 1:
-                    flag = False
-                    sov_variants.append(variant)
-                elif len(variant.ref) == len(variant.alt) > 1:
-                    print('Current version of extractor works only for len(variant.ref)'
-                          ' == len(variant.alt) == 1, but the len was: '+str(len(variant.alt)))
-                else:
-                    print('Current version of extractor ignores indel'
-                          ' to avoid shift in frame')
-
+            variants = list(self.filter_variants(variants))
+            if len(variants) > 0:
+                flag = False
             seqs.append(self.variant_seq_extractor.extract(
-                interval, sov_variants, anchor=0))
+                interval, variants, anchor=0))
         if flag:
             seqs = []
         yield "".join(seqs)
@@ -348,8 +344,7 @@ class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
         """
         cds_seqs = list(self._extract_query(variant_interval_queryable,
                                             sample_id=sample_id))
-        return cds_seqs if cds_seqs \
-            else self._ref_cds_seq(variant_interval_queryable)
+        return cds_seqs
 
     def extract_cds(self, cds: 'list of Intervals', sample_id=None):
         """
@@ -372,18 +367,12 @@ class SingleVariantProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
         ref_cds_seq = self._ref_cds_seq(variant_interval_queryable)
         for i, (variants, interval) in enumerate(
                 variant_interval_queryable.variant_intervals):
-
+            variants = self.filter_variants(variants)
             for variant in variants:
-                if len(variant.ref) == len(variant.alt) == 1:  # only support SOVs
-                    yield [
-                        *ref_cds_seq[:i],
-                        self.variant_seq_extractor.extract(
-                            interval, [variant], anchor=0),
-                        *ref_cds_seq[(i+1):],
-                    ]
-                elif len(variant.ref) == len(variant.alt) > 1:
-                    print('Current version of extractor works only for len(variant.ref)'
-                          ' == len(variant.alt) == 1, but the len was: '+str(len(variant.alt)))
-                else:
-                    print('Current version of extractor ignores indel'
-                          ' to avoid shift in frame')
+
+                yield [
+                    *ref_cds_seq[:i],
+                    self.variant_seq_extractor.extract(
+                        interval, [variant], anchor=0),
+                    *ref_cds_seq[(i+1):],
+                ]

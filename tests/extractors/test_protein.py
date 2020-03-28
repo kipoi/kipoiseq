@@ -25,6 +25,18 @@ def test_cut_seq():
     seq = cut_transcript_seq(seq, 'cds_end_NF')
     assert len(seq) == 6
 
+    seq = 'ATCGATG'
+    seq = cut_transcript_seq(seq, 'cds_end_NF,cds_start_NF')
+    assert len(seq) == 3
+
+    seq = 'ATCGATG'
+    seq = cut_transcript_seq(seq, 'cds_start_NF')
+    assert len(seq) == 9
+
+    seq = 'ATCGATG'
+    seq = cut_transcript_seq(seq, 'no_tag')
+    assert len(seq) == 3
+
 
 def test_gtf_row2interval():
     row = pd.Series({
@@ -41,7 +53,7 @@ def test_gtf_row2interval():
 
 
 def test_CDSFetcher__read_cds():
-    cds = CDSFetcher._read_cds(gtf_file)
+    cds = CDSFetcher._read_cds(gtf_file, duplicate_attr=True)
     assert cds.shape[0] == 7
 
     assert cds.iloc[0].Chromosome == '22'
@@ -184,14 +196,6 @@ def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein, transcript_
     count = diff_between_two_seq(seq, ref_seq)
     assert count == 1, 'Expected diff of 1 AA, but it was: '+str(count)
 
-    """ no mutationn for enst_test1
-    transcript_id = 'enst_test1'
-    seq = single_seq_protein.extract(transcript_id)
-    txt_file = 'tests/data/dna_seq_enst_test1.txt'
-    expected_seq = translate(cut_transcript_seq(open(txt_file).readline(), 'cds_end_NF'))
-    assert seq == expected_seq
-    """
-
     vcf_file = 'tests/data/singleSeq_vcf_enst_test2.vcf.gz'
     single_seq_protein = SingleSeqProteinVCFSeqExtractor(
         gtf_file, fasta_file, vcf_file)
@@ -245,11 +249,10 @@ def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcr
         assert len(seq) == len(ref_seq)
         count = diff_between_two_seq(seq, ref_seq)
         assert count == 1, 'Expected diff of 1 AA, but it was: '+str(count)
-    
+
     vcf_file = 'tests/data/singleSeq_vcf_enst_test2.vcf.gz'
     single_var_protein = SingleVariantProteinVCFSeqExtractor(
         gtf_file, fasta_file, vcf_file)
-    
     length = 0
     seqs = list(single_var_protein.extract_all())
     for t_id in seqs:
