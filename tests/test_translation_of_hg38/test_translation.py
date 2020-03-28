@@ -59,7 +59,7 @@ def test_hg38(tse):
         # make sure all ids can be found in the proteome
         dna_seq = tse.get_seq(transcript_id)
         if dna_seq == "NNN":
-            print(f"{transcript_id} has an ambiguous start and end.Skip!")
+            print(transcript_id+' has an ambiguous start and end.Skip!')
             continue
         # dna_seq = dna_seq[:(len(dna_seq) // 3) * 3]
         # if len(dna_seq) % 3 != 0:
