@@ -201,6 +201,8 @@ def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein, transcript_
         gtf_file, fasta_file, vcf_file)
     seq = list(single_seq_protein.extract_all())
     assert len(seq) == 0
+    
+    
 
 
 @pytest.fixture
@@ -236,7 +238,13 @@ def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcr
         assert tr_id == 'enst_test2'
     assert counter == 3, 'Number of variants in vcf 3, but # of seq was: ' + \
         str(counter)
-
+    
+    transcript_id = ['enst_test2', 'enst_test1']
+    seqs = single_variant_seq.extract_list(transcript_id)
+    for tr_id, t_id_seqs in seqs:
+        assert tr_id in ['enst_test2', 'enst_test1'], tr_id
+    
+    
     vcf_file = 'tests/data/singleVar_vcf_enst_test1_diff_type_of_variants.vcf.gz'
     transcript_id = 'enst_test1'
     single_var_protein = SingleVariantProteinVCFSeqExtractor(
