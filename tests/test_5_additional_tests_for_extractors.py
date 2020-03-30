@@ -2,7 +2,7 @@ from tqdm import tqdm_notebook as tqdm
 from kipoiseq.extractors.protein import SingleVariantProteinVCFSeqExtractor, TranscriptSeqExtractor, SingleSeqProteinVCFSeqExtractor
 from kipoiseq.transforms.functional import translate
 from pyfaidx import Fasta
-from conftest import gtf_file_GRCh38, fasta_file_GRCh38, vcf_file_for_testing_synonymous_mutations, protein_file_GRCh38
+from conftest import gtf_file_GRCh38, fasta_file_GRCh38, vcf_file_for_testing_synonymous_mutations, protein_file_GRCh38, uniprot_seq_ref
 import pytest
 import os
 
@@ -78,9 +78,8 @@ def test_vcf_single_seq_variants(ssp):
 @pytestmark_vcf
 @pytestmark_protein
 def test_ensembl_uniprot_seq(tse):
-    ref_path = '/data/nasif12/home_if12/nonchev/code/kipoiseq/tests/data/uniprot_ref.txt'
     id_and_seq = {}
-    with open(ref_path, 'r+') as f:
+    with open(uniprot_seq_ref, 'r+') as f:
         key = ""
         for line in f:
             if '>' in line:

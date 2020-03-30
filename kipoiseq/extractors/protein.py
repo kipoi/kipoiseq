@@ -303,7 +303,7 @@ class ProteinVCFSeqExtractor:
         intervals = variant_interval_queryable.iter_intervals()
         return [self.fasta.extract(interval) for interval in intervals]
 
-    def filter_variants(self, variants):
+    def _filter_snv(self, variants):
         for variant in variants:
             if len(variant.ref) == len(variant.alt) == 1:  # only SOVs supported
                 yield variant
@@ -329,7 +329,7 @@ class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
         seqs = []
         flag = True
         for variants, interval in variant_interval_queryable.variant_intervals:
-            variants = list(self.filter_variants(variants))
+            variants = list(self._filter_snv(variants))
             if len(variants) > 0:
                 flag = False
             seqs.append(self.variant_seq_extractor.extract(
@@ -367,7 +367,7 @@ class SingleVariantProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
         ref_cds_seq = self._ref_cds_seq(variant_interval_queryable)
         for i, (variants, interval) in enumerate(
                 variant_interval_queryable.variant_intervals):
-            variants = self.filter_variants(variants)
+            variants = self._filter_snv(variants)
             for variant in variants:
 
                 yield [
