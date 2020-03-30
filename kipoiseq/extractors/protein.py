@@ -8,7 +8,7 @@ from kipoiseq.extractors.vcf_seq import VariantSeqExtractor
 from kipoiseq.extractors.vcf_matching import SingleVariantMatcher
 from typing import List
 import pyranges
-
+import pandas as pd
 
 # TODO: convert print to logs
 # TODO: documentation
@@ -232,7 +232,7 @@ class ProteinVCFSeqExtractor:
         # match variant with transcript_id
         single_variant_matcher = SingleVariantMatcher(
             self.vcf_file, pranges=pr_cds)
-        df_with_variants = list(single_variant_matcher.iter_pyranges())[0].df
+        df_with_variants = pd.concat(pr.df for pr in list(single_variant_matcher.iter_pyranges()))
         # in case: no varint matched with transcript_id
         if len(df_with_variants) > 0:
             self.transcripts = df_with_variants.transcript_id.drop_duplicates()
