@@ -273,7 +273,7 @@ class ProteinVCFSeqExtractor:
             # check if variants exist
             if len(pr) > 0:
                 for transcript_id in pr.df.transcript_id.drop_duplicates():
-                    yield self.extract(transcript_id)
+                    yield transcript_id, self.extract(transcript_id)
             else:
                 print('No matched variants with transcript_ids.')
         
