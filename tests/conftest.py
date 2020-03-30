@@ -8,3 +8,4 @@ vcf_file_for_testing_synonymous_mutations = 'tests/data/vcf_file_for_testing_syn
 fasta_file_GRCh38 = 'tests/data/Homo_sapiens.GRCh38.dna.primary_assembly.fa'
 protein_file_GRCh38 = 'tests/data/Homo_sapiens.GRCh38.pep.all.fa'
 gtf_file_GRCh38 = 'tests/data/Homo_sapiens.GRCh38.99.gtf'
+uniprot_seq_ref = 'tests/data/uniprot_ref.txt'
