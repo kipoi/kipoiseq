@@ -237,6 +237,7 @@ class ProteinVCFSeqExtractor:
         if len(df_with_variants) > 0:
             self.transcripts = df_with_variants.transcript_id.drop_duplicates()
         else:
+            # empty list of transcript_ids
             self.transcripts = self.cds_fetcher.cds.reset_index()[
                 0:0].transcript_id
             print('No matched variants with transcript_ids.')
