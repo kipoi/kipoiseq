@@ -230,17 +230,9 @@ class ProteinVCFSeqExtractor:
         # dataframe to pyranges
         pr_cds = pyranges.PyRanges(self.cds_fetcher.cds.reset_index())
         # match variant with transcript_id
-        single_variant_matcher = SingleVariantMatcher(
+        self.single_variant_matcher = SingleVariantMatcher(
             self.vcf_file, pranges=pr_cds)
-        df_with_variants = pd.concat(pr.df for pr in list(single_variant_matcher.iter_pyranges()))
-        # in case: no varint matched with transcript_id
-        if len(df_with_variants) > 0:
-            self.transcripts = df_with_variants.transcript_id.drop_duplicates()
-        else:
-            # empty list of transcript_ids
-            self.transcripts = self.cds_fetcher.cds.reset_index()[
-                0:0].transcript_id
-            print('No matched variants with transcript_ids.')
+        
         self.fasta = FastaStringExtractor(self.fasta_file)
         self.multi_sample_VCF = MultiSampleVCF(self.vcf_file)
         self.variant_seq_extractor = VariantSeqExtractor(self.fasta_file)
@@ -277,8 +269,14 @@ class ProteinVCFSeqExtractor:
         Extract all amino acid sequences for transcript_ids with variants
         given into the vcf_file
         """
-        for transcript_id in self.transcripts:
-            yield self.extract(transcript_id)
+        for pr in self.single_variant_matcher.iter_pyranges():
+            # check if variants exist
+            if len(pr) > 0:
+                for transcript_id in pr.df.transcript_id.drop_duplicates():
+                    yield self.extract(transcript_id)
+            else:
+                print('No matched variants with transcript_ids.')
+        
 
     def extract_list(self, list_with_transcript_id: List[str]):
         """
