@@ -266,15 +266,9 @@ TRANSLATION_TABLE = {
     'TCA': 'S', 'TCC': 'S', 'TCG': 'S', 'TCT': 'S',
     'TTC': 'F', 'TTT': 'F', 'TTA': 'L', 'TTG': 'L',
     'TAC': 'Y', 'TAT': 'Y', 'TAA': '_', 'TAG': '_',
-<<<<<<< HEAD
-    'TGC': 'C', 'TGT': 'C', 'TGA': 'U', 'TGG': 'W',
-}
-
-
-def translate(seq: str):
-=======
     'TGC': 'C', 'TGT': 'C', 'TGA': '_', 'TGG': 'W',
 }
+
 
 TRANSLATION_TABLE_FOR_HG38 = {
     'ATA': 'I', 'ATC': 'I', 'ATT': 'I', 'ATG': 'M',
@@ -299,7 +293,6 @@ TRANSLATION_TABLE_FOR_HG38 = {
 
 
 def translate(seq: str, hg38=False):
->>>>>>> upstream/master
     """Translate the DNA/RNA sequence into AA.
 
     Note: it stops after it encounters a stop codon
@@ -312,11 +305,6 @@ def translate(seq: str, hg38=False):
         raise ValueError("len(seq) % 3 != 0")
 
     outl = [''] * (len(seq) // 3)
-<<<<<<< HEAD
-    for i in range(0, len(seq), 3):
-        codon = seq[i:i + 3]
-        outl[i // 3] = TRANSLATION_TABLE[codon]
-=======
     if hg38:
         for i in range(0, len(seq), 3):
             codon = seq[i:i + 3]
@@ -326,5 +314,4 @@ def translate(seq: str, hg38=False):
             codon = seq[i:i + 3]
             outl[i // 3] = TRANSLATION_TABLE[codon]
 
->>>>>>> upstream/master
     return "".join(outl)
