@@ -38,6 +38,34 @@ def one_hot2string(arr, alphabet=DNA):
     return [''.join([indexToLetter[x] for x in row]) for row in tokens]
 
 
+def rc_dna(seq):
+    """
+    Reverse complement the DNA sequence
+    >>> assert rc_seq("TATCG") == "CGATA"
+    """
+    rc_hash = {
+        "A": "T",
+        "T": "A",
+        "C": "G",
+        "G": "C",
+    }
+    return "".join([rc_hash[s] for s in reversed(seq)])
+
+
+def rc_rna(seq):
+    """
+    Reverse complement the RNA sequence
+    >>> assert rc_seq("TATCG") == "CGATA"
+    """
+    rc_hash = {
+        "A": "U",
+        "U": "A",
+        "C": "G",
+        "G": "C",
+    }
+    return "".join([rc_hash[s] for s in reversed(seq)])
+
+
 def tokenize(seq, alphabet=DNA, neutral_alphabet=["N"]):
     """Convert sequence to integers
 
@@ -104,13 +132,13 @@ def one_hot_dna(seq, dtype=None):
 def pad(seq, length, value="N", anchor="center"):
     seq_len = len(seq)
     assert length >= seq_len
-    if anchor is "end":
+    if anchor == "end":
         n_left = length - seq_len
         n_right = 0
-    elif anchor is "start":
+    elif anchor == "start":
         n_right = length - seq_len
         n_left = 0
-    elif anchor is "center":
+    elif anchor == "center":
         n_left = (length - seq_len) // 2 + (length - seq_len) % 2
         n_right = (length - seq_len) // 2
     else:
@@ -127,11 +155,11 @@ def trim(seq, length, anchor="center"):
     seq_len = len(seq)
 
     assert length <= seq_len
-    if anchor is "end":
+    if anchor == "end":
         return seq[-length:]
-    elif anchor is "start":
+    elif anchor == "start":
         return seq[0:length]
-    elif anchor is "center":
+    elif anchor == "center":
         dl = seq_len - length
         n_left = dl // 2 + dl % 2
         n_right = seq_len - dl // 2
@@ -216,6 +244,73 @@ def resize_interval(interval, width, anchor='center'):
         interval.start = center - half_len
         interval.end = center + half_len + width % 2
     else:
-        raise Exception("Interval resizing anchor point can only be 'start', 'end' or 'center'")
+        raise Exception(
+            "Interval resizing anchor point can only be 'start', 'end' or 'center'")
 
     return interval
+
+
+TRANSLATION_TABLE = {
+    'ATA': 'I', 'ATC': 'I', 'ATT': 'I', 'ATG': 'M',
+    'ACA': 'T', 'ACC': 'T', 'ACG': 'T', 'ACT': 'T',
+    'AAC': 'N', 'AAT': 'N', 'AAA': 'K', 'AAG': 'K',
+    'AGC': 'S', 'AGT': 'S', 'AGA': 'R', 'AGG': 'R',
+    'CTA': 'L', 'CTC': 'L', 'CTG': 'L', 'CTT': 'L',
+    'CCA': 'P', 'CCC': 'P', 'CCG': 'P', 'CCT': 'P',
+    'CAC': 'H', 'CAT': 'H', 'CAA': 'Q', 'CAG': 'Q',
+    'CGA': 'R', 'CGC': 'R', 'CGG': 'R', 'CGT': 'R',
+    'GTA': 'V', 'GTC': 'V', 'GTG': 'V', 'GTT': 'V',
+    'GCA': 'A', 'GCC': 'A', 'GCG': 'A', 'GCT': 'A',
+    'GAC': 'D', 'GAT': 'D', 'GAA': 'E', 'GAG': 'E',
+    'GGA': 'G', 'GGC': 'G', 'GGG': 'G', 'GGT': 'G',
+    'TCA': 'S', 'TCC': 'S', 'TCG': 'S', 'TCT': 'S',
+    'TTC': 'F', 'TTT': 'F', 'TTA': 'L', 'TTG': 'L',
+    'TAC': 'Y', 'TAT': 'Y', 'TAA': '_', 'TAG': '_',
+    'TGC': 'C', 'TGT': 'C', 'TGA': '_', 'TGG': 'W',
+}
+
+TRANSLATION_TABLE_FOR_HG38 = {
+    'ATA': 'I', 'ATC': 'I', 'ATT': 'I', 'ATG': 'M',
+    'ACA': 'T', 'ACC': 'T', 'ACG': 'T', 'ACT': 'T',
+    'AAC': 'N', 'AAT': 'N', 'AAA': 'K', 'AAG': 'K',
+    'AGC': 'S', 'AGT': 'S', 'AGA': 'R', 'AGG': 'R',
+    'CTA': 'L', 'CTC': 'L', 'CTG': 'L', 'CTT': 'L',
+    'CCA': 'P', 'CCC': 'P', 'CCG': 'P', 'CCT': 'P',
+    'CAC': 'H', 'CAT': 'H', 'CAA': 'Q', 'CAG': 'Q',
+    'CGA': 'R', 'CGC': 'R', 'CGG': 'R', 'CGT': 'R',
+    'GTA': 'V', 'GTC': 'V', 'GTG': 'V', 'GTT': 'V',
+    'GCA': 'A', 'GCC': 'A', 'GCG': 'A', 'GCT': 'A',
+    'GAC': 'D', 'GAT': 'D', 'GAA': 'E', 'GAG': 'E',
+    'GGA': 'G', 'GGC': 'G', 'GGG': 'G', 'GGT': 'G',
+    'TCA': 'S', 'TCC': 'S', 'TCG': 'S', 'TCT': 'S',
+    'TTC': 'F', 'TTT': 'F', 'TTA': 'L', 'TTG': 'L',
+    'TAC': 'Y', 'TAT': 'Y', 'TAA': '_', 'TAG': '_',
+    'TGC': 'C', 'TGT': 'C', 'TGA': 'U', 'TGG': 'W',  # TGA to U instead of STOP codon
+    'XXX': 'X',  # ambiguous start
+    'NNN': ''  # empty string for ambiguous protein
+}
+
+
+def translate(seq: str, hg38=False):
+    """Translate the DNA/RNA sequence into AA.
+
+    Note: it stops after it encounters a stop codon
+
+    # Arguments
+        seq: DNA/RNA sequence
+        stop_none: return None if a stop codon is encountered
+    """
+    if len(seq) % 3 != 0:
+        raise ValueError("len(seq) % 3 != 0")
+
+    outl = [''] * (len(seq) // 3)
+    if hg38:
+        for i in range(0, len(seq), 3):
+            codon = seq[i:i + 3]
+            outl[i // 3] = TRANSLATION_TABLE_FOR_HG38[codon]
+    else:
+        for i in range(0, len(seq), 3):
+            codon = seq[i:i + 3]
+            outl[i // 3] = TRANSLATION_TABLE[codon]
+
+    return "".join(outl)

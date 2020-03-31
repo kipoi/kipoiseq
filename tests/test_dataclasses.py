@@ -122,6 +122,8 @@ def test_interval():
     interval.name = 'asd'
     interval.score = 10
 
+    assert interval.unstrand().strand == '.'
+
     assert interval == Interval.from_pybedtools(interval.to_pybedtools())
     assert isinstance(interval.to_pybedtools(), pybedtools.Interval)
 
