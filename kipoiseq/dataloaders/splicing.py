@@ -241,7 +241,8 @@ class MMSpliceDl(SampleIterator):
                 self.exons = pickle.load(f)
         except (FileNotFoundError, pickle.UnpicklingError, ModuleNotFoundError):
             self.exons = generate_exons(gtf_file=gtf_file,
-                                        overhang=(intron5prime_len, intron3prime_len),
+                                        overhang=(intron5prime_len,
+                                                  intron3prime_len),
                                         **kwargs)
         import six
         if isinstance(fasta_file, six.string_types):

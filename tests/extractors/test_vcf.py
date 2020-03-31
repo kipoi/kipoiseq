@@ -7,9 +7,9 @@ from kipoiseq.extractors.vcf import MultiSampleVCF
 fasta_file = sample_5kb_fasta_file
 
 intervals = [
-    Interval('chr1', 4, 10),
-    Interval('chr1', 5, 30),
-    Interval('chr1', 20, 30)
+    Interval('chr1', 3, 10),
+    Interval('chr1', 4, 30),
+    Interval('chr1', 19, 30)
 ]
 
 
@@ -60,6 +60,7 @@ def test_MultiSampleVCF_get_samples(multi_sample_vcf):
 
 
 def test_MultiSampleVCF_get_variant(multi_sample_vcf):
+
     variant = multi_sample_vcf.get_variant("chr1:4:T>C")
     assert variant.chrom == 'chr1'
     assert variant.pos == 4
@@ -107,9 +108,9 @@ def test_MultiSampleVCF__regions_from_variants(multi_sample_vcf):
     regions = multi_sample_vcf._regions_from_variants(variants)
 
     assert set(regions) == set([
-        Interval('chr1', 4, 25),
-        Interval('chr1', 55525, 55525),
-        Interval('chr10', 55525, 55525)
+        Interval('chr1', 3, 25),
+        Interval('chr1', 55524, 55525),
+        Interval('chr10', 55524, 55525)
     ])
 
 

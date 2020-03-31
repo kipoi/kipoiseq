@@ -69,11 +69,14 @@ class VariantSeqExtractor(BaseExtractor):
         """
         if fasta_file is not None:
             if reference_sequence is not None:
-                raise ValueError("either fasta_file or ref_seq_extractor have to be specified")
-            self._ref_seq_extractor = FastaStringExtractor(fasta_file, use_strand=True)
+                raise ValueError(
+                    "either fasta_file or ref_seq_extractor have to be specified")
+            self._ref_seq_extractor = FastaStringExtractor(
+                fasta_file, use_strand=True)
         else:
             if reference_sequence is None:
-                raise ValueError("either fasta_file or ref_seq_extractor have to be specified")
+                raise ValueError(
+                    "either fasta_file or ref_seq_extractor have to be specified")
             self._ref_seq_extractor = reference_sequence
 
     @property
@@ -253,7 +256,8 @@ class VariantSeqExtractor(BaseExtractor):
         return up_sb
 
     def _fetch(self, interval, istart, iend):
-        seq = self._ref_seq_extractor.extract(Interval(interval.chrom, istart, iend))
+        seq = self._ref_seq_extractor.extract(
+            Interval(interval.chrom, istart, iend))
         seq = Sequence(name=interval.chrom, seq=seq, start=istart, end=iend)
         return seq
 
