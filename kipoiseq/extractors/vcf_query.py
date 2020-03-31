@@ -1,9 +1,24 @@
+import abc
 from typing import Tuple, Iterable, List
 from tqdm import tqdm
 from kipoiseq.dataclasses import Variant, Interval
 
 
-class VariantQuery:
+class BaseVariantQuery:
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
+    def __call__(self, variant: Variant):
+        raise NotImplementedError
+
+    def __or__(self, other):
+        return VariantQuery(lambda variant: self(variant) or other(variant))
+
+    def __and__(self, other):
+        return VariantQuery(lambda variant: self(variant) and other(variant))
+
+
+class VariantQuery(BaseVariantQuery):
 
     def __init__(self, func):
         self.func = func
@@ -18,7 +33,7 @@ class VariantQuery:
         return VariantQuery(lambda variant: self(variant) and other(variant))
 
 
-class FilterVariantQuery(VariantQuery):
+class FilterVariantQuery(BaseVariantQuery):
 
     def __init__(self, filter='PASS'):
         self.filter = filter
@@ -27,7 +42,33 @@ class FilterVariantQuery(VariantQuery):
         return variant.filter == self.filter
 
 
-class VariantIntervalQuery:
+class BaseVariantIntervalQuery:
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
+    def __call__(self, variants: List[Variant], interval: Interval):
+        raise NotImplementedError
+
+    def __or__(self, other):
+        return VariantIntervalQuery(
+            lambda variants, interval: [
+                i or j for i, j in zip(
+                    self(variants, interval),
+                    other(variants, interval)
+                )
+            ])
+
+    def __and__(self, other):
+        return VariantIntervalQuery(
+            lambda variants, interval: [
+                i and j for i, j in zip(
+                    self(variants, interval),
+                    other(variants, interval)
+                )
+            ])
+
+
+class VariantIntervalQuery(BaseVariantIntervalQuery):
 
     def __init__(self, func):
         self.func = func
@@ -35,20 +76,8 @@ class VariantIntervalQuery:
     def __call__(self, variants: List[Variant], interval: Interval):
         return self.func(variants, interval)
 
-    def __or__(self, other):
-        return VariantIntervalQuery(
-            lambda variants, interval: [
-                i or j for i, j in zip(self(variants, interval),
-                                       other(variants, interval))])
 
-    def __and__(self, other):
-        return VariantIntervalQuery(
-            lambda variants, interval: [
-                i and j for i, j in zip(self(variants, interval),
-                                        other(variants, interval))])
-
-
-class NumberVariantQuery(VariantIntervalQuery):
+class NumberVariantQuery(BaseVariantIntervalQuery):
     """
     Closure for variant query. Filter variants for interval
       if number of variants in given limits.
@@ -90,6 +119,10 @@ class VariantIntervalQueryable:
 
         for variants, interval in variant_intervals:
             yield from variants
+
+    def iter_intervals(self):
+        for _, interval in self.variant_intervals:
+            yield interval
 
     def filter(self, query: VariantQuery):
         """

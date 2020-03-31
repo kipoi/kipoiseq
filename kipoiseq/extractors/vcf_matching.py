@@ -3,6 +3,12 @@ import pandas as pd
 from kipoiseq.dataclasses import Variant, Interval
 from kipoiseq.extractors import MultiSampleVCF
 
+try:
+    from pyranges import PyRanges
+except ImportError:
+    from typing import Any
+    PyRanges = Any
+
 
 __all__ = [
     'variants_to_pyranges',
@@ -11,13 +17,14 @@ __all__ = [
 ]
 
 
-def variants_to_pyranges(variants: List[Variant]):
-    '''
+def variants_to_pyranges(variants: List[Variant]) -> PyRanges:
+    """
     Create pyrange object given list of variant objects.
 
     Args:
       variants: list of variant objects have CHROM, POS, REF, ALT properties.
-    '''
+    """
+    import pyranges
     df = pd.DataFrame([
         (
             v.chrom,
@@ -27,11 +34,10 @@ def variants_to_pyranges(variants: List[Variant]):
         )
         for v in variants
     ], columns=['Chromosome', 'Start', 'End', 'variant'])
-    import pyranges
     return pyranges.PyRanges(df)
 
 
-def pyranges_to_intervals(pr,  interval_attrs=None):
+def pyranges_to_intervals(pr: PyRanges, interval_attrs: List[str] = None):
     """
     Convert pyranges into list of intervals.
 
@@ -76,30 +82,49 @@ def intervals_to_pyranges(intervals):
 
 
 class BaseVariantMatcher:
+    """
+    Base variant intervals matcher
+    """
 
-    def __init__(self, vcf_file, gtf_path=None, bed_path=None, pranges=None,
-                 intervals=None, interval_attrs=None, vcf_lazy=True,
-                 variant_batch_size=10000):
+    def __init__(
+            self,
+            vcf_file: str,
+            gtf_path: str = None,
+            bed_path: str = None,
+            pranges: PyRanges = None,
+            intervals: List[Interval] = None,
+            interval_attrs: List[str] = None,
+            vcf_lazy: bool = True,
+            variant_batch_size: int = 10000
+    ):
         """
-        Base variant intervals matcher
+
+        Args:
+          vcf_file: path of vcf file
+          gtf_path: (optional) path of gtf file contains features
+          bed_path: (optional) path of bed file
+          pranges: (optional) pyranges object
+          intervals: (optional) list of intervals
+          interval_attrs: attr of intervals should read from files or
+            pyranges object. This argument is not valid with intervals.
+            Currently unused
         """
         self.vcf = MultiSampleVCF(vcf_file, lazy=vcf_lazy)
         self.interval_attrs = interval_attrs
         self.pr = self._read_intervals(gtf_path, bed_path, pranges,
-                                       intervals, interval_attrs)
+                                       intervals, interval_attrs, duplicate_attr = True)
         self.variant_batch_size = variant_batch_size
 
     @staticmethod
     def _read_intervals(gtf_path=None, bed_path=None, pranges=None,
-                        intervals=None, interval_attrs=None):
+                        intervals=None, interval_attrs=None, duplicate_attr=False):
         alternatives = [bed_path, pranges, intervals, gtf_path]
         if sum(i is not None for i in alternatives) != 1:
             raise ValueError('only one of `gth_path`, `bed_path`, `pranges`,'
                              '`intervals` or should given as input.')
         if gtf_path:
             import pyranges
-            pranges = pyranges.read_gtf(gtf_path)
-            pranges.Start -= 1
+            pranges = pyranges.read_gtf(gtf_path, duplicate_attr=duplicate_attr)
 
         elif bed_path:
             import pyranges
@@ -123,31 +148,40 @@ class SingleVariantMatcher(BaseVariantMatcher):
     """
     Match and iterate variants with intervals.
 
-    Args:
-      vcf_file: path of vcf file
-      gtf_path: (optional) path of gtf file contains features
-      bed_path: (optional) path of bed file
-      pranges: (optional) pyranges object
-      intervals: (optional) list of intervals
-      interval_attrs: attr of intervals should read from files or
-        pyranges object. This argument is not valid with intervals.
     """
+
+    def __init__(self, *args, **kwargs):
+        """
+
+        Args:
+          vcf_file: path of vcf file
+          gtf_path: (optional) path of gtf file contains features
+          bed_path: (optional) path of bed file
+          pranges: (optional) pyranges object
+          intervals: (optional) list of intervals
+          interval_attrs: attr of intervals should read from files or
+            pyranges object. This argument is not valid with intervals.
+        """
+        super().__init__(*args, **kwargs)
 
     def _read_vcf_pyranges(self, batch_size=10000):
         """
         Reads vcf and returns batch of pyranges objects.
 
         Args:
-          vcf_file: path of vcf file.
           batch_size: size of each batch.
         """
         for batch in self.vcf.batch_iter(batch_size):
             yield variants_to_pyranges(batch)
 
-    def iter_pyranges(self):
+    def iter_pyranges(self) -> PyRanges:
         """
+
         Iter matched variants with intervals as pyranges.
-         """
+
+        Returns:
+
+        """
         for pr_variants in self._read_vcf_pyranges():
             pr_join = self.pr.join(pr_variants, suffix='_variant')
             if not hasattr(pr_join, 'intervals'):
@@ -175,12 +209,25 @@ class SingleVariantMatcher(BaseVariantMatcher):
 
 class MultiVariantsMatcher(BaseVariantMatcher):
 
-    def __init__(self, vcf_file, gtf_path=None, pranges=None, intervals=None,
-                 interval_attrs=None, vcf_lazy=True, variant_batch_size=10000):
-        super().__init__(vcf_file, gtf_path=gtf_path, pranges=pranges,
-                         intervals=intervals, interval_attrs=interval_attrs,
-                         vcf_lazy=vcf_lazy,
-                         variant_batch_size=variant_batch_size)
+    def __init__(
+            self,
+            vcf_file,
+            gtf_path=None,
+            pranges=None,
+            intervals=None,
+            interval_attrs=None,
+            vcf_lazy=True,
+            variant_batch_size=10000
+    ):
+        super().__init__(
+            vcf_file,
+            gtf_path=gtf_path,
+            pranges=pranges,
+            intervals=intervals,
+            interval_attrs=interval_attrs,
+            vcf_lazy=vcf_lazy,
+            variant_batch_size=variant_batch_size
+        )
         if hasattr(self.pr, 'intervals'):
             self.intervals = self.pr.intervals
         else:

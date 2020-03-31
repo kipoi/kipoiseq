@@ -6,9 +6,12 @@ import numpy as np
 
 
 def test_tokenize():
-    assert np.all(tokenize("ACGTTA", DNA, neutral_alphabet="N") == [0, 1, 2, 3, 3, 0])
-    assert np.all(tokenize("ACGTGATGA", ["ACG", "TGA"], neutral_alphabet="NNN") == [0, 1, 1])
-    assert np.all(tokenize("ACGTGATGA", ["ACG"], neutral_alphabet="TGA") == [0, -1, -1])
+    assert np.all(tokenize("ACGTTA", DNA, neutral_alphabet="N")
+                  == [0, 1, 2, 3, 3, 0])
+    assert np.all(
+        tokenize("ACGTGATGA", ["ACG", "TGA"], neutral_alphabet="NNN") == [0, 1, 1])
+    assert np.all(
+        tokenize("ACGTGATGA", ["ACG"], neutral_alphabet="TGA") == [0, -1, -1])
     with pytest.raises(Exception):
         tokenize("ACGTGATGA", ["ACG"], neutral_alphabet="NNN")
 
@@ -68,7 +71,8 @@ def test_one_hot():
 def test_fixed_len():
     seq = "ACGTTTATNT"
     assert len(fixed_len(seq, 20, value="N", anchor="end")) is 20
-    assert fixed_len([1, 2, 3, 4], 6, value=[0], anchor="end") == [0, 0, 1, 2, 3, 4]
+    assert fixed_len([1, 2, 3, 4], 6, value=[0],
+                     anchor="end") == [0, 0, 1, 2, 3, 4]
     assert fixed_len([1, 2, 3, 4], 2, value=[0], anchor="end") == [3, 4]
 
     # expect error
@@ -91,7 +95,8 @@ def test_resize_interval(anchor, ilen):
     dummy_start, dummy_end = 10, 20
     dummy_center = int((dummy_start + dummy_end) / 2)
 
-    dummy_inter = pybedtools.create_interval_from_list(['chr2', dummy_start, dummy_end, 'intname'])
+    dummy_inter = pybedtools.create_interval_from_list(
+        ['chr2', dummy_start, dummy_end, 'intname'])
     ret_inter = resize_interval(dummy_inter, ilen, anchor)
 
     # the original interval was left intact
@@ -123,7 +128,8 @@ def test_ResizeInterval():
     dummy_start, dummy_end = 10, 20
     dummy_center = int((dummy_start + dummy_end) / 2)
     ilen = 4
-    dummy_inter = pybedtools.create_interval_from_list(['chr2', dummy_start, dummy_end, 'intname'])
+    dummy_inter = pybedtools.create_interval_from_list(
+        ['chr2', dummy_start, dummy_end, 'intname'])
     ri = ResizeInterval(ilen, 'center')
     ret_inter = ri(dummy_inter)
     assert int((ret_inter.start + ret_inter.end) / 2) == dummy_center

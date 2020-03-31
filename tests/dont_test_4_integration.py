@@ -35,7 +35,8 @@ def test_var_eff_pred_varseq(tmpdir):
     #
     vcf_path = kipoi_veff.ensure_tabixed_vcf(vcf_path)
     model_info = kipoi_veff.ModelInfoExtractor(model, Dataloader)
-    writer = kipoi_veff.VcfWriter(model, vcf_path, out_vcf_fpath, standardise_var_id=True)
+    writer = kipoi_veff.VcfWriter(
+        model, vcf_path, out_vcf_fpath, standardise_var_id=True)
     vcf_to_region = kipoi_veff.SnvCenteredRg(model_info)
     res = sp.predict_snvs(model, Dataloader, vcf_path, dataloader_args=dataloader_arguments,
                           batch_size=32,

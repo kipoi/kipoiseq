@@ -2,13 +2,14 @@
 - Interval
 - Variant
 """
-from collections import Mapping, OrderedDict
+# from collections import Mapping, OrderedDict
 from copy import deepcopy
-from kipoi_utils.data_utils import numpy_collate, numpy_collate_concat
+# from kipoi_utils.data_utils import numpy_collate, numpy_collate_concat
 import math
+# import numpy as np
 # -------------------------------------------
 # basepair implementation
-import attr
+# import attr
 
 
 class Variant:
@@ -87,7 +88,12 @@ class Variant:
         if len(obj.ALT) > 1:
             # TODO - do a proper warning
             print("WARNING: len(obj.ALT) > 1")
-
+        # if there is a deletion
+        # empty string
+        if len(obj.ALT) == 0:
+            obj.ALT = [''] 
+        
+            
         return cls(chrom=obj.CHROM,
                    pos=obj.POS,
                    ref=obj.REF,
@@ -197,16 +203,25 @@ class Interval:
 
     def to_pybedtools(self):
         import pybedtools
-        return pybedtools.create_interval_from_list([self.chrom,
-                                                     self.start,
-                                                     self.end,
-                                                     self.name,
-                                                     self.score,
-                                                     self.strand])
+        return pybedtools.create_interval_from_list([
+            self.chrom,
+            self.start,
+            self.end,
+            self.name,
+            self.score,
+            self.strand
+        ])
 
     @property
     def neg_strand(self):
         return self.strand == "-"
+
+    def unstrand(self):
+        """Removes strand information.
+        """
+        obj = self.copy()
+        obj._strand = '.'
+        return obj
 
     def center(self, use_strand=True):
         """Compute the center of the interval
@@ -258,7 +273,7 @@ class Interval:
         return hash((self.chrom, self.start, self.end, self.strand))
 
     def __str__(self):
-        return ("{}:{}-{}:{}".format(self.chrom, self.start, self.end, self.strand))
+        return "{}:{}-{}:{}".format(self.chrom, self.start, self.end, self.strand)
 
     def __repr__(self):
         return ("Interval(chrom='{}', start={}, end={}, name='{}', strand='{}', ...)"

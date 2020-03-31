@@ -1,0 +1,21 @@
+ENST00000606505 start and end
+ENST00000473363 start and end
+ENST00000434431 no tags but len % 3 != 0
+ENST00000490594 start and end
+ENST00000418776 start and end
+ENST00000467125 start and end but it is normal
+ENST00000514917 start and end 
+ENST00000379471 no tags but in the end one letter more
+ENST00000373865 no tags but in the end one letter more
+ENST00000529411 start and end
+ENST00000528511 start and end
+ENST00000546840 start and end
+ENST00000570054 start and end but normal
+ENST00000618610 no tags but len % 3 != 0
+ENST00000467211 start and end
+ENST00000586349 start and end
+ENST00000597961 start and end
+ENST00000592740 start and end
+ENST00000594769 start and end
+ENST00000594374 start and end
+

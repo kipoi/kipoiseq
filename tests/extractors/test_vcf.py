@@ -7,9 +7,9 @@ from kipoiseq.extractors.vcf import MultiSampleVCF
 fasta_file = sample_5kb_fasta_file
 
 intervals = [
-    Interval('chr1', 4, 10),
-    Interval('chr1', 5, 30),
-    Interval('chr1', 20, 30)
+    Interval('chr1', 3, 10),
+    Interval('chr1', 4, 30),
+    Interval('chr1', 19, 30)
 ]
 
 
@@ -60,6 +60,7 @@ def test_MultiSampleVCF_get_samples(multi_sample_vcf):
 
 
 def test_MultiSampleVCF_get_variant(multi_sample_vcf):
+
     variant = multi_sample_vcf.get_variant("chr1:4:T>C")
     assert variant.chrom == 'chr1'
     assert variant.pos == 4
@@ -74,6 +75,43 @@ def test_MultiSampleVCF_get_variant(multi_sample_vcf):
 
     with pytest.raises(KeyError):
         multi_sample_vcf.get_variant("chr1:4:A>C")
+
+
+def test_MultiSampleVCF_get_variants(multi_sample_vcf):
+    variants = multi_sample_vcf.get_variants(["chr1:4:T>C"], intervals)
+    assert len(variants) == 1
+
+    variant = variants[0]
+    assert variant.chrom == 'chr1'
+    assert variant.pos == 4
+    assert variant.ref == 'T'
+    assert variant.alt == 'C'
+
+    variants = multi_sample_vcf.get_variants(["chr1:4:T>C", "chr1:25:AACG>GA"])
+    assert len(variants) == 2
+
+    variant = variants[0]
+    assert variant.chrom == 'chr1'
+    assert variant.pos == 4
+    assert variant.ref == 'T'
+    assert variant.alt == 'C'
+
+
+def test_MultiSampleVCF__regions_from_variants(multi_sample_vcf):
+    variants = [
+        Variant('chr1', 4, 'T', 'C'),
+        Variant('chr1', 25, 'AACG', 'GA'),
+        Variant('chr1', 55525, 'AACG', 'GA'),
+        Variant('chr10', 55525, 'AACG', 'GA')
+
+    ]
+    regions = multi_sample_vcf._regions_from_variants(variants)
+
+    assert set(regions) == set([
+        Interval('chr1', 3, 25),
+        Interval('chr1', 55524, 55525),
+        Interval('chr10', 55524, 55525)
+    ])
 
 
 def test_MultiSampleVCF_VariantQueryable_to_vcf(tmpdir, multi_sample_vcf):
