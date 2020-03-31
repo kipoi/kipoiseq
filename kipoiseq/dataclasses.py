@@ -88,7 +88,12 @@ class Variant:
         if len(obj.ALT) > 1:
             # TODO - do a proper warning
             print("WARNING: len(obj.ALT) > 1")
-
+        # if there is a deletion
+        # empty string
+        if len(obj.ALT) == 0:
+            obj.ALT = [''] 
+        
+            
         return cls(chrom=obj.CHROM,
                    pos=obj.POS,
                    ref=obj.REF,
