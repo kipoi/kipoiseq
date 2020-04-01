@@ -22,6 +22,11 @@ class MultiSampleVCF(VCF):
 
     def fetch_variants(self, interval, sample_id=None):
         for v in self(self._region(interval)):
+            
+            # not defined variants are not supported
+            if len(v.ALT) > 0 and 'N' in v.ALT[0]:
+                continue
+
             v = Variant.from_cyvcf(v)
             if sample_id is None or self.has_variant(v, sample_id):
                 yield v
