@@ -1,0 +1,16 @@
+16 cores, 30GB, 1GPU
+1. initialisation of SingleSeqProteinVCFSeqExtractor and SingleVariantProteinVCFSeqExtractor:
+    CPU times: user 1min 52s, sys: 7.49 s, total: 1min 59s
+    Wall time: 2min 1s
+
+2. run extract_all() on SingleVariantProteinVCFSeqExtractor:
+    Variants: tests/data/clinvar.vcf.gz
+    number of sequences: 31211
+    CPU times: user 44min 11s, sys: 14.5 s, total: 44min 26s
+    Wall time: 44min 32s
+
+3. run extract_all() on SingleSeqProteinVCFSeqExtractor:
+    Variants: tests/data/clinvar.vcf.gz
+    number of sequences: 1600282
+    CPU times: user 1h 31min 12s, sys: 27.5 s, total: 1h 31min 40s
+    Wall time: 1h 31min 42s
