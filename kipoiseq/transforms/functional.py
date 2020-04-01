@@ -269,6 +269,7 @@ TRANSLATION_TABLE = {
     'TGC': 'C', 'TGT': 'C', 'TGA': '_', 'TGG': 'W',
 }
 
+
 TRANSLATION_TABLE_FOR_HG38 = {
     'ATA': 'I', 'ATC': 'I', 'ATT': 'I', 'ATG': 'M',
     'ACA': 'T', 'ACC': 'T', 'ACG': 'T', 'ACT': 'T',
