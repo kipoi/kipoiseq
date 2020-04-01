@@ -23,7 +23,7 @@ class MultiSampleVCF(VCF):
     def fetch_variants(self, interval, sample_id=None):
         for v in self(self._region(interval)):
             
-            # not defined variants are nots supported
+            # not defined variants are not supported
             if len(v.ALT) > 0 and 'N' in v.ALT[0]:
                 continue
 
