@@ -91,6 +91,7 @@ class CDSFetcher:
               .query("{} == 'protein_coding'".format(biotype_str))
               .query("(Feature == 'CDS') | (Feature == 'CCDS')")
               )
+        df = df[df['tag'].notna()] #grch37 have ccds without tags
         return df[df["tag"].str.contains("basic|CCDS")].set_index('transcript_id')
 
     @staticmethod
