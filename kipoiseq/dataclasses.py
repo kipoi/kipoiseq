@@ -106,12 +106,12 @@ class Variant:
                    )
     
     @classmethod
-    def from_cyvcf_and_given_ref_alt(cls, obj, ref, alt):
+    def from_cyvcf_and_given_alt(cls, obj, alt):
             
         return cls(chrom=obj.CHROM,
                    pos=obj.POS,
-                   ref=ref,
-                   alt=alt,  # note. we are using a single one
+                   ref=obj.REF,
+                   alt=alt,
                    id=obj.ID,
                    qual=obj.QUAL,
                    filter=obj.FILTER,

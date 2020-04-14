@@ -31,8 +31,8 @@ class MultiSampleVCF(VCF):
                 v.ALT = ['']
             # extract variants
             # single REF can have multiple ALT
-            for ref, alt in itertools.product([v.REF], v.ALT):   
-                variant = Variant.from_cyvcf_and_given_ref_alt(v, ref, alt)
+            for alt in v.ALT:   
+                variant = Variant.from_cyvcf_and_given_alt(v, alt)
                 if sample_id is None or self.has_variant(variant, sample_id):
                     yield variant
 
