@@ -2,7 +2,7 @@ from itertools import islice
 from collections import defaultdict
 from kipoiseq.dataclasses import Variant, Interval
 from kipoiseq.extractors.vcf_query import VariantIntervalQueryable
-
+import itertools
 try:
     from cyvcf2 import VCF
 except ImportError:
@@ -26,10 +26,15 @@ class MultiSampleVCF(VCF):
             # not defined variants are not supported
             if len(v.ALT) > 0 and 'N' in v.ALT[0]:
                 continue
-            
-            v = Variant.from_cyvcf(v)
-            if sample_id is None or self.has_variant(v, sample_id):
-                yield v
+            # in case deletion is present
+            elif len(v.ALT) == 0:
+                v.ALT = ['']
+            # extract variants
+            # single REF can have multiple ALT
+            for ref, alt in itertools.product([v.REF], v.ALT):   
+                variant = Variant.from_cyvcf_and_given_ref_alt(v, ref, alt)
+                if sample_id is None or self.has_variant(variant, sample_id):
+                    yield variant
 
     @staticmethod
     def _region(interval):

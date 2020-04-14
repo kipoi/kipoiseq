@@ -1,5 +1,5 @@
 import pytest
-from conftest import vcf_file, sample_5kb_fasta_file
+from conftest import vcf_file, sample_5kb_fasta_file, test_with_multiple_variants
 from kipoiseq.dataclasses import Variant, Interval
 from kipoiseq.extractors.vcf_query import NumberVariantQuery
 from kipoiseq.extractors.vcf import MultiSampleVCF
@@ -48,9 +48,22 @@ def test_MultiSampleVCF_fetch_variant(multi_sample_vcf):
 def test_MultiSampleVCF_query_variants(multi_sample_vcf):
     vq = multi_sample_vcf.query_variants(intervals)
     variants = list(vq)
+    
     assert len(variants) == 5
     assert variants[0].pos == 4
     assert variants[1].pos == 5
+    
+    
+    msvcf = MultiSampleVCF(test_with_multiple_variants)
+    vq = msvcf.query_variants(intervals)
+    variants = list(vq)
+    assert len(variants) == 7
+    assert variants[0].ref == 'T'
+    assert variants[1].ref == 'T'
+    assert variants[2].ref == 'T'
+    assert variants[0].alt == 'C'
+    assert variants[1].alt == 'A'
+    assert variants[2].alt == 'G'
 
 
 def test_MultiSampleVCF_get_samples(multi_sample_vcf):
