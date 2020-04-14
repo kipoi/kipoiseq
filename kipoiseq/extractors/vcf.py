@@ -22,12 +22,8 @@ class MultiSampleVCF(VCF):
 
     def fetch_variants(self, interval, sample_id=None):
         for v in self(self._region(interval)):
-            ALTs = v.ALT
-            
             # in case deletion is present
-            if len(v.ALT) == 0:
-                ALTs = ['']
-            
+            ALTs = [''] if len(v.ALT) == 0 else v.ALT
             # extract variants
             # single REF can have multiple ALT
             for alt in ALTs:
