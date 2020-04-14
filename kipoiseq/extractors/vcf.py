@@ -2,7 +2,7 @@ from itertools import islice
 from collections import defaultdict
 from kipoiseq.dataclasses import Variant, Interval
 from kipoiseq.extractors.vcf_query import VariantIntervalQueryable
-import itertools
+
 try:
     from cyvcf2 import VCF
 except ImportError:
