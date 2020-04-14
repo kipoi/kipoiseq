@@ -55,15 +55,25 @@ def test_MultiSampleVCF_query_variants(multi_sample_vcf):
     
     
     msvcf = MultiSampleVCF(test_with_multiple_variants)
-    vq = msvcf.query_variants(intervals)
+    vq = msvcf.query_variants([Interval('chr1', 3, 10)])
     variants = list(vq)
-    assert len(variants) == 7
+    
+    assert len(variants) == 5
     assert variants[0].ref == 'T'
     assert variants[1].ref == 'T'
     assert variants[2].ref == 'T'
     assert variants[0].alt == 'C'
     assert variants[1].alt == 'A'
     assert variants[2].alt == 'G'
+    assert variants[4].alt == ''
+    
+    msvcf = MultiSampleVCF(test_with_multiple_variants)
+    vq = msvcf.query_variants([Interval('chr1', 11, 14)])
+    variants = list(vq)
+    
+    assert len(variants) == 1
+    assert variants[0].ref == 'T'
+    assert variants[0].alt == ''
 
 
 def test_MultiSampleVCF_get_samples(multi_sample_vcf):

@@ -22,16 +22,18 @@ class MultiSampleVCF(VCF):
 
     def fetch_variants(self, interval, sample_id=None):
         for v in self(self._region(interval)):
-            
-            # not defined variants are not supported
-            if len(v.ALT) > 0 and 'N' in v.ALT[0]:
-                continue
+
             # in case deletion is present
-            elif len(v.ALT) == 0:
+            if len(v.ALT) == 0:
                 v.ALT = ['']
+            
             # extract variants
             # single REF can have multiple ALT
-            for alt in v.ALT:   
+            for alt in v.ALT:
+                # not defined variants are not supported
+                if 'N' in alt:
+                    print('Undefined variants are not supported: Skip')
+                    continue
                 variant = Variant.from_cyvcf_and_given_alt(v, alt)
                 if sample_id is None or self.has_variant(variant, sample_id):
                     yield variant
