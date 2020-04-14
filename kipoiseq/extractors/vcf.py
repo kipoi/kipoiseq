@@ -22,14 +22,15 @@ class MultiSampleVCF(VCF):
 
     def fetch_variants(self, interval, sample_id=None):
         for v in self(self._region(interval)):
-
+            
+            ALTs = v.ALT
             # in case deletion is present
             if len(v.ALT) == 0:
-                v.ALT = ['']
+                ALTs = ['']
             
             # extract variants
             # single REF can have multiple ALT
-            for alt in v.ALT:
+            for alt in ALTs:
                 # not defined variants are not supported
                 if 'N' in alt:
                     print('Undefined variants are not supported: Skip')
