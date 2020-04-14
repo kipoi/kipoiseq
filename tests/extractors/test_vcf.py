@@ -67,7 +67,6 @@ def test_MultiSampleVCF_query_variants(multi_sample_vcf):
     assert variants[2].alt == 'G'
     assert variants[4].alt == ''
     
-    msvcf = MultiSampleVCF(test_with_multiple_variants)
     vq = msvcf.query_variants([Interval('chr1', 11, 14)])
     variants = list(vq)
     
