@@ -104,6 +104,20 @@ class Variant:
                    info=dict(obj.INFO),
                    source=obj,
                    )
+    
+    @classmethod
+    def from_cyvcf_and_given_alt(cls, obj, alt):
+            
+        return cls(chrom=obj.CHROM,
+                   pos=obj.POS,
+                   ref=obj.REF,
+                   alt=alt,
+                   id=obj.ID,
+                   qual=obj.QUAL,
+                   filter=obj.FILTER,
+                   info=dict(obj.INFO),
+                   source=obj,
+                   )
 
     def __eq__(self, obj):
         return (self.chrom == obj.chrom and
