@@ -16,12 +16,12 @@ class SingleVariantProteinDataLoader(SampleIterator):
         cds = self.transcript_seq_extractor.cds_fetcher.cds
         # only needed metadata
         self.metadatas = (cds.loc[~cds.index.duplicated(keep='first')]).drop(columns=['Start', 'End'])
-        self.data = self._all()
+        self.sequences = self._extractor()
 
     def __iter__(self):
         return self
     
-    def _all(self):
+    def _extractor(self):
         for transcript_id, seqs in self.single_variant_protein_VCF_seq_extractor.extract_all():
             ref_seq = self.transcript_seq_extractor.get_protein_seq(transcript_id)
             metadata = self.metadatas.loc[transcript_id]
@@ -36,7 +36,7 @@ class SingleVariantProteinDataLoader(SampleIterator):
                 }
                 
     def __next__(self):
-        for unit in self.data:
+        for unit in self.sequences:
             # empty generator
             if type(unit) == None:
                 break
