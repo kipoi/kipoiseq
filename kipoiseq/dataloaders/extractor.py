@@ -50,7 +50,7 @@ class SingleVariantProteinDataLoader(SampleIterator):
         """
         return self.metadatas.loc[self.metadatas.transcript_id == transcript_id]
 
-    def pack_information(self, ref_seq: str, alt_seq: str, metadata: pandas.core.frame.DataFrame):
+    def pack_information(self, ref_seq: str, alt_seq: str, metadata: dict):
         """
         pack information into dictionary
         Args:
@@ -63,6 +63,6 @@ class SingleVariantProteinDataLoader(SampleIterator):
                 'ref_seq': ref_seq,
                 'alt_seq': alt_seq,
             },
-            # pandas.core.frame.DataFrame
+            # dict
             'metadata': metadata
         }
