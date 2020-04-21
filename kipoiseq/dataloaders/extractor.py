@@ -40,7 +40,7 @@ class SingleVariantProteinDataLoader(SampleIterator):
             ref_seq = self.transcript_seq_extractor.get_protein_seq(
                 transcript_id)
             # get information for this transcript_id
-            metadata = self.get_metadata(transcript_id)
+            metadata = self.get_metadata(transcript_id).to_dict('series')
             for alt_seq in seqs:
                 yield self.pack_information(ref_seq, alt_seq, metadata)
 
