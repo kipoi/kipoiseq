@@ -14,7 +14,7 @@ def test_single_variant_protein_dataLoader(single_variant_protein_dataLoader):
     
     assert len(units) == 3
     
-    assert (units[2]['metadata']['transcript_id'] == 'enst_test2').bool()
+    assert units[2]['metadata']['transcript_id'] == 'enst_test2'
     
     txt_file = 'tests/data/Output_singleSeq_vcf_enst_test2.txt'
     expected_seq = open(txt_file).readline()

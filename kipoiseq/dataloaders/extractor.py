@@ -1,7 +1,6 @@
 from kipoiseq.extractors import SingleVariantProteinVCFSeqExtractor, TranscriptSeqExtractor
 from kipoi.data import SampleIterator
-import pandas
-
+from collections import defaultdict
 
 class SingleVariantProteinDataLoader(SampleIterator):
 
@@ -46,7 +45,7 @@ class SingleVariantProteinDataLoader(SampleIterator):
             ref_seq = self.transcript_seq_extractor.get_protein_seq(
                 transcript_id)
             # get information for this transcript_id
-            metadata = self.get_metadata(transcript_id).to_dict('series')
+            metadata = self.get_metadata(transcript_id)
             for alt_seq in seqs:
                 yield self.pack_information(ref_seq, alt_seq, metadata)
 
@@ -54,7 +53,7 @@ class SingleVariantProteinDataLoader(SampleIterator):
         """
         get metadata for given transcript_id
         """
-        return self.metadatas.loc[self.metadatas.transcript_id == transcript_id]
+        return self.metadatas.loc[self.metadatas.transcript_id == transcript_id].to_dict('records')[0]
 
     def pack_information(self, ref_seq: str, alt_seq: str, metadata: dict):
         """
