@@ -27,3 +27,6 @@ def test_single_variant_protein_dataLoader(single_variant_protein_dataLoader):
     assert units[2]['input']['alt_seq'] == expected_seq[2]
     
     assert type(units[2]['metadata']) == dict
+    assert len(units[2]) == 2
+    assert len(units[2]['input']) == 2
+    assert len(units[2]['metadata']) == 1

@@ -32,8 +32,14 @@ class SingleVariantProteinDataLoader(SampleIterator):
         """
         return ref_seq, alt_seq, metadata for all
         transcript_ids with variants
-        Returns:
-
+        Returns: {
+            'input': {
+                'ref_seq': ref_seq,
+                'alt_seq': alt_seq,
+            },
+            # dict
+            'metadata': metadata
+        }
         """
         for transcript_id, seqs in self.single_variant_protein_VCF_seq_extractor.extract_all():
             # reference sequence
