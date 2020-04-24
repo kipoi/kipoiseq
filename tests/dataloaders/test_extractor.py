@@ -29,4 +29,4 @@ def test_single_variant_protein_dataLoader(single_variant_protein_dataLoader):
     assert type(units[2]['metadata']) == dict
     assert len(units[2]) == 2
     assert len(units[2]['input']) == 2
-    assert len(units[2]['metadata']) == 1
+    assert len(units[2]['metadata']) == 17 #number of columns
