@@ -44,20 +44,21 @@ class SingleVariantProteinDataLoader(SampleIterator):
         for transcript_id, seqs in self.protein_vcf_extractor.extract_all():
             # reference sequence
             ref_seq = self.transcript_extractor.get_protein_seq(transcript_id)
-            for alt_seq in seqs:
+            for (alt_seq, variant) in seqs:
                 yield {
                     'input': {
                         'ref_seq': ref_seq,
                         'alt_seq': alt_seq,
                     },
-                    'metadata': self.get_metadata(transcript_id)
+                    'metadata': self.get_metadata(transcript_id, variant)
                 }
 
-    def get_metadata(self, transcript_id: str):
+    def get_metadata(self, transcript_id: str, variant: dict):
         """
         get metadata for given transcript_id
         """
         row = self.metadatas.loc[transcript_id]
         metadata = self.metadatas.loc[transcript_id].to_dict()
         metadata['transcript_id'] = row.name
+        metadata['variants'] = variant
         return metadata
