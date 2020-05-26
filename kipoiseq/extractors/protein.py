@@ -91,7 +91,7 @@ class CDSFetcher:
               .query("{} == 'protein_coding'".format(biotype_str))
               .query("(Feature == 'CDS') | (Feature == 'CCDS')")
               )
-        df = df[df['tag'].notna()] #grch37 have ccds without tags
+        df = df[df['tag'].notna()]  # grch37 have ccds without tags
         return df[df["tag"].str.contains("basic|CCDS")].set_index('transcript_id')
 
     @staticmethod
@@ -233,7 +233,7 @@ class ProteinVCFSeqExtractor:
         # match variant with transcript_id
         self.single_variant_matcher = SingleVariantMatcher(
             self.vcf_file, pranges=pr_cds)
-        
+
         self.fasta = FastaStringExtractor(self.fasta_file)
         self.multi_sample_VCF = MultiSampleVCF(self.vcf_file)
         self.variant_seq_extractor = VariantSeqExtractor(self.fasta_file)
@@ -244,6 +244,18 @@ class ProteinVCFSeqExtractor:
         Set strand of list of intervals to default - '.'
         """
         return [i.unstrand() for i in intervals]
+
+    @staticmethod
+    def _prepare_variants(variants: 'List of variants'):
+        variants_dict = dict()
+        # fill dict with variants (as dict)
+        for index, v in enumerate(variants):
+            variants_dict[index] = dict(
+                (key.replace('_', ''), value) for key, value in v.__dict__.items())
+        # if single varint, unpack dict
+        if len(variants_dict) == 1:
+            variants_dict = variants_dict[0]
+        return variants_dict
 
     def extract_cds(self, cds: List[Interval], sample_id=None):
         """
@@ -261,9 +273,9 @@ class ProteinVCFSeqExtractor:
 
         iter_seqs = self.extract_query(variant_interval_queryable,
                                        sample_id=sample_id)
-
         for seqs in iter_seqs:
-            yield ProteinSeqExtractor._prepare_seq(seqs, cds[0].strand, cds[0].attrs['tag'])
+            # 1st seq, 2nd variant info
+            yield ProteinSeqExtractor._prepare_seq(seqs[0], cds[0].strand, cds[0].attrs['tag']), seqs[1]
 
     def extract_all(self):
         """
@@ -277,7 +289,6 @@ class ProteinVCFSeqExtractor:
                     yield transcript_id, self.extract(transcript_id)
             else:
                 print('No matched variants with transcript_ids.')
-        
 
     def extract_list(self, list_with_transcript_id: List[str]):
         """
@@ -328,15 +339,18 @@ class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
         """
         seqs = []
         flag = True
+        variants_info = list()
         for variants, interval in variant_interval_queryable.variant_intervals:
             variants = list(self._filter_snv(variants))
             if len(variants) > 0:
                 flag = False
+                variants_info.extend(variants)
             seqs.append(self.variant_seq_extractor.extract(
                 interval, variants, anchor=0))
         if flag:
             seqs = []
-        yield "".join(seqs)
+            variants_info = []
+        yield "".join(seqs), self._prepare_variants(variants_info)
 
     def extract_query(self, variant_interval_queryable, sample_id=None):
         """
@@ -369,10 +383,9 @@ class SingleVariantProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
                 variant_interval_queryable.variant_intervals):
             variants = self._filter_snv(variants)
             for variant in variants:
-
                 yield [
                     *ref_cds_seq[:i],
                     self.variant_seq_extractor.extract(
                         interval, [variant], anchor=0),
                     *ref_cds_seq[(i+1):],
-                ]
+                ], self._prepare_variants([variant])
