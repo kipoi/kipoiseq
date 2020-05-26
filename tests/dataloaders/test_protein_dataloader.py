@@ -33,3 +33,18 @@ def test_single_variant_protein_dataLoader(single_variant_protein_dataLoader):
     assert len(units[2]) == 2
     assert len(units[2]['input']) == 2
     assert len(units[2]['metadata']) == 18  # number of columns
+    
+    assert units[0]['metadata']['variants']['ref'] == "C"
+    assert units[0]['metadata']['variants']['alt'] == "G"
+    assert units[0]['metadata']['variants']['pos'] == 596
+    assert units[0]['metadata']['variants']['id'] == "9"
+    
+    assert units[1]['metadata']['variants']['ref'] == "A"
+    assert units[1]['metadata']['variants']['alt'] == "G"
+    assert units[1]['metadata']['variants']['pos'] == 597
+    assert units[1]['metadata']['variants']['id'] == "10"
+    
+    assert units[2]['metadata']['variants']['ref'] == "T"
+    assert units[2]['metadata']['variants']['alt'] == "G"
+    assert units[2]['metadata']['variants']['pos'] == 598
+    assert units[2]['metadata']['variants']['id'] == "11"
