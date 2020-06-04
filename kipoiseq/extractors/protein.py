@@ -62,6 +62,15 @@ def gtf_row2interval(row, interval_attrs: List[str] = None):
                     attrs=interval_attrs)
 
 
+def _get_biotype_str(df):
+    if 'transcript_biotype' in df:
+        return 'transcript_biotype'
+    elif 'gene_biotype' in df:
+        return 'gene_biotype'
+    else:
+        raise ValueError('Cannot obtain `biotype_str` from gtf file')
+
+
 class CDSFetcher:
 
     def __init__(self, gtf_file):
@@ -92,22 +101,13 @@ class CDSFetcher:
         Create DataFrame with valid cds
         :param df:
         """
-        biotype_str = CDSFetcher._get_biotype_str(df)
+        biotype_str = _get_biotype_str(df)
         df = (df
               .query("{} == 'protein_coding'".format(biotype_str))
               .query("(Feature == 'CDS') | (Feature == 'CCDS')")
               )
         df = df[df['tag'].notna()]  # grch37 have ccds without tags
         return df[df["tag"].str.contains("basic|CCDS")].set_index('transcript_id')
-
-    @staticmethod
-    def _get_biotype_str(df):
-        if 'transcript_biotype' in df:
-            return 'transcript_biotype'
-        elif 'gene_biotype' in df:
-            return 'gene_biotype'
-        else:
-            raise ValueError('Cannot obtain `biotype_str` from gtf file')
 
     @staticmethod
     def _filter_valid_transcripts(cds):

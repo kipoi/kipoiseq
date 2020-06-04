@@ -13,7 +13,6 @@ fasta_file = 'tests/data/demo_dna_seq.fa'
 transcript_id = 'enst_test1'
 vcf_file = 'tests/data/singleVar_vcf_enst_test2.vcf.gz'
 
-
 intervals = [
     Interval('22', 580, 596, strand='+', attrs={'tag': 'cds_end_NF'}),
     Interval('22', 597, 610, strand='+', attrs={'tag': 'cds_end_NF'})
@@ -75,8 +74,7 @@ def test_CDSFetcher__len__(cds_fetcher):
 
 def test_CDSFetcher_get_cds(cds_fetcher):
     intervals = cds_fetcher.get_cds(transcript_id)
-    intervals[0] == Interval(chrom='22', start=598,
-                             end=3196, name='', strand='+')
+    intervals[0] == Interval(chrom='22', start=598, end=3196, name='', strand='+')
     # TODO: Improve testcase with adding transcript with 2 cds
 
 
@@ -129,6 +127,7 @@ def test_ProteinSeqExtractor_prepare_seq(protein_seq_extractor):
 def test_ProteinVCFSeqExtractor__unstrand():
     unstrand_intervals = ProteinVCFSeqExtractor._unstrand(intervals)
     assert all(i.strand == '.' for i in unstrand_intervals)
+
 
 # TODO: write test for with sample_id
 
@@ -194,7 +193,7 @@ def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein, transcript_
 
     assert len(seq) == len(ref_seq)
     count = diff_between_two_seq(seq, ref_seq)
-    assert count == 1, 'Expected diff of 1 AA, but it was: '+str(count)
+    assert count == 1, 'Expected diff of 1 AA, but it was: ' + str(count)
 
     vcf_file = 'tests/data/singleSeq_vcf_enst_test2.vcf.gz'
     single_seq_protein = SingleSeqProteinVCFSeqExtractor(
@@ -235,7 +234,7 @@ def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcr
             assert seq == expected_seq[i]
         assert tr_id == 'enst_test2'
     assert counter == 3, 'Number of variants in vcf 3, but # of seq was: ' + \
-        str(counter)
+                         str(counter)
 
     transcript_id = ['enst_test2', 'enst_test1']
     seqs = single_variant_seq.extract_list(transcript_id)
@@ -255,7 +254,7 @@ def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcr
     for seq in seqs:
         assert len(seq) == len(ref_seq)
         count = diff_between_two_seq(seq, ref_seq)
-        assert count == 1, 'Expected diff of 1 AA, but it was: '+str(count)
+        assert count == 1, 'Expected diff of 1 AA, but it was: ' + str(count)
 
     vcf_file = 'tests/data/singleSeq_vcf_enst_test2.vcf.gz'
     single_var_protein = SingleVariantProteinVCFSeqExtractor(
