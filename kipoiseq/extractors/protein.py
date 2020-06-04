@@ -7,7 +7,6 @@ from kipoiseq.extractors.vcf import MultiSampleVCF
 from kipoiseq.extractors.vcf_seq import VariantSeqExtractor
 from kipoiseq.extractors.vcf_matching import SingleVariantMatcher
 from typing import List
-import pyranges
 import pandas as pd
 
 # TODO: convert print to logs
@@ -74,6 +73,7 @@ class CDSFetcher:
         Read, extract and filter valid cds from the given gtf_file
         :param gtf_file:
         """
+        import pyranges
         df = pyranges.read_gtf(gtf_file, as_df=True,
                                duplicate_attr=duplicate_attr)
         cds = CDSFetcher._get_cds_from_gtf(df)
@@ -229,6 +229,7 @@ class ProteinVCFSeqExtractor:
         self.vcf_file = str(vcf_file)
         self.cds_fetcher = CDSFetcher(self.gtf_file)
         # dataframe to pyranges
+        import pyranges
         pr_cds = pyranges.PyRanges(self.cds_fetcher.cds.reset_index())
         # match variant with transcript_id
         self.single_variant_matcher = SingleVariantMatcher(
