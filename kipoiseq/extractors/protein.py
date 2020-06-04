@@ -9,9 +9,9 @@ from kipoiseq.extractors.vcf_matching import SingleVariantMatcher
 from typing import List
 import pandas as pd
 
+
 # TODO: convert print to logs
 # TODO: documentation
-
 
 def cut_transcript_seq(seq: str, tag: str):
     """
@@ -25,14 +25,20 @@ def cut_transcript_seq(seq: str, tag: str):
     seq = 'NNN'
     """
     if "cds_end_NF" in tag and "cds_start_NF" not in tag:
-        while(len(seq) % 3 != 0):
-            seq = seq[:-1]
+        # remove suffix
+        seq_modulo = len(seq) % 3
+        if seq_modulo != 0:
+            seq = seq[:-seq_modulo]
+
         if seq[-3:] in ["TAA", "TAG", "TGA"]:
             seq = seq[:-3]
     elif "cds_end_NF" not in tag and "cds_start_NF" in tag and len(seq) % 3 != 0:
-        while(len(seq) % 3 != 0):
-            seq = seq[1:]
-        seq = "XXX"+seq
+        # remove prefix
+        seq_modulo = len(seq) % 3
+        if seq_modulo != 0:
+            seq = seq[seq_modulo:]
+
+        seq = "XXX" + seq
     elif "cds_end_NF" in tag and "cds_start_NF" in tag:
         print("Ambiguous start and end! Skip seq!")
         seq = "NNN"  # NNN will be translated as empty string
@@ -321,7 +327,7 @@ class ProteinVCFSeqExtractor:
                 yield variant
             elif len(variant.ref) == len(variant.alt) > 1:
                 print('Current version of extractor works only for len(variant.ref)'
-                      ' == len(variant.alt) == 1, but the len was: '+str(len(variant.alt)))
+                      ' == len(variant.alt) == 1, but the len was: ' + str(len(variant.alt)))
             else:
                 print('Current version of extractor ignores indel'
                       ' to avoid shift in frame')
@@ -385,8 +391,8 @@ class SingleVariantProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
             variants = self._filter_snv(variants)
             for variant in variants:
                 yield [
-                    *ref_cds_seq[:i],
-                    self.variant_seq_extractor.extract(
-                        interval, [variant], anchor=0),
-                    *ref_cds_seq[(i+1):],
-                ], self._prepare_variants([variant])
+                          *ref_cds_seq[:i],
+                          self.variant_seq_extractor.extract(
+                              interval, [variant], anchor=0),
+                          *ref_cds_seq[(i + 1):],
+                      ], self._prepare_variants([variant])
