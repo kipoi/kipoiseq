@@ -162,6 +162,8 @@ class CDSFetcher:
             filter_tag=filter_tag,
             on_error_warn=on_error_warn
         )
+
+        cds = cds.set_index("transcript_id")
         return cds
 
     @staticmethod
