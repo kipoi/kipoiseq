@@ -2,7 +2,6 @@ from kipoiseq.extractors import SingleVariantProteinVCFSeqExtractor, \
     TranscriptSeqExtractor
 from kipoi.data import SampleIterator
 
-
 __all__ = [
     'SingleVariantProteinDataLoader'
 ]

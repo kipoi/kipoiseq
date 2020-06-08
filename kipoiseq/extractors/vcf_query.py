@@ -153,10 +153,10 @@ class VariantIntervalQueryable:
         for variants, interval in self.variant_intervals:
             variants = list(variants)
             yield (
-                v
-                for v, cond in zip(variants, query(variants, interval))
-                if cond
-            ), interval
+                      v
+                      for v, cond in zip(variants, query(variants, interval))
+                      if cond
+                  ), interval
 
     def to_vcf(self, path):
         """

@@ -11,7 +11,6 @@ from kipoiseq.extractors import FastaStringExtractor
 from kipoiseq.transforms.functional import resize_interval
 from kipoiseq.utils import to_scalar, parse_dtype
 
-
 # general dependencies
 # bioconda::genomelake', TODO - add genomelake again once it gets released with pyfaidx to bioconda
 deps = Dependencies(conda=['bioconda::pybedtools', 'bioconda::pyfaidx', 'numpy', 'pandas'],

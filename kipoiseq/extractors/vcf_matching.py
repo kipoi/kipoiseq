@@ -7,8 +7,8 @@ try:
     from pyranges import PyRanges
 except ImportError:
     from typing import Any
-    PyRanges = Any
 
+    PyRanges = Any
 
 __all__ = [
     'variants_to_pyranges',
@@ -112,7 +112,7 @@ class BaseVariantMatcher:
         self.vcf = MultiSampleVCF(vcf_file, lazy=vcf_lazy)
         self.interval_attrs = interval_attrs
         self.pr = self._read_intervals(gtf_path, bed_path, pranges,
-                                       intervals, interval_attrs, duplicate_attr = True)
+                                       intervals, interval_attrs, duplicate_attr=True)
         self.variant_batch_size = variant_batch_size
 
     @staticmethod

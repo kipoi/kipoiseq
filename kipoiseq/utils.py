@@ -1,7 +1,6 @@
 import numpy as np
 from six import string_types
 
-
 # alphabets:
 DNA = ["A", "C", "G", "T"]
 RNA = ["A", "C", "G", "U"]

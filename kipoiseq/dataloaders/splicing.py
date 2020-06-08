@@ -26,6 +26,8 @@ try:
     ModuleNotFoundError
 except NameError:
     ModuleNotFoundError = ImportError
+
+
 # ------------
 
 
@@ -261,7 +263,7 @@ class MMSpliceDl(SampleIterator):
                                  exon.overhang[0],  # intron5prime_len
                                  exon.overhang[1]  # intron3prime_len
                                  )
-        return{
+        return {
             'inputs': {
                 'seq': seq
             },
@@ -274,7 +276,6 @@ class MMSpliceDl(SampleIterator):
 
     # python 2.7 compatibility
     next = __next__
-
 
 # TODO - implement
 # class SpliceDonorSeqDl(SampleIterator):
