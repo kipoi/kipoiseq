@@ -1,4 +1,4 @@
-from itertools import chain, islice
+# from itertools import chain, islice
 import numpy as np
 from kipoiseq.dataclasses import Interval
 from kipoiseq.transforms.functional import rc_dna, translate
@@ -7,10 +7,12 @@ from kipoiseq.extractors.vcf import MultiSampleVCF
 from kipoiseq.extractors.vcf_seq import VariantSeqExtractor
 from kipoiseq.extractors.vcf_matching import SingleVariantMatcher
 from typing import List
-import pandas as pd
+
+import logging
+
+log = logging.getLogger(__name__)
 
 
-# TODO: convert print to logs
 # TODO: documentation
 
 def cut_transcript_seq(seq: str, tag: str):
@@ -40,10 +42,10 @@ def cut_transcript_seq(seq: str, tag: str):
 
         seq = "XXX" + seq
     elif "cds_end_NF" in tag and "cds_start_NF" in tag:
-        print("Ambiguous start and end! Skip seq!")
+        log.warning("Ambiguous start and end! Skip seq!")
         seq = "NNN"  # NNN will be translated as empty string
     elif "cds_end_NF" not in tag and "cds_start_NF" not in tag and len(seq) % 3 != 0:
-        print("No tags for ambiguous start and end, but len % 3 != 0. Skip seq!")
+        log.warning("No tags for ambiguous start and end, but len % 3 != 0. Skip seq!")
         seq = "NNN"  # NNN will be translated as empty string
 
     return seq
@@ -62,6 +64,19 @@ def gtf_row2interval(row, interval_attrs: List[str] = None):
                     attrs=interval_attrs)
 
 
+def _filter_valid_transcripts(gtf_df):
+    if 'transcript_support_level' in gtf_df:
+        gtf_df = gtf_df[~gtf_df.transcript_support_level.isnull()]
+        gtf_df = gtf_df[gtf_df.transcript_support_level != 'NA']
+        gtf_df.transcript_support_level = gtf_df.transcript_support_level.astype(
+            int)
+        gtf_df = gtf_df[~gtf_df.transcript_support_level.isna()]
+    else:
+        raise ValueError('Transcript support level not in gtf. '
+                         'Skipping the associated filters.')
+    return gtf_df
+
+
 def _get_biotype_str(df):
     if 'transcript_biotype' in df:
         return 'transcript_biotype'
@@ -71,55 +86,117 @@ def _get_biotype_str(df):
         raise ValueError('Cannot obtain `biotype_str` from gtf file')
 
 
+def _filter_biotype(gtf_df, value):
+    """
+    Gets the biotype column and checks whether it equals `value`.
+    :param gtf_df: genome annotation GTF dataframe
+    :param value: The value to check for
+    :return: filtered dataframe
+    """
+    biotype_str = _get_biotype_str(gtf_df)
+    return gtf_df.query(
+        "{key} == '{value}'".format(key=biotype_str, value=value)
+    )
+
+
+def _filter_biotype_proteincoding(gtf_df):
+    return _filter_biotype(gtf_df, value="protein_coding")
+
+
+def _filter_tag(gtf_df, regex_contains):
+    return gtf_df.query(
+        "tag.notnull() & tag.str.contains('{}')".format(regex_contains)
+    )
+
+
 class CDSFetcher:
 
-    def __init__(self, gtf_file):
+    def __init__(
+            self,
+            gtf_file,
+            filter_valid_transcripts=True,
+            filter_biotype=True,
+            filter_tag=True,
+            on_error_warn=True,
+    ):
         """
         Protein sequences in the genome
         :param gtf_file:
         """
         self.gtf_file = str(gtf_file)
-        self.cds = self._read_cds(self.gtf_file, duplicate_attr=True)
+        self.cds = self._read_cds(
+            self.gtf_file,
+            filter_valid_transcripts=filter_valid_transcripts,
+            filter_biotype=filter_biotype,
+            filter_tag=filter_tag,
+            on_error_warn=on_error_warn
+        )
         self.transcripts = self.cds.index.unique()
 
     @staticmethod
-    def _read_cds(gtf_file, duplicate_attr=False):
+    def _read_cds(
+            gtf_file,
+            filter_valid_transcripts=False,
+            filter_biotype=False,
+            filter_tag=False,
+            duplicate_attr=None,
+            on_error_warn=True,
+    ):
         """
         Read, extract and filter valid cds from the given gtf_file
-        :param gtf_file:
+        :param gtf_file: path to the GTF file
         """
         import pyranges
-        df = pyranges.read_gtf(gtf_file, as_df=True,
-                               duplicate_attr=duplicate_attr)
-        cds = CDSFetcher._get_cds_from_gtf(df)
-        cds = CDSFetcher._filter_valid_transcripts(cds)
+
+        if duplicate_attr == None:
+            # One row in the GTF file can have multiple tags;
+            # therefore, to filter them we have to allow duplicate attrs.
+            duplicate_attr = filter_tag
+
+        df = pyranges.read_gtf(gtf_file, as_df=True, duplicate_attr=duplicate_attr)
+
+        cds = CDSFetcher.get_cds_from_gtf(
+            df,
+            filter_valid_transcripts=filter_valid_transcripts,
+            filter_biotype=filter_biotype,
+            filter_tag=filter_tag,
+            on_error_warn=on_error_warn
+        )
         return cds
 
     @staticmethod
-    def _get_cds_from_gtf(df):
+    def get_cds_from_gtf(
+            df,
+            filter_valid_transcripts=False,
+            filter_biotype=False,
+            filter_tag=False,
+            on_error_warn=True,
+    ):
         """
         Create DataFrame with valid cds
-        :param df:
+        :param df: the GTF dataframe
+        :param filter_valid_transcripts: Filter for "transcript_support_level" column in GTF
+        :param filter_biotype: Filter for "[gene|transcript]_biotype == 'protein_coding'" in GTF
+        :param filter_tag: Filter for 'basic' or 'CCDS' tag
         """
-        biotype_str = _get_biotype_str(df)
-        df = (df
-              .query("{} == 'protein_coding'".format(biotype_str))
-              .query("(Feature == 'CDS') | (Feature == 'CCDS')")
-              )
-        df = df[df['tag'].notna()]  # grch37 have ccds without tags
-        return df[df["tag"].str.contains("basic|CCDS")].set_index('transcript_id')
+        cds = df.query("(Feature == 'CDS') | (Feature == 'CCDS')")
 
-    @staticmethod
-    def _filter_valid_transcripts(cds):
-        if 'transcript_support_level' in cds:
-            cds = cds[~cds.transcript_support_level.isnull()]
-            cds = cds[cds.transcript_support_level != 'NA']
-            cds.transcript_support_level = cds.transcript_support_level.astype(
-                int)
-            cds = cds[~cds.transcript_support_level.isna()]
-        else:
-            print('Transcript support level not in gtf.'
-                  'Skipping the associated filters.')
+        if filter_biotype:
+            try:
+                cds = _filter_biotype_proteincoding(cds)
+            except ValueError as e:
+                log.warning("Error during filtering biotype: %s", e)
+        if filter_valid_transcripts:
+            try:
+                cds = _filter_valid_transcripts(cds)
+            except ValueError as e:
+                log.warning("Error during filtering for valid transcripts: %s", e)
+        if filter_tag:
+            try:
+                cds = _filter_tag(cds, regex_contains='basic|CCDS')
+            except ValueError as e:
+                log.warning("Error during filtering for tag: %s", e)
+
         return cds
 
     def __len__(self):
@@ -295,7 +372,7 @@ class ProteinVCFSeqExtractor:
                 for transcript_id in pr.df.transcript_id.drop_duplicates():
                     yield transcript_id, self.extract(transcript_id)
             else:
-                print('No matched variants with transcript_ids.')
+                log.warning('No matched variants with transcript_ids.')
 
     def extract_list(self, list_with_transcript_id: List[str]):
         """
@@ -326,11 +403,11 @@ class ProteinVCFSeqExtractor:
             if len(variant.ref) == len(variant.alt) == 1:  # only SOVs supported
                 yield variant
             elif len(variant.ref) == len(variant.alt) > 1:
-                print('Current version of extractor works only for len(variant.ref)'
-                      ' == len(variant.alt) == 1, but the len was: ' + str(len(variant.alt)))
+                log.warning('Current version of extractor works only for len(variant.ref)'
+                            ' == len(variant.alt) == 1, but the len was: ' + str(len(variant.alt)))
             else:
-                print('Current version of extractor ignores indel'
-                      ' to avoid shift in frame')
+                log.warning('Current version of extractor ignores indel'
+                            ' to avoid shift in frame')
 
 
 class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
