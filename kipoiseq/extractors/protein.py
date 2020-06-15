@@ -613,14 +613,13 @@ class ProteinVCFSeqExtractor(VCFSeqExtractor, metaclass=abc.ABCMeta):
         multi_sample_VCF = MultiSampleVCF(self.vcf_file)
 
         ranges_df = CDSFetcher(self.gtf_file).cds
-        ranges_df = ranges_df.set_index("transcript_id")
 
         # dataframe to pyranges
         import pyranges
         # match variant with transcript_id
         variant_matcher = SingleVariantMatcher(
             self.vcf_file,
-            pranges=pyranges.PyRanges(self.ranges_df.reset_index())
+            pranges=pyranges.PyRanges(ranges_df.reset_index())
         )
 
         super().__init__(

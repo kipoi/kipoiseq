@@ -1,17 +1,26 @@
 import abc
+from typing import List
 
 from kipoiseq import Interval
 
 __all__ = ["BaseExtractor", "FastaStringExtractor"]  # "BigWigExtractor"]
 
+from kipoiseq.transforms.functional import rc_dna
+
 
 class BaseExtractor(object):
     __metaclass__ = abc.ABCMeta
+
+    _use_strand: bool
 
     # main method
     @abc.abstractmethod
     def extract(self, interval: Interval, *args, **kwargs) -> str:
         raise NotImplementedError
+
+    @property
+    def use_strand(self):
+        return self._use_strand
 
     # closing files
     def __del__(self):
@@ -40,7 +49,7 @@ class FastaStringExtractor(BaseExtractor):
         from pyfaidx import Fasta
 
         self.fasta_file = fasta_file
-        self.use_strand = use_strand
+        self._use_strand = use_strand
         self.fasta = Fasta(self.fasta_file)
         self.force_upper = force_upper
 
