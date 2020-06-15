@@ -73,7 +73,7 @@ def test_CDSFetcher__len__(cds_fetcher):
 
 
 def test_CDSFetcher_get_cds(cds_fetcher):
-    intervals = cds_fetcher.get_cds(transcript_id)
+    intervals = cds_fetcher.get_intervals(transcript_id)
     intervals[0] == Interval(chrom='22', start=598, end=3196, name='', strand='+')
     # TODO: Improve testcase with adding transcript with 2 cds
 
@@ -141,7 +141,7 @@ def protein_vcf_seq(mocker):
 
 
 def test_ProteinVCFSeqExtractor_extract_cds(protein_vcf_seq):
-    protein_seqs = list(protein_vcf_seq.extract_cds(intervals))
+    protein_seqs = list(protein_vcf_seq.extract_sequence_by_intervals(intervals))
 
     assert protein_seqs[0][0] == 'ID'
     assert protein_seqs[1][0] == 'HR'
@@ -198,7 +198,9 @@ def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein, transcript_
     vcf_file = 'tests/data/singleSeq_vcf_enst_test2.vcf.gz'
     single_seq_protein = SingleSeqProteinVCFSeqExtractor(
         gtf_file, fasta_file, vcf_file)
-    seq = list(single_seq_protein.extract_all())
+
+    # transcripts without variants return the reference sequence
+    seq = [seq for t_id, (seq, variants) in single_seq_protein.extract_all() if len(variants) > 0]
     assert len(seq) == 0
 
 
@@ -229,6 +231,8 @@ def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcr
     counter = 0
     for tr_id, t_id_seqs in seqs:
         t_id_seqs = [seq for seq, info in list(t_id_seqs)]
+        if len(t_id_seqs) == 0:
+            continue
         counter += len(t_id_seqs)
         for i, seq in enumerate(t_id_seqs):
             assert seq == expected_seq[i]
@@ -237,7 +241,7 @@ def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcr
                          str(counter)
 
     transcript_id = ['enst_test2', 'enst_test1']
-    seqs = single_variant_seq.extract_list(transcript_id)
+    seqs = single_variant_seq.extract_multiple(transcript_id)
     for tr_id, t_id_seqs in seqs:
         assert tr_id in ['enst_test2', 'enst_test1'], tr_id
 
@@ -256,13 +260,15 @@ def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcr
         count = diff_between_two_seq(seq, ref_seq)
         assert count == 1, 'Expected diff of 1 AA, but it was: ' + str(count)
 
+    # this test should result in 0 sequences yielded
     vcf_file = 'tests/data/singleSeq_vcf_enst_test2.vcf.gz'
     single_var_protein = SingleVariantProteinVCFSeqExtractor(
         gtf_file, fasta_file, vcf_file)
     length = 0
     seqs = list(single_var_protein.extract_all())
-    for t_id in seqs:
-        length = len(list(t_id))
+    for tr_id, t_id_seqs in seqs:
+        t_id_seqs = [seq for seq, info in list(t_id_seqs)]
+        length += len(t_id_seqs)
     assert length == 0
 
 # TODO: add for all proteins.pep.all.fa

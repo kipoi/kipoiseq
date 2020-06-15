@@ -1,12 +1,17 @@
 # from itertools import chain, islice
+import abc
+
+import pandas as pd
 import numpy as np
-from kipoiseq.dataclasses import Interval
+from kipoiseq.extractors.vcf_query import VariantIntervalQueryable
+
+from kipoiseq.dataclasses import Interval, Variant
 from kipoiseq.transforms.functional import rc_dna, translate
-from kipoiseq.extractors.base import FastaStringExtractor
+from kipoiseq.extractors.base import FastaStringExtractor, BaseExtractor
 from kipoiseq.extractors.vcf import MultiSampleVCF
 from kipoiseq.extractors.vcf_seq import VariantSeqExtractor
-from kipoiseq.extractors.vcf_matching import SingleVariantMatcher
-from typing import List
+from kipoiseq.extractors.vcf_matching import SingleVariantMatcher, BaseVariantMatcher
+from typing import List, Tuple, Union
 
 import logging
 
@@ -109,7 +114,46 @@ def _filter_tag(gtf_df, regex_contains):
     )
 
 
-class CDSFetcher:
+class SpliceIntervalFetcher(metaclass=abc.ABCMeta):
+
+    @abc.abstractmethod
+    def keys(self) -> List[object]:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_intervals(self, key) -> List[Interval]:
+        """
+        Returns a list of Intervals on request of some key
+        :param key: The identifier for the requested intervals
+        :return: list of intervals
+        """
+        raise NotImplementedError()
+
+    def sel(self, *args, **kwargs):
+        """
+        alias for get_intervals
+        """
+        return self.get_intervals(*args, **kwargs)
+
+    def isel(self, idx):
+        """
+        Get interval by index
+        :param idx: index in the range (0, len(self))
+        """
+        return self.get_intervals(self.keys()[idx])
+
+    def __len__(self):
+        return len(self.keys())
+
+    def __getitem__(self, idx):
+        return self.isel(idx)
+
+    def __iter__(self):
+        for i in self.keys():
+            yield self.get_intervals(i)
+
+
+class CDSFetcher(SpliceIntervalFetcher):
 
     def __init__(
             self,
@@ -131,7 +175,8 @@ class CDSFetcher:
             filter_tag=filter_tag,
             on_error_warn=on_error_warn
         )
-        self.transcripts = self.cds.index.unique()
+        self.transcripts = np.asarray(self.cds.index.unique())
+        self.on_error_warn = on_error_warn
 
     @staticmethod
     def _read_cds(
@@ -176,6 +221,7 @@ class CDSFetcher:
     ):
         """
         Create DataFrame with valid cds
+
         :param df: the GTF dataframe
         :param filter_valid_transcripts: Filter for "transcript_support_level" column in GTF
         :param filter_biotype: Filter for "[gene|transcript]_biotype == 'protein_coding'" in GTF
@@ -187,34 +233,159 @@ class CDSFetcher:
             try:
                 cds = _filter_biotype_proteincoding(cds)
             except ValueError as e:
-                log.warning("Error during filtering biotype: %s", e)
+                if on_error_warn:
+                    log.warning("Error during filtering biotype: %s", e)
+                else:
+                    raise e
         if filter_valid_transcripts:
             try:
                 cds = _filter_valid_transcripts(cds)
             except ValueError as e:
-                log.warning("Error during filtering for valid transcripts: %s", e)
+                if on_error_warn:
+                    log.warning("Error during filtering for valid transcripts: %s", e)
+                else:
+                    raise e
         if filter_tag:
             try:
                 cds = _filter_tag(cds, regex_contains='basic|CCDS')
             except ValueError as e:
-                log.warning("Error during filtering for tag: %s", e)
+                if on_error_warn:
+                    log.warning("Error during filtering for tag: %s", e)
+                else:
+                    raise e
 
         return cds
 
-    def __len__(self):
-        return len(self.transcripts)
-
-    def get_cds(self, transcript_id: str):
+    def get_intervals(self, transcript_id: str):
         """
         Create Interval objects of the cds for given transcript_id
         """
         cds = self.cds.loc[[transcript_id]]
-        assert np.all(cds.iloc[0].Strand == cds.Strand)
+
+        check_strand = np.all(cds.iloc[0].Strand == cds.Strand)
+        if not check_strand:
+            if self.on_error_warn:
+                log.warning("Error while processing transcript '%s': strands of CDS parts differ", transcript_id)
+            else:
+                raise ValueError("Error while processing transcript '%s': strands of CDS parts differ" % transcript_id)
 
         return [
             gtf_row2interval(row, ['tag'])
             for i, row in cds.sort_values("Start").iterrows()
         ]
+
+    def keys(self):
+        return self.transcripts
+
+
+class UTRFetcher(SpliceIntervalFetcher):
+
+    def __init__(
+            self,
+            gtf_file,
+            feature_type="5UTR",
+            infer_from_cds=False,
+            on_error_warn=True,
+    ):
+        """
+        Protein sequences in the genome
+        :param gtf_file: path to the GTF file
+        :param feature_type: type of the feature that will be filtered for. In general '5UTR' or '3UTR'.
+        :param infer_from_cds: Substract the CDS from the exon regions to infer the UTR regions.
+            Will use 'feature_type' to decide whether '5UTR' or '3UTR' should be returned.
+        :param on_error_warn: Do not break on error; instead throw warning.
+        """
+        self.gtf_file = str(gtf_file)
+        self.utr_df = self._read_utr(
+            self.gtf_file,
+            feature_type=feature_type,
+            infer_from_cds=infer_from_cds,
+            on_error_warn=on_error_warn
+        )
+        self.transcripts = np.asarray(self.utr_df.index.unique())
+
+        # self.feature_type = feature_type
+        # self.infer_from_cds = infer_from_cds
+        self.on_error_warn = on_error_warn
+
+    @staticmethod
+    def _read_utr(
+            gtf_file,
+            feature_type="5UTR",
+            infer_from_cds=False,
+            on_error_warn=True,
+    ):
+        """
+        Read, extract and filter valid UTRs from the given gtf_file
+        :param gtf_file: path to the GTF file
+        :param feature_type: type of the feature that will be filtered for. In general '5UTR' or '3UTR'.
+        :param infer_from_cds: Substract the CDS from the exon regions to infer the UTR regions.
+            Will use 'feature_type' to decide whether '5UTR' or '3UTR' should be returned.
+        :param on_error_warn: Do not break on error; instead throw warning.
+        """
+        import pyranges
+
+        df = pyranges.read_gtf(gtf_file, as_df=True)
+
+        utr_df = UTRFetcher.get_utr_from_gtf(
+            df,
+            feature_type=feature_type,
+            infer_from_cds=infer_from_cds,
+            on_error_warn=on_error_warn
+        )
+
+        utr_df = utr_df.set_index("transcript_id")
+        return utr_df
+
+    @staticmethod
+    def get_utr_from_gtf(
+            df,
+            feature_type="5UTR",
+            infer_from_cds=False,
+            on_error_warn=True,
+    ):
+        """
+        Create DataFrame with valid UTRs
+        :param df: the GTF dataframe
+        :param feature_type: type of the feature that will be filtered for. In general '5UTR' or '3UTR'.
+        :param infer_from_cds: Substract the CDS from the exon regions to infer the UTR regions.
+            Will use 'feature_type' to decide whether '5UTR' or '3UTR' should be returned.
+        :param on_error_warn: Do not break on error; instead throw warning.
+        """
+        if infer_from_cds:
+            cds = CDSFetcher.get_cds_from_gtf(df=df, on_error_warn=on_error_warn)
+
+            # TODO: implement
+            if feature_type.upper() == "5UTR":
+                pass
+            if feature_type.upper() == "3UTR":
+                pass
+
+            raise NotImplementedError()
+        else:
+            utr_df = df.query("Feature == '{feature_type}')".format(feature_type=feature_type))
+
+        return utr_df
+
+    def get_intervals(self, transcript_id: str):
+        """
+        Create Interval objects of the cds for given transcript_id
+        """
+        utr_df = self.utr_df.loc[[transcript_id]]
+
+        check_strand = np.size(np.unique(utr_df.Strand)) == 1
+        if not check_strand:
+            if self.on_error_warn:
+                log.warning("Error while processing transcript '%s': strands of CDS parts differ", transcript_id)
+            else:
+                raise ValueError("Error while processing transcript '%s': strands of CDS parts differ" % transcript_id)
+
+        return [
+            gtf_row2interval(row, ['tag']) for i, row in utr_df.sort_values("Start").iterrows()
+        ]
+
+    def keys(self):
+        return self.transcripts
 
 
 class TranscriptSeqExtractor:
@@ -230,18 +401,18 @@ class TranscriptSeqExtractor:
         return len(self.cds_fetcher)
 
     @staticmethod
-    def _prepare_seq(seqs: List[str], strand: str, tag: str):
+    def _prepare_seq(seqs: List[str], reverse_complement: Union[str, bool], tag: str):
         """
         Prepare the dna sequence in the final variant, which should be
         translated in amino acid sequence
         :param seqs: current dna sequence
-        :param strand: dna strand, where the gene is located
+        :param reverse_complement: should the dna be reverse-complemented?
         :param tag: tags, which contain information about ambiguous start/end
         :return: prepared dna sequence ready for translation into amino acid
         sequence
         """
         seq = "".join(seqs)
-        if strand == '-':
+        if reverse_complement is True or reverse_complement == "-":
             # optionally reverse complement
             seq = rc_dna(seq)
         seq = cut_transcript_seq(seq, tag)
@@ -254,7 +425,7 @@ class TranscriptSeqExtractor:
         :param transcript_id:
         :return: dna sequence for the given transcript_id
         """
-        cds = self.cds_fetcher.get_cds(transcript_id)
+        cds = self.cds_fetcher.get_intervals(transcript_id)
         seqs = [self.fasta.extract(i) for i in cds]
 
         return self._prepare_seq(seqs, cds[0].strand, cds[0].attrs["tag"])
@@ -295,34 +466,48 @@ class TranscriptSeqExtractor:
 class ProteinSeqExtractor(TranscriptSeqExtractor):
 
     @staticmethod
-    def _prepare_seq(seqs: List[str], strand: str, tag: str):
+    def _prepare_seq(seqs: List[str], reverse_complement: bool, tag: str):
         """
         Prepare the dna sequence and translate it into amino acid sequence
         :param seqs: current dna sequence
-        :param strand: dna strand, where the gene is located
+        :param reverse_complement: sould the DNA be reverse-complemented?
         :param tag: tags, which contain information about ambiguous start/end
         :return: amino acid sequence
         """
-        return translate(TranscriptSeqExtractor._prepare_seq(seqs, strand, tag), True)
+        return translate(TranscriptSeqExtractor._prepare_seq(seqs, reverse_complement, tag), True)
 
 
-class ProteinVCFSeqExtractor:
+class VCFSeqExtractor(metaclass=abc.ABCMeta):
 
-    def __init__(self, gtf_file, fasta_file, vcf_file):
-        self.gtf_file = str(gtf_file)
-        self.fasta_file = str(fasta_file)
-        self.vcf_file = str(vcf_file)
-        self.cds_fetcher = CDSFetcher(self.gtf_file)
-        # dataframe to pyranges
-        import pyranges
-        pr_cds = pyranges.PyRanges(self.cds_fetcher.cds.reset_index())
-        # match variant with transcript_id
-        self.single_variant_matcher = SingleVariantMatcher(
-            self.vcf_file, pranges=pr_cds)
+    def __init__(
+            self,
+            ranges_df: pd.DataFrame,
+            reference_seq_extractor: BaseExtractor,
+            variant_matcher: BaseVariantMatcher,
+            multi_sample_VCF: MultiSampleVCF,
+    ):
+        self.ranges_df = ranges_df
+        self.reference_seq = reference_seq_extractor
+        self.variant_matcher = variant_matcher
+        self.multi_sample_VCF = multi_sample_VCF
 
-        self.fasta = FastaStringExtractor(self.fasta_file)
-        self.multi_sample_VCF = MultiSampleVCF(self.vcf_file)
-        self.variant_seq_extractor = VariantSeqExtractor(self.fasta_file)
+        # takes reference sequence, interval + variants to extract the alternative sequence
+        self.variant_seq_extractor = VariantSeqExtractor(reference_sequence=self.reference_seq)
+
+    @classmethod
+    def from_pyranges(
+            cls,
+            pyranges,
+            concat_by: Union[str, List[str]] = "transcript_id",
+            **kwargs
+    ):
+        return cls(ranges_df=pyranges.df.set_index(concat_by), **kwargs)
+
+    def keys(self):
+        return self.ranges_df.index.drop_duplicates()
+
+    def extract_query(self, variant_interval_queryable: VariantIntervalQueryable, sample_id=None):
+        raise NotImplementedError()
 
     @staticmethod
     def _unstrand(intervals: List[Interval]):
@@ -331,19 +516,137 @@ class ProteinVCFSeqExtractor:
         """
         return [i.unstrand() for i in intervals]
 
+    @classmethod
+    def _prepare_seq(cls, seqs: List[str], reverse_complement: bool) -> str:
+        """
+        Prepare the dna sequence in the final variant by concatenating and eventually reverse-complementing it
+
+        :param seqs: current dna sequence
+        :param reverse_complement: if True, the sequence will be reversed
+        """
+        seq = "".join(seqs)
+        if reverse_complement:
+            # optionally reverse complement
+            seq = rc_dna(seq)
+        return seq
+
+    def extract_sequence(self, intervals_df: pd.DataFrame, sample_id=None) -> Tuple[str, object]:
+        """
+        Extract cds with variants in their dna sequence. It depends on the
+        child class if a sequence have all variants inserted or only one variant
+        is inserted per dna sequence
+        :param intervals_df: GTF dataframe as given by PyRanges containing at least the following columns:
+            - Chromosome
+            - Start
+            - End
+            - Strand
+        :param sample_id: optional sample id
+        :return: alternative sequence with variant information
+        """
+        reverse_complement = intervals_df.iloc[0].Strand == "-"
+        intervals = [
+            gtf_row2interval(row) for i, row in intervals_df.sort_values("Start").iterrows()
+        ]
+        intervals = self._unstrand(intervals)
+
+        variant_interval_queryable = self.multi_sample_VCF.query_variants(intervals, sample_id=sample_id)
+
+        # extract_query can return one sequence per variant or one sequence per sample
+        iter_seqs = self.extract_query(variant_interval_queryable, sample_id=sample_id)
+        for seqs, variant_info in iter_seqs:
+            # 1st seq, 2nd variant info
+            yield self._prepare_seq(seqs, reverse_complement), variant_info
+
+        return None
+
+    def extract_all(self):
+        """
+        Extract all amino acid sequences for transcript_ids with variants
+        given into the vcf_file
+        """
+        yield from self.extract_multiple(self.keys())
+
+    def extract_multiple(self, keys: List[str]):
+        """
+        Extract all amino acid sequences for transcript_id given in the list
+        :param keys: list which contains transcript_ids
+        :return: sequences with variants
+        """
+        for key in keys:
+            retval = self.extract(key)
+            if retval is not None:
+                yield key, retval
+
+    def extract(self, key, sample_id=None):
+        """
+        Extract all amino acid sequences for transcript_id
+        """
+        return self.extract_sequence(self.ranges_df.loc[[key]], sample_id=sample_id)
+
+    def _reference_sequence(self, variant_interval_queryable):
+        """
+        Extract reference sequence without variants
+        """
+        intervals = variant_interval_queryable.iter_intervals()
+        return [self.reference_seq.extract(interval) for interval in intervals]
+
+    def _filter_snv(self, variants):
+        for variant in variants:
+            if len(variant.ref) == len(variant.alt) == 1:  # only SOVs supported
+                yield variant
+            elif len(variant.ref) == len(variant.alt) > 1:
+                log.warning('Current version of extractor works only for len(variant.ref)'
+                            ' == len(variant.alt) == 1, but the len was: ' + str(len(variant.alt)))
+            else:
+                log.warning('Current version of extractor ignores indel'
+                            ' to avoid shift in frame')
+
+
+class ProteinVCFSeqExtractor(VCFSeqExtractor, metaclass=abc.ABCMeta):
+
+    def __init__(self, gtf_file, fasta_file, vcf_file):
+        self.gtf_file = str(gtf_file)
+        self.fasta_file = str(fasta_file)
+        self.vcf_file = str(vcf_file)
+
+        reference_seq = FastaStringExtractor(self.fasta_file)
+        multi_sample_VCF = MultiSampleVCF(self.vcf_file)
+
+        ranges_df = CDSFetcher(self.gtf_file).cds
+        ranges_df = ranges_df.set_index("transcript_id")
+
+        # dataframe to pyranges
+        import pyranges
+        # match variant with transcript_id
+        variant_matcher = SingleVariantMatcher(
+            self.vcf_file,
+            pranges=pyranges.PyRanges(self.ranges_df.reset_index())
+        )
+
+        super().__init__(
+            ranges_df=ranges_df,
+            reference_seq_extractor=reference_seq,
+            variant_matcher=variant_matcher,
+            multi_sample_VCF=multi_sample_VCF,
+        )
+
+    def extract_query(self, variant_interval_queryable: VariantIntervalQueryable, sample_id=None):
+        raise NotImplementedError()
+
     @staticmethod
-    def _prepare_variants(variants: 'List of variants'):
+    def _prepare_variants(variants: List[Variant]):
         variants_dict = dict()
         # fill dict with variants (as dict)
         for index, v in enumerate(variants):
             variants_dict[index] = dict(
-                (key.replace('_', ''), value) for key, value in v.__dict__.items())
+                (key.replace('_', ''), value) for key, value in v.__dict__.items()
+            )
         # if single varint, unpack dict
         if len(variants_dict) == 1:
             variants_dict = variants_dict[0]
         return variants_dict
 
-    def extract_cds(self, cds: List[Interval], sample_id=None):
+    def extract_sequence(self, intervals_df: pd.DataFrame, sample_id=None):
         """
         Extract cds with variants in their dna sequence. It depends on the
         child class if a sequence have all variants inserted or only one variant
@@ -352,53 +655,31 @@ class ProteinVCFSeqExtractor:
         :param sample_id:
         :return: sequence with variants
         """
-        intervals = self._unstrand(cds)
+        # strand = intervals_df.iloc[0].Strand
+        # tags = intervals_df.iloc[0].tag
+        intervals = [
+            gtf_row2interval(row, ["tag"]) for i, row in intervals_df.sort_values("Start").iterrows()
+        ]
 
-        variant_interval_queryable = self.multi_sample_VCF.query_variants(
-            intervals, sample_id=sample_id)
+        yield from self.extract_sequence_by_intervals(intervals)
 
-        iter_seqs = self.extract_query(variant_interval_queryable,
-                                       sample_id=sample_id)
-        for seqs in iter_seqs:
+    def extract_sequence_by_intervals(
+            self,
+            intervals: List[Interval],
+            sample_id: List[str] = None,
+            **kwargs
+    ):
+        reverse_complement = intervals[0].neg_strand
+        tags = intervals[0].attrs["tag"]
+        # remove strand information
+        intervals = [i.unstrand() for i in intervals]
+
+        variant_interval_queryable = self.multi_sample_VCF.query_variants(intervals, sample_id=sample_id)
+
+        iter_seqs = self.extract_query(variant_interval_queryable, sample_id=sample_id)
+        for seqs, variant_info in iter_seqs:
             # 1st seq, 2nd variant info
-            yield ProteinSeqExtractor._prepare_seq(seqs[0], cds[0].strand, cds[0].attrs['tag']), seqs[1]
-
-    def extract_all(self):
-        """
-        Extract all amino acid sequences for transcript_ids with variants
-        given into the vcf_file
-        """
-        for pr in self.single_variant_matcher.iter_pyranges():
-            # check if variants exist
-            if len(pr) > 0:
-                for transcript_id in pr.df.transcript_id.drop_duplicates():
-                    yield transcript_id, self.extract(transcript_id)
-            else:
-                log.warning('No matched variants with transcript_ids.')
-
-    def extract_list(self, list_with_transcript_id: List[str]):
-        """
-        Extract all amino acid sequences for transcript_id given in the list
-        :param list_with_transcript_id: list which contains transcript_ids
-        :return: sequences with variants
-        """
-        for transcript_id in list_with_transcript_id:
-            yield transcript_id, self.extract(transcript_id)
-
-    def extract(self, transcript_id, sample_id=None):
-        """
-        Extract all amino acid sequences for transcript_id
-        """
-        return self.extract_cds(self.cds_fetcher.get_cds(transcript_id),
-                                sample_id=sample_id)
-
-    def _ref_cds_seq(self, variant_interval_queryable):
-        """
-        Extract amino acid sequence without variants, which can be used as
-        reference
-        """
-        intervals = variant_interval_queryable.iter_intervals()
-        return [self.fasta.extract(interval) for interval in intervals]
+            yield ProteinSeqExtractor._prepare_seq(seqs, reverse_complement, tags), variant_info
 
     def _filter_snv(self, variants):
         for variant in variants:
@@ -421,36 +702,32 @@ class SingleSeqProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
         :param variant_interval_queryable: Object which contains information
         about the variants for current sequence
         :param sample_id:
-        :return: dna sequence with all variants
+        :return: dna sequence with all variants. If no variants match, will return the reference sequence.
         """
         seqs = []
-        flag = True
-        variants_info = list()
+        variants_info = []
         for variants, interval in variant_interval_queryable.variant_intervals:
             variants = list(self._filter_snv(variants))
             if len(variants) > 0:
                 flag = False
                 variants_info.extend(variants)
-            seqs.append(self.variant_seq_extractor.extract(
-                interval, variants, anchor=0))
-        if flag:
-            seqs = []
-            variants_info = []
+            seqs.append(
+                self.variant_seq_extractor.extract(interval, variants, anchor=0)
+            )
         yield "".join(seqs), self._prepare_variants(variants_info)
 
     def extract_query(self, variant_interval_queryable, sample_id=None):
         """
         Extract dna sequence with all variants inserted
         """
-        cds_seqs = list(self._extract_query(variant_interval_queryable,
-                                            sample_id=sample_id))
+        cds_seqs = list(self._extract_query(variant_interval_queryable, sample_id=sample_id))
         return cds_seqs
 
-    def extract_cds(self, cds: 'list of Intervals', sample_id=None):
+    def extract_sequence(self, intervals_df: pd.DataFrame, sample_id=None):
         """
         Call parent method which inserts all variants into the dna sequence
         """
-        return next(super().extract_cds(cds, sample_id=sample_id))
+        return next(super().extract_sequence(intervals_df, sample_id=sample_id))
 
 
 class SingleVariantProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
@@ -464,7 +741,7 @@ class SingleVariantProteinVCFSeqExtractor(ProteinVCFSeqExtractor):
         :param sample_id:
         :return: for each variant a sequence with a single variant
         """
-        ref_cds_seq = self._ref_cds_seq(variant_interval_queryable)
+        ref_cds_seq = self._reference_sequence(variant_interval_queryable)
         for i, (variants, interval) in enumerate(
                 variant_interval_queryable.variant_intervals):
             variants = self._filter_snv(variants)
