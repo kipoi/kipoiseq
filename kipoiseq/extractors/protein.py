@@ -100,15 +100,6 @@ class TranscriptSeqExtractor(GenericMultiIntervalSeqExtractor):
         seq = cut_transcript_seq(seq, tag)
         return seq
 
-    def get_seq(self, transcript_id: str):
-        """
-        Extract the dna sequence for given transcript_id
-        and prepare it in its final shape
-        :param transcript_id:
-        :return: dna sequence for the given transcript_id
-        """
-        return self.sel(transcript_id)
-
     def extract(self, intervals: List[Interval], **kwargs) -> str:
         """
         Extract and concatenate the sequence for a list of intervals

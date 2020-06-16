@@ -178,6 +178,25 @@ class GenericMultiIntervalSeqExtractor(BaseMultiIntervalSeqExtractor):
         """
         return self.extract(self.interval_fetcher.isel(idx))
 
+    def get_seq(self, key: Union[object, List[object]]):
+        """
+        Get one or multiple sequences by key.
+        """
+        if isinstance(key, list):
+            return [self.sel(k) for k in key]
+        else:
+            return self.sel(key)
+
+    def iter_seq(self, key: Union[object, List[object]]):
+        """
+        iterate over (list of) keys
+        """
+        if isinstance(key, list):
+            for k in key:
+                yield self.sel(k)
+        else:
+            yield self.sel(key)
+
     def __len__(self):
         return len(self.interval_fetcher)
 
@@ -187,6 +206,12 @@ class GenericMultiIntervalSeqExtractor(BaseMultiIntervalSeqExtractor):
     def items(self):
         for i in self.keys():
             yield i, self.sel(i)
+
+    def extract_all(self):
+        """
+        Extract all sequences; alias for self.items()
+        """
+        yield from self.items()
 
     # def __iter__(self):
     #     for i in self.keys():
@@ -260,32 +285,6 @@ class BaseVCFSeqExtractor(GenericMultiIntervalSeqExtractor, metaclass=abc.ABCMet
             yield self._prepare_seq(seqs, reverse_complement), variant_info
 
         return None
-
-    def get_seq(self, key: Union[object, List[object]]):
-        """
-        Get one or multiple sequences by key.
-        """
-        if isinstance(key, list):
-            return [self.sel(k) for k in key]
-        else:
-            return self.sel(key)
-
-    def iter_seq(self, key: Union[object, List[object]]):
-        """
-        iterate over (list of) keys
-        """
-        if isinstance(key, list):
-            for k in key:
-                yield self.sel(k)
-        else:
-            yield self.sel(key)
-
-    def extract_all(self):
-        """
-        Extract all amino acid sequences for transcript_ids with variants
-        given into the vcf_file
-        """
-        yield from self.items()
 
     @abc.abstractmethod
     def extract_query(self, variant_interval_queryable: 'VariantIntervalQueryable', sample_id=None):
