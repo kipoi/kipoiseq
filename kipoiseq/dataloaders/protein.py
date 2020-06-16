@@ -14,10 +14,13 @@ class SingleVariantProteinDataLoader(SampleIterator):
             gtf_file, fasta_file, vcf_file)
         self.transcript_extractor = TranscriptSeqExtractor(
             gtf_file, fasta_file)
-        cds = self.transcript_extractor.cds_fetcher.cds
+        cds = self.transcript_extractor.cds
         # only needed metadata
-        self.metadatas = ((cds.loc[~cds.index.duplicated(keep='first')]).drop(
-            columns=['Start', 'End']))
+        self.metadatas = (
+            (
+                cds.loc[~cds.index.duplicated(keep='first')]
+            ).drop(columns=['Start', 'End'])
+        )
         # generator for all sequences with variants
         self.sequences = self._extractor()
 

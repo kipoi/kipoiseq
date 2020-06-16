@@ -1,9 +1,14 @@
 import abc
-from typing import List
+from typing import List, Union
 
 from kipoiseq import Interval
 
-__all__ = ["BaseExtractor", "FastaStringExtractor"]  # "BigWigExtractor"]
+__all__ = [
+    "BaseExtractor",
+    "BaseMultiIntervalFetcher",
+    "BaseMultiIntervalSeqExtractor",
+    "GenericMultiIntervalSeqExtractor",
+]
 
 from kipoiseq.transforms.functional import rc_dna
 
@@ -31,78 +36,140 @@ class BaseExtractor(object):
         pass
 
 
-class FastaStringExtractor(BaseExtractor):
-    """Fasta file extractor
+class BaseMultiIntervalSeqExtractor:
 
-    NOTE: The extractor is not thread-save.
-    If you with to use it with multiprocessing,
-    create a new extractor object in each process.
-
-    # Arguments
-      fasta_file (str): path to the fasta_file
-      use_strand (bool): if True, the extracted sequence
-        is reverse complemented in case interval.strand == "-"
-      force_upper (bool): Force uppercase output
-    """
-
-    def __init__(self, fasta_file, use_strand=False, force_upper=False):
-        from pyfaidx import Fasta
-
-        self.fasta_file = fasta_file
+    def __init__(self, extractor: BaseExtractor, use_strand=True):
+        self.extractor = extractor
         self._use_strand = use_strand
-        self.fasta = Fasta(self.fasta_file)
-        self.force_upper = force_upper
 
-    def extract(self, interval: Interval, **kwargs) -> str:
+    @property
+    def use_strand(self):
+        return self._use_strand
+
+    # def __len__(self):
+    #     return len(self.interval_fetcher)
+
+    @classmethod
+    def _prepare_seq(
+            cls,
+            seqs: List[str],
+            # intervals: List[Interval],
+            reverse_complement: Union[str, bool],
+            *args,
+            **kwargs
+    ) -> str:
         """
-        Returns the FASTA sequence in some given interval as string
+        Prepare the dna sequence in the final variant, which should be translated in amino acid sequence
 
-        Args:
-            interval: the interval to query
-            **kwargs:
-
-        Returns:
-            sequence of requested interval
-
+        :param seqs: current dna sequence
+        :param intervals: the list of intervals corresponding to the sequence snippets
+        :param reverse_complement: should the dna be reverse-complemented?
         """
-        # reverse-complement seq the negative strand
-        rc = self.use_strand and interval.strand == "-"
-
-        # pyfaidx wants a 1-based interval
-        seq = str(self.fasta.get_seq(
-            interval.chrom,
-            interval.start + 1,
-            interval.stop,
-            rc=rc
-        ).seq)
-
-        # optionally, force upper-case letters
-        if self.force_upper:
-            seq = seq.upper()
+        seq = "".join(seqs)
+        if reverse_complement is True or reverse_complement == "-":
+            # optionally reverse complement
+            seq = rc_dna(seq)
         return seq
 
-    def close(self):
-        return self.fasta.close()
+    def extract(self, intervals: List[Interval], **kwargs) -> str:
+        """
+        Extract and concatenate the sequence for a list of intervals
+        :param intervals: list of intervals
+        :param kwargs: will be passed on to `_prepare_seq()`
+        :return: concatenated dna sequence of the intervals
+        """
+        seqs = [self.extractor.extract(i) for i in intervals]
 
-# class BigWigExtractor(BaseExtractor):
-#     """Big-wig file extractor
+        reverse_strand = False
+        if self.use_strand:
+            reverse_strand = intervals[0].neg_strand
+            if self.extractor.use_strand:
+                # If the fasta extractor already does the reversion, we do not have to do it manually.
+                # Instead, we need to reverse the list of sequences.
+                seqs.reverse()
+                reverse_strand = False
 
-#     NOTE: The extractor is not thread-save.
-#     If you with to use it with multiprocessing,
-#     create a new extractor object in each process.
+        return self._prepare_seq(seqs, reverse_strand, **kwargs)
 
-#     # Arguments
-#       bigwig_file: path to the bigwig file
-#     """
 
-#     def __init__(self, bigwig_file):
-#         from genomelake.extractors import BigwigExtractor
+class BaseMultiIntervalFetcher(metaclass=abc.ABCMeta):
 
-#         self.bigwig_file = bigwig_file
-#         self.batch_extractor = BigwigExtractor(self.bigwig_file)
+    @abc.abstractmethod
+    def keys(self) -> List[object]:
+        raise NotImplementedError()
 
-#     def extract(self, interval):
-#         return self.batch_extractor([interval])[0]
+    @abc.abstractmethod
+    def get_intervals(self, key) -> List[Interval]:
+        """
+        Returns a list of Intervals on request of some key
+        :param key: The identifier for the requested intervals
+        :return: list of intervals
+        """
+        raise NotImplementedError()
 
-#     def close(self):
-#         return self.batch_extractor.close()
+    def sel(self, *args, **kwargs):
+        """
+        alias for get_intervals
+        """
+        return self.get_intervals(*args, **kwargs)
+
+    def isel(self, idx):
+        """
+        Get interval by index
+        :param idx: index in the range (0, len(self))
+        """
+        return self.get_intervals(self.keys()[idx])
+
+    def __len__(self):
+        return len(self.keys())
+
+    def __getitem__(self, idx):
+        return self.isel(idx)
+
+    def __iter__(self):
+        for i in self.keys():
+            yield self.get_intervals(i)
+
+
+class GenericMultiIntervalSeqExtractor(BaseMultiIntervalSeqExtractor):
+
+    def __init__(self, extractor: BaseExtractor, interval_fetcher: BaseMultiIntervalFetcher, use_strand=True):
+        super().__init__(
+            extractor=extractor,
+            use_strand=use_strand,
+        )
+        self.interval_fetcher = interval_fetcher
+
+    def keys(self) -> List[object]:
+        return self.interval_fetcher.keys()
+
+    def get_intervals(self, key) -> List[Interval]:
+        """
+        Returns a list of Intervals on request of some key
+        :param key: The identifier for the requested intervals
+        :return: list of intervals
+        """
+        return self.interval_fetcher.get_intervals(key)
+
+    def sel(self, *args, **kwargs):
+        """
+        extract sequence by identifier
+        """
+        return self.extract(self.interval_fetcher.sel(*args, **kwargs))
+
+    def isel(self, idx):
+        """
+        extract sequence by  index
+        :param idx: index in the range (0, len(self))
+        """
+        return self.extract(self.interval_fetcher.isel(idx))
+
+    def __len__(self):
+        return len(self.interval_fetcher)
+
+    def __getitem__(self, idx):
+        return self.isel(idx)
+
+    def __iter__(self):
+        for i in self.keys():
+            yield self.get_intervals(i)

@@ -3,10 +3,10 @@ from pytest_mock import mocker
 import pandas as pd
 from kipoiseq.transforms.functional import translate, rc_dna
 from kipoiseq.dataclasses import Interval, Variant
-from kipoiseq.extractors.protein import cut_transcript_seq, gtf_row2interval, \
-    CDSFetcher, TranscriptSeqExtractor, ProteinSeqExtractor, \
+from kipoiseq.extractors.protein import cut_transcript_seq, TranscriptSeqExtractor, ProteinSeqExtractor, \
     ProteinVCFSeqExtractor, SingleSeqProteinVCFSeqExtractor, \
     SingleVariantProteinVCFSeqExtractor
+from kipoiseq.extractors import CDSFetcher, gtf_row2interval
 
 gtf_file = 'tests/data/sample_1_protein.gtf'
 fasta_file = 'tests/data/demo_dna_seq.fa'

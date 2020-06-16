@@ -4,7 +4,8 @@ from cyvcf2 import VCF
 from pyfaidx import Sequence
 from kipoiseq.dataclasses import Variant, Interval
 from kipoiseq.extractors.vcf_seq import IntervalSeqBuilder, \
-    VariantSeqExtractor, SingleSeqVCFSeqExtractor, SingleVariantVCFSeqExtractor, FastaStringExtractor
+    VariantSeqExtractor, SingleSeqVCFSeqExtractor, SingleVariantVCFSeqExtractor
+from kipoiseq.extractors import FastaStringExtractor
 
 fasta_file = sample_5kb_fasta_file
 
