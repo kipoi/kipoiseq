@@ -2,15 +2,25 @@ import abc
 from typing import List, Union
 
 from kipoiseq import Interval
+from kipoiseq.transforms.functional import rc_dna
+
+import logging
+
+log = logging.getLogger(__name__)
 
 __all__ = [
     "BaseExtractor",
     "BaseMultiIntervalFetcher",
     "BaseMultiIntervalSeqExtractor",
     "GenericMultiIntervalSeqExtractor",
+    "BaseVCFSeqExtractor"
 ]
 
-from kipoiseq.transforms.functional import rc_dna
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from kipoiseq.extractors.vcf_matching import BaseVariantMatcher
+    from kipoiseq.extractors.vcf_query import VariantIntervalQueryable, MultiSampleVCF
 
 
 class BaseExtractor(object):
@@ -181,3 +191,120 @@ class GenericMultiIntervalSeqExtractor(BaseMultiIntervalSeqExtractor):
     # def __iter__(self):
     #     for i in self.keys():
     #         yield self.sel(i)
+
+
+class BaseVCFSeqExtractor(GenericMultiIntervalSeqExtractor, metaclass=abc.ABCMeta):
+
+    def __init__(
+            self,
+            interval_fetcher: BaseMultiIntervalFetcher,
+            reference_seq_extractor: BaseExtractor,
+            variant_matcher: 'BaseVariantMatcher',
+            multi_sample_VCF: 'MultiSampleVCF',
+    ):
+        self.variant_matcher = variant_matcher
+        self.multi_sample_VCF = multi_sample_VCF
+
+        # takes reference sequence, interval + variants to extract the alternative sequence
+        from kipoiseq.extractors import VariantSeqExtractor
+        self.variant_seq_extractor = VariantSeqExtractor(reference_sequence=reference_seq_extractor)
+
+        super().__init__(interval_fetcher=interval_fetcher, extractor=reference_seq_extractor)
+
+    @property
+    def reference_seq_extractor(self):
+        return self.extractor
+
+    @classmethod
+    def from_pyranges(
+            cls,
+            pyranges,
+            concat_by: Union[str, List[str]] = "transcript_id",
+            **kwargs
+    ):
+        from kipoiseq.extractors import GTFMultiIntervalFetcher
+        interval_fetcher = GTFMultiIntervalFetcher(region_df=pyranges.df.set_index(concat_by))
+        return cls(interval_fetcher=interval_fetcher, **kwargs)
+
+    @staticmethod
+    def _unstrand(intervals: List[Interval]):
+        """
+        Set strand of list of intervals to default - '.'
+        """
+        return [i.unstrand() for i in intervals]
+
+    def extract(self, intervals: List[Interval], sample_id=None, *args, **kwargs):
+        """
+        Extract cds with variants in their dna sequence. It depends on the
+        child class if a sequence have all variants inserted or only one variant
+        is inserted per dna sequence
+        :param intervals_df: GTF dataframe as given by PyRanges containing at least the following columns:
+            - Chromosome
+            - Start
+            - End
+            - Strand
+        :param sample_id: optional sample id
+        :return: alternative sequence with variant information
+        """
+        reverse_complement = False
+        if self.use_strand:
+            reverse_complement = intervals[0].neg_strand
+        intervals = self._unstrand(intervals)
+
+        variant_interval_queryable = self.multi_sample_VCF.query_variants(intervals, sample_id=sample_id)
+
+        # extract_query can return one sequence per variant or one sequence per sample
+        iter_seqs = self.extract_query(variant_interval_queryable, sample_id=sample_id)
+        for seqs, variant_info in iter_seqs:
+            # 1st seq, 2nd variant info
+            yield self._prepare_seq(seqs, reverse_complement), variant_info
+
+        return None
+
+    def get_seq(self, key: Union[object, List[object]]):
+        """
+        Get one or multiple sequences by key.
+        """
+        if isinstance(key, list):
+            return [self.sel(k) for k in key]
+        else:
+            return self.sel(key)
+
+    def iter_seq(self, key: Union[object, List[object]]):
+        """
+        iterate over (list of) keys
+        """
+        if isinstance(key, list):
+            for k in key:
+                yield self.sel(k)
+        else:
+            yield self.sel(key)
+
+    def extract_all(self):
+        """
+        Extract all amino acid sequences for transcript_ids with variants
+        given into the vcf_file
+        """
+        yield from self.items()
+
+    @abc.abstractmethod
+    def extract_query(self, variant_interval_queryable: 'VariantIntervalQueryable', sample_id=None):
+        raise NotImplementedError()
+
+    def _reference_sequence(self, variant_interval_queryable):
+        """
+        Extract reference sequence without variants
+        """
+        intervals = variant_interval_queryable.iter_intervals()
+        return [self.reference_seq_extractor.extract(interval) for interval in intervals]
+
+    def _filter_snv(self, variants):
+        for variant in variants:
+            if len(variant.ref) == len(variant.alt) == 1:  # only SOVs supported
+                yield variant
+            elif len(variant.ref) == len(variant.alt) > 1:
+                log.warning('Current version of extractor works only for len(variant.ref)'
+                            ' == len(variant.alt) == 1, but the len was: ' + str(len(variant.alt)))
+            else:
+                log.warning('Current version of extractor ignores indel'
+                            ' to avoid shift in frame')

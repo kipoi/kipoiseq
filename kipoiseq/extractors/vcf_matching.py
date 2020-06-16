@@ -12,8 +12,9 @@ except ImportError:
 
 __all__ = [
     'variants_to_pyranges',
+    'BaseVariantMatcher',
     'SingleVariantMatcher',
-    'MultiVariantsMatcher'
+    'MultiVariantsMatcher',
 ]
 
 

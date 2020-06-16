@@ -3,6 +3,16 @@ from typing import Tuple, Iterable, List
 from tqdm import tqdm
 from kipoiseq.dataclasses import Variant, Interval
 
+__all__ = [
+    'BaseVariantQuery',
+    'VariantQuery',
+    'FilterVariantQuery',
+    'BaseVariantIntervalQuery',
+    'VariantIntervalQuery',
+    'NumberVariantQuery',
+    'VariantIntervalQueryable',
+]
+
 
 class BaseVariantQuery:
     __metaclass__ = abc.ABCMeta
