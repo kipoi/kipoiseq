@@ -8,7 +8,7 @@ from kipoiseq import Interval
 
 import logging
 
-from kipoiseq.extractors.base import BaseMultiIntervalFetcher
+from kipoiseq.extractors.multi_interval import BaseMultiIntervalFetcher
 
 log = logging.getLogger(__name__)
 

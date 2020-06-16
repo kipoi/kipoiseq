@@ -5,8 +5,7 @@ from kipoiseq.extractors.gtf import CDSFetcher
 
 from kipoiseq.dataclasses import Interval, Variant
 from kipoiseq.transforms.functional import translate
-from kipoiseq.extractors.base import GenericMultiIntervalSeqExtractor, \
-    BaseVCFSeqExtractor
+from kipoiseq.extractors.multi_interval import GenericMultiIntervalSeqExtractor, BaseMultiIntervalVCFSeqExtractor
 from kipoiseq.extractors.fasta import FastaStringExtractor
 from kipoiseq.extractors.vcf import MultiSampleVCF
 from kipoiseq.extractors.vcf_matching import SingleVariantMatcher
@@ -145,7 +144,7 @@ class ProteinSeqExtractor(TranscriptSeqExtractor):
         return translate(super()._prepare_seq(*args, **kwargs), True)
 
 
-class ProteinVCFSeqExtractor(BaseVCFSeqExtractor, metaclass=abc.ABCMeta):
+class ProteinVCFSeqExtractor(BaseMultiIntervalVCFSeqExtractor, metaclass=abc.ABCMeta):
 
     def __init__(self, gtf_file, fasta_file, vcf_file):
         self.gtf_file = str(gtf_file)
@@ -170,19 +169,6 @@ class ProteinVCFSeqExtractor(BaseVCFSeqExtractor, metaclass=abc.ABCMeta):
             variant_matcher=variant_matcher,
             multi_sample_VCF=multi_sample_VCF,
         )
-
-    @staticmethod
-    def _prepare_variants(variants: List[Variant]):
-        variants_dict = dict()
-        # fill dict with variants (as dict)
-        for index, v in enumerate(variants):
-            variants_dict[index] = dict(
-                (key.replace('_', ''), value) for key, value in v.__dict__.items()
-            )
-        # if single varint, unpack dict
-        if len(variants_dict) == 1:
-            variants_dict = variants_dict[0]
-        return variants_dict
 
     def extract(
             self,
