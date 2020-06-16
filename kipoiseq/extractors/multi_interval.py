@@ -1,5 +1,5 @@
 import abc
-from typing import List, Union
+from typing import List, Union, Iterable, Tuple, Dict
 
 from kipoiseq import Interval, Variant
 from kipoiseq.extractors import BaseExtractor
@@ -13,7 +13,11 @@ __all__ = [
     "BaseMultiIntervalFetcher",
     "BaseMultiIntervalSeqExtractor",
     "GenericMultiIntervalSeqExtractor",
-    "BaseMultiIntervalVCFSeqExtractor"
+    "BaseMultiIntervalVCFSeqExtractor",
+    "GenericSingleSeqMultiIntervalVCFSeqExtractor",
+    "SingleSeqExtractorMixin",
+    "GenericSingleVariantMultiIntervalVCFSeqExtractor",
+    "SingleVariantExtractorMixin",
 ]
 
 from typing import TYPE_CHECKING
@@ -40,10 +44,10 @@ class BaseMultiIntervalSeqExtractor:
     def _prepare_seq(
             cls,
             seqs: List[str],
-            # intervals: List[Interval],
+            intervals: List[Interval],
             reverse_complement: Union[str, bool],
-            *args,
-            **kwargs
+            # *args,
+            # **kwargs
     ) -> str:
         """
         Prepare the dna sequence in the final variant, which should be translated in amino acid sequence
@@ -76,7 +80,7 @@ class BaseMultiIntervalSeqExtractor:
                 seqs.reverse()
                 reverse_strand = False
 
-        return self._prepare_seq(seqs, reverse_strand, **kwargs)
+        return self._prepare_seq(seqs, intervals, reverse_strand, **kwargs)
 
 
 class BaseMultiIntervalFetcher(metaclass=abc.ABCMeta):
@@ -268,16 +272,28 @@ class BaseMultiIntervalVCFSeqExtractor(GenericMultiIntervalSeqExtractor, metacla
 
         variant_interval_queryable = self.multi_sample_VCF.query_variants(intervals, sample_id=sample_id)
 
+        ref_seqs = self._reference_sequence(variant_interval_queryable)
         # extract_query can return one sequence per variant or one sequence per sample
-        iter_seqs = self.extract_query(variant_interval_queryable, sample_id=sample_id)
-        for seqs, variant_info in iter_seqs:
-            # 1st seq, 2nd variant info
-            yield self._prepare_seq(seqs, reverse_complement), variant_info
+        iter_alt_seqs = self.extract_query(
+            variant_interval_queryable=variant_interval_queryable,
+            ref_seqs=ref_seqs,
+            intervals=intervals,
+            reverse_complement=reverse_complement,
+            sample_id=sample_id
+        )
 
-        return None
+        ref_seq = self._prepare_seq(ref_seqs, intervals, reverse_complement)
+        return ref_seq, iter_alt_seqs
 
     @abc.abstractmethod
-    def extract_query(self, variant_interval_queryable: 'VariantIntervalQueryable', sample_id=None):
+    def extract_query(
+            self,
+            variant_interval_queryable: 'VariantIntervalQueryable',
+            ref_seqs: List[str],
+            intervals: List[Interval],
+            reverse_complement: bool,
+            sample_id=None
+    ) -> Iterable[Tuple[str, Dict]]:
         raise NotImplementedError()
 
     def _reference_sequence(self, variant_interval_queryable):
@@ -299,25 +315,88 @@ class BaseMultiIntervalVCFSeqExtractor(GenericMultiIntervalSeqExtractor, metacla
                             ' to avoid shift in frame')
 
 
-class SingleVariantMultiIntervalVCFSeqExtractor(BaseMultiIntervalVCFSeqExtractor):
+class SingleSeqExtractorMixin:
 
-    def extract_query(self, variant_interval_queryable, sample_id=None):
+    def extract_query(
+            self,
+            variant_interval_queryable: 'VariantIntervalQueryable',
+            ref_seqs: List[str],
+            intervals: List[Interval],
+            reverse_complement: bool,
+            sample_id=None
+    ) -> Iterable[Tuple[str, Dict]]:
+        """
+        Iterate through all intervals and extract dna sequence with all variants inserted into it
+        :return: dna sequence with all variants. If no variants match, will return the reference sequence.
+        """
+        seqs = []
+        variants_info = []
+        for variants, interval in variant_interval_queryable.variant_intervals:
+            variants = list(self._filter_snv(variants))
+            if len(variants) > 0:
+                flag = False
+                variants_info.extend(variants)
+            seqs.append(
+                self.variant_seq_extractor.extract(interval, variants, anchor=0)
+            )
+
+        alt_seq = self._prepare_seq(
+            seqs=seqs,
+            intervals=intervals,
+            reverse_complement=reverse_complement
+        )
+        variants_info = self._prepare_variants(variants_info)
+        return (
+            alt_seq,  # the final sequence
+            variants_info,  # dictionary of variants
+        )
+
+        # cds_seqs = list(self._extract_query(variant_interval_queryable, sample_id=sample_id))
+        # return cds_seqs
+
+
+class GenericSingleSeqMultiIntervalVCFSeqExtractor(SingleSeqExtractorMixin, BaseMultiIntervalVCFSeqExtractor):
+    pass
+
+
+class SingleVariantExtractorMixin:
+
+    def extract_query(
+            self,
+            variant_interval_queryable: 'VariantIntervalQueryable',
+            ref_seqs: List[str],
+            intervals: List[Interval],
+            reverse_complement: bool,
+            sample_id=None
+    ) -> Iterable[Tuple[str, Dict]]:
         """
         Iterate through all variants and creates a sequence for
         each variant individually
         :param variant_interval_queryable: Object which contains information
         about the variants for current sequence
+        :param ref_seqs: list of reference sequences
+        :param reverse_complement: should the resulting sequence be reverse-complemented?
         :param sample_id:
         :return: for each variant a sequence with a single variant
         """
-        ref_seq = self._reference_sequence(variant_interval_queryable)
-        for i, (variants, interval) in enumerate(
-                variant_interval_queryable.variant_intervals):
+        # ref_seq = self._reference_sequence(variant_interval_queryable)
+        for i, (variants, interval) in enumerate(variant_interval_queryable.variant_intervals):
             variants = self._filter_snv(variants)
             for variant in variants:
-                yield [
-                          *ref_seq[:i],
-                          self.variant_seq_extractor.extract(
-                              interval, [variant], anchor=0),
-                          *ref_seq[(i + 1):],
-                      ], self._prepare_variants([variant])
+                alt_seq = self._prepare_seq(
+                    seqs=[
+                        *ref_seqs[:i],
+                        self.variant_seq_extractor.extract(
+                            interval, [variant], anchor=0),
+                        *ref_seqs[(i + 1):],
+                    ],
+                    intervals=intervals,
+                    reverse_complement=reverse_complement
+                )
+                variant_info = self._prepare_variants([variant])
+
+                yield alt_seq, variant_info
+
+
+class GenericSingleVariantMultiIntervalVCFSeqExtractor(SingleVariantExtractorMixin, BaseMultiIntervalVCFSeqExtractor):
+    pass
