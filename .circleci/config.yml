@@ -43,7 +43,7 @@ variables:
         apt-get update -y
         apt-get install build-essential -y
         conda install -y cython
-        conda install -y -c bioconda cyvcf2 pybedtools genomelake pyfaidx
+        conda install -y -c bioconda cyvcf2 pybedtools genomelake pyfaidx biopython
   install_kipoi: &install_kipoi
     run:
       name: Install Kipoi
