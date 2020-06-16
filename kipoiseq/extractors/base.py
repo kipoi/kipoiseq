@@ -71,7 +71,7 @@ class BaseMultiIntervalSeqExtractor:
             seq = rc_dna(seq)
         return seq
 
-    def extract(self, intervals: List[Interval], **kwargs) -> str:
+    def extract(self, intervals: List[Interval], *args, **kwargs):
         """
         Extract and concatenate the sequence for a list of intervals
         :param intervals: list of intervals
@@ -126,9 +126,13 @@ class BaseMultiIntervalFetcher(metaclass=abc.ABCMeta):
     def __getitem__(self, idx):
         return self.isel(idx)
 
-    def __iter__(self):
+    def items(self):
         for i in self.keys():
-            yield self.get_intervals(i)
+            yield i, self.get_intervals(i)
+
+    # def __iter__(self):
+    #     for i in self.keys():
+    #         yield self.get_intervals(i)
 
 
 class GenericMultiIntervalSeqExtractor(BaseMultiIntervalSeqExtractor):
@@ -170,6 +174,10 @@ class GenericMultiIntervalSeqExtractor(BaseMultiIntervalSeqExtractor):
     def __getitem__(self, idx):
         return self.isel(idx)
 
-    def __iter__(self):
+    def items(self):
         for i in self.keys():
-            yield self.get_intervals(i)
+            yield i, self.sel(i)
+
+    # def __iter__(self):
+    #     for i in self.keys():
+    #         yield self.sel(i)

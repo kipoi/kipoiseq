@@ -134,14 +134,18 @@ def test_ProteinVCFSeqExtractor__unstrand():
 
 @pytest.fixture
 def protein_vcf_seq(mocker):
-    extractor = ProteinVCFSeqExtractor(gtf_file, fasta_file, vcf_file)
+    class TestExtractor(ProteinVCFSeqExtractor):
+        def extract_query(self, *args, **kwargs):
+            pass
+
+    extractor = TestExtractor(gtf_file, fasta_file, vcf_file)
     extractor.extract_query = mocker.MagicMock(
         return_value=iter(([['ATC', 'GATG'], ['Var_Mutation_Mock']], [['CATC', 'GAT'], ['Var_Mutation_Mock']])))
     return extractor
 
 
 def test_ProteinVCFSeqExtractor_extract_cds(protein_vcf_seq):
-    protein_seqs = list(protein_vcf_seq.extract_sequence_by_intervals(intervals))
+    protein_seqs = list(protein_vcf_seq.extract(intervals))
 
     assert protein_seqs[0][0] == 'ID'
     assert protein_seqs[1][0] == 'HR'
@@ -165,7 +169,7 @@ def test_ProteinVCFSeqExtractor_extract_cds(protein_vcf_seq):
 
 def test_ProteinVCFSeqExtractor_extract(protein_vcf_seq):
     transcript_id = 'enst_test2'
-    protein_seqs = list(protein_vcf_seq.extract(transcript_id))
+    protein_seqs = list(protein_vcf_seq.get_seq(transcript_id))
     assert protein_seqs[0][0] == 'HR'
     assert protein_seqs[1][0] == 'ID'
 
@@ -178,7 +182,7 @@ def single_seq_protein():
 
 def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein, transcript_seq_extractor):
     transcript_id = 'enst_test2'
-    seq, info = single_seq_protein.extract(transcript_id)
+    seq, info = single_seq_protein.get_seq(transcript_id)
     txt_file = 'tests/data/Output_singleSeq_vcf_enst_test2.txt'
     expected_seq = open(txt_file).readline()
     assert seq == expected_seq
@@ -188,7 +192,7 @@ def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein, transcript_
     single_seq_protein = SingleSeqProteinVCFSeqExtractor(
         gtf_file, fasta_file, vcf_file)
 
-    seq, info = single_seq_protein.extract(transcript_id)
+    seq, info = single_seq_protein.get_seq(transcript_id)
     ref_seq = transcript_seq_extractor.get_protein_seq(transcript_id)
 
     assert len(seq) == len(ref_seq)
@@ -219,13 +223,31 @@ def diff_between_two_seq(seq1, seq2):
 
 
 def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcript_seq_extractor):
-    transcript_id = 'enst_test2'
-    seqs = list(single_variant_seq.extract(transcript_id))
     txt_file = 'tests/data/Output_singleVar_vcf_enst_test2.txt'
     expected_seq = open(txt_file).read().splitlines()
+
+    # test single
+    transcript_id = 'enst_test2'
+    seqs = list(single_variant_seq.get_seq(transcript_id))
     assert seqs[0][0] == expected_seq[0]
     assert seqs[1][0] == expected_seq[1]
     assert seqs[2][0] == expected_seq[2]
+
+    # test multiple
+    transcript_id = ['enst_test1', 'enst_test2']
+    transcript_seqs = single_variant_seq.get_seq(transcript_id)
+    assert isinstance(transcript_seqs, list)
+    transcript_seqs = [list(i) for i in transcript_seqs]
+    assert transcript_seqs[1][0][0] == expected_seq[0]
+    assert transcript_seqs[1][1][0] == expected_seq[1]
+    assert transcript_seqs[1][2][0] == expected_seq[2]
+
+    transcript_seqs = single_variant_seq.iter_seq(transcript_id)
+    assert not isinstance(transcript_seqs, list)
+    transcript_seqs = [list(i) for i in transcript_seqs]
+    assert transcript_seqs[1][0][0] == expected_seq[0]
+    assert transcript_seqs[1][1][0] == expected_seq[1]
+    assert transcript_seqs[1][2][0] == expected_seq[2]
 
     seqs = list(single_variant_seq.extract_all())
     counter = 0
@@ -240,18 +262,12 @@ def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcr
     assert counter == 3, 'Number of variants in vcf 3, but # of seq was: ' + \
                          str(counter)
 
-    transcript_id = ['enst_test2', 'enst_test1']
-    seqs = single_variant_seq.extract_multiple(transcript_id)
-    for tr_id, t_id_seqs in seqs:
-        assert tr_id in ['enst_test2', 'enst_test1'], tr_id
-
     vcf_file = 'tests/data/singleVar_vcf_enst_test1_diff_type_of_variants.vcf.gz'
     transcript_id = 'enst_test1'
     single_var_protein = SingleVariantProteinVCFSeqExtractor(
         gtf_file, fasta_file, vcf_file)
 
-    seqs = [seq for seq, info in list(
-        single_var_protein.extract(transcript_id))]
+    seqs = [seq for seq, info in list(single_var_protein.get_seq(transcript_id))]
     ref_seq = transcript_seq_extractor.get_protein_seq(transcript_id)
 
     assert len(seqs) == 1
