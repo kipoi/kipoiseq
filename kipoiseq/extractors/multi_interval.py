@@ -303,17 +303,8 @@ class BaseMultiIntervalVCFSeqExtractor(GenericMultiIntervalSeqExtractor, metacla
         intervals = variant_interval_queryable.iter_intervals()
         return [self.reference_seq_extractor.extract(interval) for interval in intervals]
 
-    def _filter_snv(self, variants):
+    def _filter_snv(self, variants: Iterable):
         yield from variants
-        # for variant in variants:
-        #     if len(variant.ref) == len(variant.alt) == 1:  # only SNVs supported
-        #         yield variant
-        #     elif len(variant.ref) == len(variant.alt) > 1:
-        #         log.warning('Current version of extractor works only for len(variant.ref)'
-        #                     ' == len(variant.alt) == 1, but the len was: ' + str(len(variant.alt)))
-        #     else:
-        #         log.warning('Current version of extractor ignores indel'
-        #                     ' to avoid shift in frame')
 
 
 class SingleSeqExtractorMixin:
@@ -338,7 +329,7 @@ class SingleSeqExtractorMixin:
                 flag = False
                 variants_info.extend(variants)
             seqs.append(
-                self.variant_seq_extractor.extract(interval, variants, anchor=0)
+                self.variant_seq_extractor.extract(interval, variants, anchor=0, fixed_len=False)
             )
 
         alt_seq = self._prepare_seq(
@@ -351,9 +342,6 @@ class SingleSeqExtractorMixin:
             alt_seq,  # the final sequence
             variants_info,  # dictionary of variants
         )
-
-        # cds_seqs = list(self._extract_query(variant_interval_queryable, sample_id=sample_id))
-        # return cds_seqs
 
 
 class GenericSingleSeqMultiIntervalVCFSeqExtractor(SingleSeqExtractorMixin, BaseMultiIntervalVCFSeqExtractor):
@@ -388,7 +376,7 @@ class SingleVariantExtractorMixin:
                     seqs=[
                         *ref_seqs[:i],
                         self.variant_seq_extractor.extract(
-                            interval, [variant], anchor=0),
+                            interval, [variant], anchor=0, fixed_len=False),
                         *ref_seqs[(i + 1):],
                     ],
                     intervals=intervals,

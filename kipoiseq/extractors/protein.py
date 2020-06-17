@@ -1,12 +1,16 @@
 # from itertools import chain, islice
 import abc
 
-from kipoiseq.extractors.gtf import CDSFetcher
+from kipoiseq.extractors import CDSFetcher, UTRFetcher
 
 from kipoiseq.dataclasses import Interval, Variant
 from kipoiseq.transforms.functional import translate
-from kipoiseq.extractors.multi_interval import GenericMultiIntervalSeqExtractor, BaseMultiIntervalVCFSeqExtractor, \
-    SingleVariantExtractorMixin, SingleSeqExtractorMixin
+from kipoiseq.extractors.multi_interval import (
+    GenericMultiIntervalSeqExtractor,
+    BaseMultiIntervalVCFSeqExtractor,
+    SingleVariantExtractorMixin,
+    SingleSeqExtractorMixin,
+)
 from kipoiseq.extractors.fasta import FastaStringExtractor
 from kipoiseq.extractors.vcf import MultiSampleVCF
 from kipoiseq.extractors.vcf_matching import SingleVariantMatcher
@@ -17,7 +21,42 @@ import logging
 log = logging.getLogger(__name__)
 
 
-# TODO: documentation
+class UTRSeqExtractor(GenericMultiIntervalSeqExtractor):
+    def __init__(
+            self,
+            gtf_file,
+            fasta_file,
+            feature_type="5UTR",
+            infer_from_cds=False,
+            on_error_warn=True,
+    ):
+        """
+        Reference sequence extractor for UTR's
+
+        :param fasta_file: fasta file for reference sequence input
+        :param gtf_file: path to the GTF file
+        :param feature_type: type of the feature that will be filtered for. In general '5UTR' or '3UTR'.
+        :param infer_from_cds: Substract the CDS from the exon regions to infer the UTR regions.
+            Will use 'feature_type' to decide whether '5UTR' or '3UTR' should be returned.
+        :param on_error_warn: print warning instead of throwing an error
+        """
+        self.fasta_file = str(fasta_file)
+        self.gtf_file = str(gtf_file)
+
+        utr_fetcher = UTRFetcher(self.gtf_file, feature_type=feature_type, infer_from_cds=infer_from_cds,
+                                 on_error_warn=on_error_warn)
+
+        extractor = FastaStringExtractor(self.fasta_file, use_strand=False)
+
+        super().__init__(
+            extractor=extractor,
+            interval_fetcher=utr_fetcher
+        )
+
+    @property
+    def df(self):
+        return self.extractor.df
+
 
 def cut_transcript_seq(seq: str, tag: str):
     """
@@ -58,6 +97,7 @@ def cut_transcript_seq(seq: str, tag: str):
     return seq
 
 
+# TODO: documentation
 class TranscriptSeqExtractor(GenericMultiIntervalSeqExtractor):
 
     def __init__(self, gtf_file, fasta_file):
@@ -65,15 +105,21 @@ class TranscriptSeqExtractor(GenericMultiIntervalSeqExtractor):
         self.gtf_file = str(gtf_file)
 
         cds_fetcher = CDSFetcher(self.gtf_file)
-        self.cds = cds_fetcher.df
 
-        # self.transcripts = self.cds_fetcher.keys()
         extractor = FastaStringExtractor(self.fasta_file, use_strand=False)
 
         super().__init__(
             extractor=extractor,
             interval_fetcher=cds_fetcher
         )
+
+    @property
+    def df(self):
+        return self.extractor.df
+
+    @property
+    def cds(self):
+        return self.extractor.df
 
     @classmethod
     def _prepare_seq(
