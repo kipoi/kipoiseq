@@ -6,7 +6,7 @@ from kipoiseq.dataclasses import Interval, Variant
 from kipoiseq.extractors.protein import cut_transcript_seq, TranscriptSeqExtractor, ProteinSeqExtractor, \
     ProteinVCFSeqExtractor, SingleSeqProteinVCFSeqExtractor, \
     SingleVariantProteinVCFSeqExtractor
-from kipoiseq.extractors import CDSFetcher, gtf_row2interval
+from kipoiseq.extractors import CDSFetcher, gtf_row2interval, UTRFetcher
 
 gtf_file = 'tests/data/sample_1_protein.gtf'
 fasta_file = 'tests/data/demo_dna_seq.fa'
@@ -233,7 +233,8 @@ def test_SingleSeqProteinVCFSeqExtractor_extract(single_seq_protein, transcript_
         gtf_file, fasta_file, vcf_file)
 
     # transcripts without variants return the reference sequence
-    alt_seqs = [alt_seq for t_id, (ref_seq, (alt_seq, variants)) in single_seq_protein.extract_all() if len(variants) > 0]
+    alt_seqs = [alt_seq for t_id, (ref_seq, (alt_seq, variants)) in single_seq_protein.extract_all() if
+                len(variants) > 0]
     assert len(alt_seqs) == 0
 
 
@@ -316,4 +317,37 @@ def test_SingleVariantProteinVCFSeqExtractor_extract(single_variant_seq, transcr
         length += len(t_id_seqs)
     assert length == 0
 
+
 # TODO: add for all proteins.pep.all.fa
+
+# chr22_fasta_file = 'tests/data/chr22.fa.gz'
+chr22_gtf_file = 'tests/data/chr22_ENST00000319363.gtf'
+
+
+# chr22_5UTR_vcf_file = 'tests/data/chr22_ENST00000319363_5UTR.vcf.gz'
+
+
+def test_5UTRFetcher__read_utr():
+    utr5 = UTRFetcher._read_utr(chr22_gtf_file, feature_type="5UTR")
+
+    assert utr5.shape == (1, 12)
+
+    assert utr5.iloc[0].Chromosome == 'chr22'
+    assert utr5.iloc[0].Start == 17565848
+    assert utr5.iloc[0].End == 17565981
+    assert utr5.iloc[0].Strand == "+"
+
+    assert utr5.equals(UTRFetcher._read_utr(chr22_gtf_file, feature_type="5UTR", infer_from_cds=True))
+
+
+def test_3UTRFetcher__read_utr():
+    utr3 = UTRFetcher._read_utr(chr22_gtf_file, feature_type="3UTR")
+
+    assert utr3.shape == (1, 12)
+
+    assert utr3.iloc[0].Chromosome == 'chr22'
+    assert utr3.iloc[0].Start == 17590710
+    assert utr3.iloc[0].End == 17596583
+    assert utr3.iloc[0].Strand == "+"
+
+    assert utr3.equals(UTRFetcher._read_utr(chr22_gtf_file, feature_type="3UTR", infer_from_cds=True))

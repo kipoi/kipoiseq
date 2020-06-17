@@ -304,15 +304,16 @@ class BaseMultiIntervalVCFSeqExtractor(GenericMultiIntervalSeqExtractor, metacla
         return [self.reference_seq_extractor.extract(interval) for interval in intervals]
 
     def _filter_snv(self, variants):
-        for variant in variants:
-            if len(variant.ref) == len(variant.alt) == 1:  # only SOVs supported
-                yield variant
-            elif len(variant.ref) == len(variant.alt) > 1:
-                log.warning('Current version of extractor works only for len(variant.ref)'
-                            ' == len(variant.alt) == 1, but the len was: ' + str(len(variant.alt)))
-            else:
-                log.warning('Current version of extractor ignores indel'
-                            ' to avoid shift in frame')
+        yield from variants
+        # for variant in variants:
+        #     if len(variant.ref) == len(variant.alt) == 1:  # only SNVs supported
+        #         yield variant
+        #     elif len(variant.ref) == len(variant.alt) > 1:
+        #         log.warning('Current version of extractor works only for len(variant.ref)'
+        #                     ' == len(variant.alt) == 1, but the len was: ' + str(len(variant.alt)))
+        #     else:
+        #         log.warning('Current version of extractor ignores indel'
+        #                     ' to avoid shift in frame')
 
 
 class SingleSeqExtractorMixin:

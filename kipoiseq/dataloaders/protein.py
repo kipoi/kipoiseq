@@ -4,7 +4,8 @@ from kipoiseq.extractors import GenericMultiIntervalSeqExtractor, GenericSingleV
 from kipoi.data import SampleIterator
 
 __all__ = [
-    'SingleVariantProteinDataLoader'
+    'SingleVariantProteinDataLoader',
+    'SingleVariantUTRDataLoader',
 ]
 
 

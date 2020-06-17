@@ -304,7 +304,7 @@ class UTRFetcher(GTFMultiIntervalFetcher):
             feature_type="5UTR",
             infer_from_cds=False,
             on_error_warn=True,
-    ):
+    ) -> pd.DataFrame:
         """
         Read, extract and filter valid UTRs from the given gtf_file
         :param gtf_file: path to the GTF file
@@ -333,7 +333,7 @@ class UTRFetcher(GTFMultiIntervalFetcher):
             feature_type="5UTR",
             infer_from_cds=False,
             on_error_warn=True,
-    ):
+    ) -> pd.DataFrame:
         """
         Create DataFrame with valid UTRs
         :param df: the GTF dataframe
@@ -353,6 +353,6 @@ class UTRFetcher(GTFMultiIntervalFetcher):
 
             raise NotImplementedError()
         else:
-            utr_df = df.query("Feature == '{feature_type}')".format(feature_type=feature_type))
+            utr_df = df.query("Feature == '{feature_type}'".format(feature_type=feature_type))
 
         return utr_df
