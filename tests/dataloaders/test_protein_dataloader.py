@@ -69,7 +69,7 @@ def test_single_variant_5UTR_dataLoader():
 
     assert len(units) == 4
 
-    expected_ref_seq = open(chr22_3UTR_ref_seq).read().splitlines()[0]
+    expected_ref_seq = open(chr22_5UTR_ref_seq).read().splitlines()[0]
     expected_alt_seqs = open(chr22_5UTR_alt_seqs).read().splitlines()
     for unit, expected_alt_seq in zip(units, expected_alt_seqs):
         assert unit['metadata']['transcript_id'] == 'ENST00000319363'
