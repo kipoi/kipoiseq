@@ -20,6 +20,17 @@ import logging
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    "cut_transcript_seq",
+    "UTRSeqExtractor",
+    "TranscriptSeqExtractor",
+    "ProteinSeqExtractor",
+    "TranscriptVCFSeqExtractor",
+    "ProteinVCFSeqExtractor",
+    "SingleSeqProteinVCFSeqExtractor",
+    "SingleVariantProteinVCFSeqExtractor",
+]
+
 
 class UTRSeqExtractor(GenericMultiIntervalSeqExtractor):
     def __init__(
