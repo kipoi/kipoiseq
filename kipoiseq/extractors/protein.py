@@ -157,28 +157,6 @@ class TranscriptSeqExtractor(GenericMultiIntervalSeqExtractor):
         seq = cut_transcript_seq(seq, tag)
         return seq
 
-    # def extract(self, intervals: List[Interval], **kwargs) -> str:
-    #     """
-    #     Extract and concatenate the sequence for a list of intervals
-    #     :param intervals: list of intervals
-    #     :param kwargs: will be passed on to `_prepare_seq()`
-    #     :return: concatenated dna sequence of the intervals
-    #     """
-    #     seqs = [self.extractor.extract(i) for i in intervals]
-    #
-    #     reverse_strand = False
-    #     if self.use_strand:
-    #         reverse_strand = intervals[0].neg_strand
-    #         if self.extractor.use_strand:
-    #             # If the fasta extractor already does the reversion, we do not have to do it manually.
-    #             # Instead, we need to reverse the list of sequences.
-    #             seqs.reverse()
-    #             reverse_strand = False
-    #
-    #     tag = intervals[0].attrs["tag"]
-    #
-    #     return self._prepare_seq(seqs, reverse_strand, tag=tag, **kwargs)
-
     def get_protein_seq(self, transcript_id: str):
         """
         Extract amino acid sequence for given transcript_id
@@ -268,24 +246,6 @@ class ProteinVCFSeqExtractor(TranscriptVCFSeqExtractor, metaclass=abc.ABCMeta):
         """
         return translate(super()._prepare_seq(*args, **kwargs), hg38=True)
 
-    # def extract(
-    #         self,
-    #         intervals: List[Interval],
-    #         sample_id: List[str] = None,
-    #         **kwargs
-    # ):
-    #     reverse_complement = intervals[0].neg_strand
-    #     tag = intervals[0].attrs["tag"]
-    #     # remove strand information
-    #     intervals = [i.unstrand() for i in intervals]
-    #
-    #     variant_interval_queryable = self.multi_sample_VCF.query_variants(intervals, sample_id=sample_id)
-    #
-    #     iter_seqs = self.extract_query(variant_interval_queryable, sample_id=sample_id)
-    #     for seqs, variant_info in iter_seqs:
-    #         # 1st seq, 2nd variant info
-    #         yield ProteinSeqExtractor._prepare_seq(seqs, reverse_complement, tag=tag), variant_info
-
     def _filter_snv(self, variants):
         for variant in variants:
             if len(variant.ref) == len(variant.alt) == 1:  # only SOVs supported
@@ -300,45 +260,6 @@ class ProteinVCFSeqExtractor(TranscriptVCFSeqExtractor, metaclass=abc.ABCMeta):
 
 class SingleSeqProteinVCFSeqExtractor(SingleSeqExtractorMixin, ProteinVCFSeqExtractor):
     pass
-    # def extract_query(
-    #         self,
-    #         variant_interval_queryable,
-    #         ref_seqs,
-    #         reverse_complement,
-    #         sample_id=None
-    # ):
-    #     """
-    #     Iterate through all intervals and extract dna sequence with all variants inserted into it
-    #     :return: dna sequence with all variants. If no variants match, will return the reference sequence.
-    #     """
-    #     """
-    #             Iterate through all intervals and extract dna sequence with all
-    #             variants inserted into it
-    #             :param variant_interval_queryable: Object which contains information
-    #             about the variants for current sequence
-    #             :param sample_id:
-    #             :return: dna sequence with all variants. If no variants match, will return the reference sequence.
-    #             """
-    #     seqs = []
-    #     variants_info = []
-    #     for variants, interval in variant_interval_queryable.variant_intervals:
-    #         variants = list(self._filter_snv(variants))
-    #         if len(variants) > 0:
-    #             flag = False
-    #             variants_info.extend(variants)
-    #         seqs.append(
-    #             self.variant_seq_extractor.extract(interval, variants, anchor=0)
-    #         )
-    #
-    #     alt_seq = "".join(seqs)
-    #     variants_info = self._prepare_variants(variants_info)
-    #     return (
-    #         alt_seq,  # the final sequence
-    #         variants_info,  # dictionary of variants
-    #     )
-    #
-    #     # cds_seqs = list(self._extract_query(variant_interval_queryable, sample_id=sample_id))
-    #     # return cds_seqs
 
 
 class SingleVariantProteinVCFSeqExtractor(SingleVariantExtractorMixin, ProteinVCFSeqExtractor):
