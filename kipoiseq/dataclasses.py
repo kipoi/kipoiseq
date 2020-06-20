@@ -6,6 +6,8 @@
 from copy import deepcopy
 # from kipoi_utils.data_utils import numpy_collate, numpy_collate_concat
 import math
+
+
 # import numpy as np
 # -------------------------------------------
 # basepair implementation
@@ -91,9 +93,8 @@ class Variant:
         # if there is a deletion
         # empty string
         if len(obj.ALT) == 0:
-            obj.ALT = [''] 
-        
-            
+            obj.ALT = ['']
+
         return cls(chrom=obj.CHROM,
                    pos=obj.POS,
                    ref=obj.REF,
@@ -104,10 +105,10 @@ class Variant:
                    info=dict(obj.INFO),
                    source=obj,
                    )
-    
+
     @classmethod
     def from_cyvcf_and_given_alt(cls, obj, alt):
-            
+
         return cls(chrom=obj.CHROM,
                    pos=obj.POS,
                    ref=obj.REF,

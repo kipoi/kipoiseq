@@ -7,7 +7,6 @@ from copy import deepcopy
 import numpy as np
 from six import string_types
 
-
 try:
     # use the fast genomelake's one-hot-encode if it's installed
     from genomelake.util import one_hot_encode_sequence
@@ -125,6 +124,7 @@ def one_hot_dna(seq, dtype=None):
         return out.astype(dtype)
     else:
         return one_hot(seq, alphabet=DNA, neutral_alphabet=['N'], neutral_value=.25, dtype=dtype)
+
 
 # sequence trimming
 

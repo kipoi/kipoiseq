@@ -60,5 +60,6 @@ setup(
               "computational biology", "bioinformatics", "genomics"],
     test_suite='tests',
     include_package_data=False,
-    tests_require=test_requirements
+    tests_require=test_requirements,
+    python_requires='>=3.6'
 )

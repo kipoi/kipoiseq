@@ -70,6 +70,7 @@ class SwapAxes(object):
         else:
             return np.swapaxes(x, self.axis1, self.axis2)
 
+
 # Intervals
 
 
@@ -152,7 +153,7 @@ class ReorderedOneHot(object):
             if not (dummy_axis >= 0 and dummy_axis <= 2):
                 raise ValueError("dummy_axis can be either 0,1 or 2")
         assert alphabet_axis >= 0 and (alphabet_axis < 2 or (
-            alphabet_axis <= 2 and dummy_axis is not None))
+                alphabet_axis <= 2 and dummy_axis is not None))
 
         self.alphabet_axis = alphabet_axis
         self.dummy_axis = dummy_axis
@@ -209,7 +210,7 @@ class ReorderedOneHot(object):
         # inject the dummy axis
         if self.dummy_axis is not None:
             output_shape = output_shape[:self.dummy_axis] + \
-                (1,) + output_shape[self.dummy_axis:]
+                           (1,) + output_shape[self.dummy_axis:]
 
         # swap axes
         if alphabet_axis is not None:
@@ -271,7 +272,7 @@ class SplitSplicingSeq(object):
             intron3prime_len: 5' intronic sequence length to take.
         """
         lackl = self.acceptor_intron_len - \
-            intron5prime_len  # need to pad N if left seq not enough long
+                intron5prime_len  # need to pad N if left seq not enough long
         if lackl >= 0:
             x = "N" * (lackl + 1) + x
             intron5prime_len += lackl + 1
@@ -282,11 +283,11 @@ class SplitSplicingSeq(object):
 
         intron5prime = x[:intron5prime_len - self.intron5prime_cut]
         acceptor = x[(intron5prime_len - self.acceptor_intron_len)
-                      :(intron5prime_len + self.acceptor_exon_len)]
+                     :(intron5prime_len + self.acceptor_exon_len)]
         exon = x[(intron5prime_len + self.exon_cut_l)
-                  :(-intron3prime_len - self.exon_cut_r)]
+                 :(-intron3prime_len - self.exon_cut_r)]
         donor = x[(-intron3prime_len - self.donor_exon_len)
-                   :(-intron3prime_len + self.donor_intron_len)]
+                  :(-intron3prime_len + self.donor_intron_len)]
         intron3prime = x[-intron3prime_len + self.intron3prime_cut:]
 
         import warnings

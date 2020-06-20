@@ -37,7 +37,7 @@ class MultiSampleVCF(VCF):
 
     @staticmethod
     def _region(interval):
-        return '%s:%d-%d' % (interval.chrom, interval.start+1, interval.end)
+        return '%s:%d-%d' % (interval.chrom, interval.start + 1, interval.end)
 
     def has_variant(self, variant, sample_id):
         gt_type = variant.source.gt_types[self.sample_mapping[sample_id]]
@@ -108,7 +108,7 @@ class MultiSampleVCF(VCF):
             variant = Variant.from_str(variant)
 
         variants = self.fetch_variants(
-            Interval(variant.chrom, variant.pos-1, variant.pos))
+            Interval(variant.chrom, variant.pos - 1, variant.pos))
         for v in variants:
             if v.ref == variant.ref and v.alt == variant.alt:
                 return v
@@ -151,11 +151,11 @@ class MultiSampleVCF(VCF):
             prev_i = starts[0]
             for i in starts[1:]:
                 if prev_i + 150 < i:
-                    regions.append(Interval(chrom, start_i-1, prev_i))
+                    regions.append(Interval(chrom, start_i - 1, prev_i))
                     start_i = i
                 prev_i = i
 
-            regions.append(Interval(chrom, start_i-1, prev_i))
+            regions.append(Interval(chrom, start_i - 1, prev_i))
 
         return regions
 
