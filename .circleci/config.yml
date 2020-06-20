@@ -10,11 +10,6 @@ variables:
       name: create env
       command: |
         conda create -n kipoi-dev python=3.6
-  create_env_py35: &create_env_py35
-    run:
-      name: create env
-      command: |
-        conda create -n kipoi-dev python=3.5
   install_git_lfs: &install_git_lfs
     run:
       name: Install git-lfs
@@ -82,8 +77,8 @@ variables:
     run:
       name: run coveralls
       command: |
-          source activate kipoi-dev
-          coveralls || true
+        source activate kipoi-dev
+        coveralls || true
   store_test_results: &store_test_results
     store_test_results:
       path: test-reports
@@ -113,23 +108,6 @@ jobs:
       - *store_test_results
       - *store_test_artifacts
 
-  test-py35:
-    docker:
-      - image: continuumio/miniconda3:4.5.12
-    working_directory: ~/repo
-    steps:
-      - checkout
-      - *update_conda
-      - *create_env_py35
-      - *update_pytorch
-      - *install_conda_deps
-      - *install_kipoi
-      - *install_kipoiseq
-      - *kipoi_ls
-      - *run_tests
-      - *run_coveralls
-      - *store_test_results
-      - *store_test_artifacts
 
 
   build-deploy-docs:
