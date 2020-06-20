@@ -148,7 +148,6 @@ workflows:
   test:
     jobs:
       - test-py36
-      - test-py35
       - build-deploy-docs:
           requires:
             - test-py36
