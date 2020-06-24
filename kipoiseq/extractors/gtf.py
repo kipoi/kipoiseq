@@ -61,7 +61,7 @@ def _filter_biotype_proteincoding(gtf_df):
 
 def _filter_tag(gtf_df, regex_contains):
     return gtf_df.query(
-        "tag.notnull() & tag.str.contains('{}')".format(regex_contains)
+        "tag.notnull().values & tag.str.contains('{}').values".format(regex_contains)
     )
 
 
