@@ -41,12 +41,17 @@ def rc_dna(seq):
     """
     Reverse complement the DNA sequence
     >>> assert rc_seq("TATCG") == "CGATA"
+    >>> assert rc_seq("tatcg") == "cgata"
     """
     rc_hash = {
         "A": "T",
         "T": "A",
         "C": "G",
         "G": "C",
+        "a": "t",
+        "t": "a",
+        "c": "g",
+        "g": "c",
     }
     return "".join([rc_hash[s] for s in reversed(seq)])
 
@@ -61,6 +66,10 @@ def rc_rna(seq):
         "U": "A",
         "C": "G",
         "G": "C",
+        "a": "u",
+        "u": "a",
+        "c": "g",
+        "g": "c",
     }
     return "".join([rc_hash[s] for s in reversed(seq)])
 
