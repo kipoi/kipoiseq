@@ -1,3 +1,4 @@
+import logging
 from itertools import islice
 from collections import defaultdict
 from kipoiseq.dataclasses import Variant, Interval
@@ -31,10 +32,12 @@ class MultiSampleVCF(VCF):
         ALTs = cy_variant.ALT or ['']
         # single REF can have multiple ALT
         for alt in ALTs:
-            if 'N' in alt:
-                print('Undefined variants are not supported: Skip')
+            v = Variant.from_cyvcf_and_given_alt(cy_variant, alt)
+            if 'N' in alt or '*' in alt:
+                logging.warning(
+                    'Undefined variant %s are not supported: Skip' % str(v))
                 continue
-            yield Variant.from_cyvcf_and_given_alt(cy_variant, alt)
+            yield v
 
     @staticmethod
     def _region(interval):
