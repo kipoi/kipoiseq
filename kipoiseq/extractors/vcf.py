@@ -21,19 +21,20 @@ class MultiSampleVCF(VCF):
         self.sample_mapping = dict(zip(self.samples, range(len(self.samples))))
 
     def fetch_variants(self, interval, sample_id=None):
-        for v in self(self._region(interval)):
-            # in case deletion is present
-            ALTs = [''] if len(v.ALT) == 0 else v.ALT
-            # extract variants
-            # single REF can have multiple ALT
-            for alt in ALTs:
-                # not defined variants are not supported
-                if 'N' in alt:
-                    print('Undefined variants are not supported: Skip')
-                    continue
-                variant = Variant.from_cyvcf_and_given_alt(v, alt)
+        for cy_variant in self(self._region(interval)):
+            for variant in self._variants_from_cyvcf2(cy_variant):
                 if sample_id is None or self.has_variant(variant, sample_id):
                     yield variant
+
+    def _variants_from_cyvcf2(self, cy_variant):
+        # in case deletion is present
+        ALTs = cy_variant.ALT or ['']
+        # single REF can have multiple ALT
+        for alt in ALTs:
+            if 'N' in alt:
+                print('Undefined variants are not supported: Skip')
+                continue
+            yield Variant.from_cyvcf_and_given_alt(cy_variant, alt)
 
     @staticmethod
     def _region(interval):
@@ -49,6 +50,14 @@ class MultiSampleVCF(VCF):
 
     def __next__(self):
         return Variant.from_cyvcf(super().__next__())
+
+    def __iter__(self):
+        while True:
+            try:
+                cy_variant = super().__next__()
+            except StopIteration:
+                break
+            yield from self._variants_from_cyvcf2(cy_variant)
 
     def batch_iter(self, batch_size=10000):
         """Iterates variatns in vcf file.
