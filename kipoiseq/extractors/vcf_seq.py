@@ -368,6 +368,10 @@ class SampleSeqExtractor(VariantSeqExtractor):
         """
         variants = []
         if sample is not None:
+            if sample not in self.vcf.samples:
+                raise ValueError(f'Sample \'{sample}\''
+                                 'not present in VCF file')
+
             if phase not in (0, 1):
                 raise ValueError('phase argument must be in (0, 1)'
                                  ' if sample is not None')
