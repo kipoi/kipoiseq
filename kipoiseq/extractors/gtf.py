@@ -357,13 +357,13 @@ class UTRFetcher(GTFMultiIntervalFetcher):
                 .dropna(subset=['Start_cds', 'End_cds'], axis=0)
 
             if feature_type.upper() == "5UTR":
-                utr_df['Start'] = np.where(utr_df['Strand'] == '+', utr_df['Start'], utr_df['End_cds'])
-                utr_df['End'] = np.where(utr_df['Strand'] == '+', utr_df['Start_cds'], utr_df['End'])
-                utr_df['Feature'] = "5UTR"
+                utr_df['Start'] = np.where(utr_df['Strand'] == '+', int(utr_df['Start']), int(utr_df['End_cds']))
+                utr_df['End'] = np.where(utr_df['Strand'] == '+', int(utr_df['Start_cds']), int(utr_df['End']))
+                utr_df['Feature'] = pd.Categorical("5UTR", categories = utr_df['Feature'])
             if feature_type.upper() == "3UTR":
-                utr_df['Start'] = np.where(utr_df['Strand'] == '+', utr_df['End_cds'], utr_df['Start'])
-                utr_df['End'] = np.where(utr_df['Strand'] == '+', utr_df['End'], utr_df['Start_cds'])
-                utr_df['Feature'] = "3UTR"
+                utr_df['Start'] = np.where(utr_df['Strand'] == '+', int(utr_df['End_cds']), int(utr_df['Start']))
+                utr_df['End'] = np.where(utr_df['Strand'] == '+', int(utr_df['End']), int(utr_df['Start_cds']))
+                utr_df['Feature'] = pd.Categorical("3UTR", categories = utr_df['Feature'])
 
             utr_df.drop(['Start_cds', 'End_cds'], axis=1, inplace=True)
             return utr_df.reset_index()

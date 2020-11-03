@@ -337,8 +337,9 @@ def test_5UTRFetcher__read_utr():
     assert utr5.iloc[0].End == 17565981
     assert utr5.iloc[0].Strand == "+"
 
-    # TODO: implement
-    # assert utr5.equals(UTRFetcher._read_utr(chr22_gtf_file, feature_type="5UTR", infer_from_cds=True))
+    utr5_from_cds = UTRFetcher._read_utr(chr22_gtf_file, feature_type="5UTR", infer_from_cds=True)
+
+    pd.testing.assert_frame_equal(left = utr5.drop(['exon_number', 'exon_id'], axis=1), right = utr5_from_cds.drop(['exon_number', 'exon_id'], axis=1), check_dtype=False)
 
 
 def test_3UTRFetcher__read_utr():
@@ -351,5 +352,7 @@ def test_3UTRFetcher__read_utr():
     assert utr3.iloc[0].End == 17596583
     assert utr3.iloc[0].Strand == "+"
 
-    # TODO: implement
-    # assert utr3.equals(UTRFetcher._read_utr(chr22_gtf_file, feature_type="3UTR", infer_from_cds=True))
+    utr3_from_cds = UTRFetcher._read_utr(chr22_gtf_file, feature_type="3UTR", infer_from_cds=True)
+
+    pd.testing.assert_frame_equal(left=utr3.drop(['exon_number', 'exon_id'], axis=1),
+                                  right=utr3_from_cds.drop(['exon_number', 'exon_id'], axis=1), check_dtype=False)
