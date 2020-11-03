@@ -38,6 +38,8 @@ def _get_biotype_str(df):
         return 'transcript_biotype'
     elif 'gene_biotype' in df:
         return 'gene_biotype'
+    elif 'gene_type' in df:
+        return 'gene_type'
     else:
         raise ValueError('Cannot obtain `biotype_str` from gtf file')
 
@@ -61,7 +63,7 @@ def _filter_biotype_proteincoding(gtf_df):
 
 def _filter_tag(gtf_df, regex_contains):
     return gtf_df.query(
-        "tag.notnull().values & tag.str.contains('{}').values".format(regex_contains)
+        "tag.str.contains('{}').fillna(False).values".format(regex_contains)
     )
 
 
@@ -324,7 +326,6 @@ class UTRFetcher(GTFMultiIntervalFetcher):
             on_error_warn=on_error_warn
         )
 
-        utr_df = utr_df.set_index("transcript_id")
         return utr_df
 
     @staticmethod
@@ -343,15 +344,28 @@ class UTRFetcher(GTFMultiIntervalFetcher):
         :param on_error_warn: Do not break on error; instead throw warning.
         """
         if infer_from_cds:
-            cds = CDSFetcher.get_cds_from_gtf(df=df, on_error_warn=on_error_warn)
+            # get start and end of cds for each transcript
+            cds = CDSFetcher.get_cds_from_gtf(df=df, on_error_warn=on_error_warn) \
+                .groupby('transcript_id') \
+                .agg({'Start': min, 'End': max})
 
-            # TODO: implement
+            # join cds start and end to utr df
+            utr_df = df.query("Feature == 'transcript'") \
+                .set_index('transcript_id') \
+                .join(cds, rsuffix="_cds") \
+                .dropna(subset=['Start_cds', 'End_cds'], axis=0)
+
             if feature_type.upper() == "5UTR":
-                pass
+                utr_df['Start'] = np.where(utr_df['Strand'] == '+', utr_df['Start'], utr_df['End_cds'])
+                utr_df['End'] = np.where(utr_df['Strand'] == '+', utr_df['Start_cds'], utr_df['End'])
+                utr_df['Feature'] = "5UTR"
             if feature_type.upper() == "3UTR":
-                pass
+                utr_df['Start'] = np.where(utr_df['Strand'] == '+', utr_df['End_cds'], utr_df['Start'])
+                utr_df['End'] = np.where(utr_df['Strand'] == '+', utr_df['End'], utr_df['Start_cds'])
+                utr_df['Feature'] = "3UTR"
 
-            raise NotImplementedError()
+            utr_df.drop(['Start_cds', 'End_cds'], axis=1, inplace=True)
+            return utr_df
         else:
             utr_df = df.query("Feature == '{feature_type}'".format(feature_type=feature_type))
 
