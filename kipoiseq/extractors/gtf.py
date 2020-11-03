@@ -326,6 +326,7 @@ class UTRFetcher(GTFMultiIntervalFetcher):
             on_error_warn=on_error_warn
         )
 
+        utr_df = utr_df.set_index("transcript_id")
         return utr_df
 
     @staticmethod
@@ -365,7 +366,7 @@ class UTRFetcher(GTFMultiIntervalFetcher):
                 utr_df['Feature'] = "3UTR"
 
             utr_df.drop(['Start_cds', 'End_cds'], axis=1, inplace=True)
-            return utr_df
+            return utr_df.reset_index()
         else:
             utr_df = df.query("Feature == '{feature_type}'".format(feature_type=feature_type))
 
