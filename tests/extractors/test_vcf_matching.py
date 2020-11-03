@@ -115,31 +115,23 @@ def test_SingleVariantMatcher__iter__():
     matcher = SingleVariantMatcher(
         vcf_file, intervals=inters)
     pairs = list(matcher)
-    assert pairs[0][0] == intervals[0]
-    assert pairs[0][1] == variants[0]
-    assert pairs[1][0] == intervals[0]
-    assert pairs[1][1] == variants[1]
-    assert pairs[2][0] == inters[2]
-    assert pairs[2][1] == variants[1]
-    assert pairs[3][0] == inters[2]
-    assert pairs[3][1] == variants[2]
-    assert pairs[4][0] == intervals[1]
-    assert pairs[4][1] == variants[2]
+
+    assert (inters[0], variants[0]) in pairs
+    assert (inters[0], variants[1]) in pairs
+    assert (inters[1], variants[2]) in pairs
+    assert (inters[2], variants[1]) in pairs
+    assert (inters[2], variants[2]) in pairs
+
     assert len(pairs) == 5
 
     matcher = SingleVariantMatcher(vcf_file, pranges=pr)
     pairs = list(matcher)
 
-    assert pairs[0][0] == intervals[0]
-    assert pairs[0][1] == variants[0]
-    assert pairs[1][0] == intervals[0]
-    assert pairs[1][1] == variants[1]
-    assert pairs[2][0] == inters[2]
-    assert pairs[2][1] == variants[1]
-    assert pairs[3][0] == inters[2]
-    assert pairs[3][1] == variants[2]
-    assert pairs[4][0] == intervals[1]
-    assert pairs[4][1] == variants[2]
+    assert (inters[0], variants[0]) in pairs
+    assert (inters[0], variants[1]) in pairs
+    assert (inters[1], variants[2]) in pairs
+    assert (inters[2], variants[1]) in pairs
+    assert (inters[2], variants[2]) in pairs
     assert len(pairs) == 5
 
 
