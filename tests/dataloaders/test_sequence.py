@@ -15,6 +15,9 @@ def fasta_file():
 def intervals_file():
     return "tests/data/sample_intervals.bed"
 
+@pytest.fixture
+def intervals_file_strand():
+    return "tests/data/sample_interval_strand.bed"
 
 # fasta_file = fasta_file()
 # intervals_file = intervals_file()
@@ -53,6 +56,10 @@ def test_fasta_based_dataset(intervals_file, fasta_file):
     vals = dl.load_all()
     assert vals['inputs'][0] == 'GT'
 
+def test_use_strand(intervals_file_strand, fasta_file):
+    dl = StringSeqIntervalDl(intervals_file_strand, fasta_file, use_strand=True)
+    vals = dl.load_all()
+    assert vals['inputs'][0] == 'AC'
 
 def test_seq_dataset(intervals_file, fasta_file):
     dl = SeqIntervalDl(intervals_file, fasta_file)
