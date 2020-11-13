@@ -91,7 +91,7 @@ variables:
     run:
       name: build python packages
       command: |
-        source activate kipoi-env
+        source activate kipoi-dev
         python setup.py sdist bdist_wheel
   conda_install_twine: &conda_install_twine
     run:
@@ -192,7 +192,7 @@ jobs:
       - run:
           name: pip install from TestPyPI
           command: |
-            source activate kipoi-env
+            source activate kipoi-dev
             python -m pip install --user --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple kipoi --verbose
             python -c "import kipoi; print(kipoi.__version__)"
 
@@ -221,7 +221,7 @@ jobs:
       - run:
           name: pip install from PyPI
           command: |
-            source activate kipoi-env
+            source activate kipoi-dev
             python -m pip install --user kipoi --verbose
             python -c "import kipoi; print(kipoi.__version__)"
 
