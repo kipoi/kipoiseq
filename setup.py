@@ -44,11 +44,11 @@ test_requirements = [
 setup(
     name='kipoiseq',
     version='0.5.0',
-    description="kipoiseq: sequence-based data-laoders for Kipoi",
+    description="kipoiseq: sequence-based data-loaders for Kipoi",
     author="Kipoi team",
     author_email='avsec@in.tum.de',
     url='https://github.com/kipoi/kipoiseq',
-    long_description="kipoiseq: sequence-based data-laoders for Kipoi",
+    long_description="kipoiseq: sequence-based data-loaders for Kipoi",
     packages=find_packages(),
     install_requires=requirements,
     extras_require={
