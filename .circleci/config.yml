@@ -174,11 +174,12 @@ jobs:
     steps:
       - checkout
       - *update_conda
-      #- *install_sys_deps
-      - *install_from_dev_requirements_py36
-      #- *install_singularity
-      - *export_shortcuts
-      - *activate_and_kipoi_ls
+      - *create_env
+      - *update_pytorch
+      - *install_conda_deps
+      - *install_kipoi
+      - *install_kipoiseq
+      - *kipoi_ls
       - *build_pypi_package
       - *conda_install_twine
       - *pypi_create_pypirc
@@ -202,11 +203,12 @@ jobs:
     steps:
       - checkout
       - *update_conda
-      #- *install_sys_deps
-      - *install_from_dev_requirements_py36
-      #- *install_singularity
-      - *export_shortcuts
-      - *activate_and_kipoi_ls
+      - *create_env
+      - *update_pytorch
+      - *install_conda_deps
+      - *install_kipoi
+      - *install_kipoiseq
+      - *kipoi_ls
       - *build_pypi_package
       - *conda_install_twine
       - *pypi_create_pypirc
