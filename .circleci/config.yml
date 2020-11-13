@@ -241,7 +241,7 @@ workflows:
                 - test_deployment_script
       - test-deploy-pypi:
           requires:
-            - test-py36-yml
+            - test-py36
           context:
             - pypi_kipoibot
           filters:
@@ -253,7 +253,7 @@ workflows:
                 - test_deployment_script
       - productive-deploy-pypi:
           requires:
-            - test-py36-yml
+            - test-py36
           context:
             - pypi_kipoibot
           filters:
