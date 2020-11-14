@@ -96,7 +96,7 @@ variables:
   conda_install_twine: &conda_install_twine
     run:
       name: Install twine
-      command: conda install twine
+      command: conda install -y twine importlib-metadata
   pypi_create_pypirc: &pypi_create_pypirc
     run:
       name: init .pypirc
