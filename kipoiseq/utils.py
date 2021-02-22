@@ -16,7 +16,7 @@ def to_scalar(obj):
     """Convert numpy scalar to native scalar
     """
     if isinstance(obj, np.generic):
-        return np.asscalar(obj)
+        return obj.item()
     else:
         return obj
 

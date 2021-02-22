@@ -346,23 +346,27 @@ class UTRFetcher(GTFMultiIntervalFetcher):
         """
         if infer_from_cds:
             # get start and end of cds for each transcript
-            cds = CDSFetcher.get_cds_from_gtf(df=df, on_error_warn=on_error_warn) \
-                .groupby('transcript_id') \
+            cds = (
+                CDSFetcher.get_cds_from_gtf(df=df, on_error_warn=on_error_warn)
+                .groupby('transcript_id')
                 .agg({'Start': min, 'End': max})
+            )
 
             # join cds start and end to utr df
-            utr_df = df.query("Feature == 'transcript'") \
-                .set_index('transcript_id') \
-                .join(cds, rsuffix="_cds") \
+            utr_df = (
+                df.query("Feature == 'transcript'")
+                .set_index('transcript_id')
+                .join(cds, rsuffix="_cds")
                 .dropna(subset=['Start_cds', 'End_cds'], axis=0)
+            )
 
             if feature_type.upper() == "5UTR":
-                utr_df['Start'] = np.where(utr_df['Strand'] == '+', int(utr_df['Start']), int(utr_df['End_cds']))
-                utr_df['End'] = np.where(utr_df['Strand'] == '+', int(utr_df['Start_cds']), int(utr_df['End']))
+                utr_df['Start'] = np.where(utr_df['Strand'] == '+', utr_df['Start'].astype("int"), utr_df['End_cds'].astype("int"))
+                utr_df['End'] = np.where(utr_df['Strand'] == '+', utr_df['Start_cds'].astype("int"), utr_df['End'].astype("int"))
                 utr_df['Feature'] = pd.Categorical("5UTR", categories = utr_df['Feature'])
             if feature_type.upper() == "3UTR":
-                utr_df['Start'] = np.where(utr_df['Strand'] == '+', int(utr_df['End_cds']), int(utr_df['Start']))
-                utr_df['End'] = np.where(utr_df['Strand'] == '+', int(utr_df['End']), int(utr_df['Start_cds']))
+                utr_df['Start'] = np.where(utr_df['Strand'] == '+', utr_df['End_cds'].astype("int"), utr_df['Start'].astype("int"))
+                utr_df['End'] = np.where(utr_df['Strand'] == '+', utr_df['End'].astype("int"), utr_df['Start_cds'].astype("int"))
                 utr_df['Feature'] = pd.Categorical("3UTR", categories = utr_df['Feature'])
 
             utr_df.drop(['Start_cds', 'End_cds'], axis=1, inplace=True)
