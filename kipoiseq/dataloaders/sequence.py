@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from copy import deepcopy
+import pyranges as pr
 from kipoi.metadata import GenomicRanges
 from kipoi.data import Dataset, kipoi_dataloader
 from kipoi_conda.dependencies import Dependencies
@@ -10,6 +11,7 @@ from kipoi_utils.utils import default_kwargs
 from kipoiseq.extractors import FastaStringExtractor
 from kipoiseq.transforms.functional import resize_interval
 from kipoiseq.utils import to_scalar, parse_dtype
+from kipoiseq.dataclasses import Interval
 
 # general dependencies
 # bioconda::genomelake', TODO - add genomelake again once it gets released with pyfaidx to bioconda
@@ -381,3 +383,52 @@ class SeqIntervalDl(Dataset):
             output_schema.targets = None
 
         return output_schema
+    
+class AnchoredGTFDl(Dataset):
+    
+    def __init__(self, gtf_file, fasta_file, 
+                 num_upstream, num_downstream,
+                 gtf_filter, anchor_extractor,
+                 transform,
+                 interval_attrs,
+                 use_strand=True):
+        gtf = pr.read_gtf(gtf_file).df
+        gtf = gtf_filter(gtf)  # Optional
+        self._gtf_anchor = anchor_extractor(gtf)
+        self._use_strand = use_strand
+        self._fa = FastaStringExtractor(fasta_file, use_strand=self._use_strand)
+        self._transform = transform
+        self._num_upstream = num_upstream
+        self._num_downstream = num_downstream
+        self._interval_attrs = interval_attrs
+
+    def _create_anchored_interval(self, row, num_upstream, num_downstream):
+
+        if self._use_strand == True and row.Strand == "-":
+            # negative strand
+            start = row.anchor_pos - num_downstream
+            end = row.anchor_pos + num_upstream
+        else:
+            # positive strand
+            start = row.anchor_pos - num_upstream
+            end = row.anchor_pos + num_downstream
+                        
+        interval = Interval(row.Chromosome, start, end, strand=row.Strand)
+        return interval
+                    
+    def __len__(self):
+        return len(self._gtf_anchor)
+
+    def __getitem__(self, idx):
+        row = self._gtf_anchor.iloc[idx]
+        interval = self._create_anchored_interval(row,
+                                             num_upstream=self._num_upstream, 
+                                             num_downstream=self._num_downstream)
+        sequence = self._fa.extract(interval)
+        sequence = self._transform(sequence)
+        metadata_dict = {k:row.get(k, '') for k in self._interval_attrs}
+        metadata_dict["ranges"] = GenomicRanges(interval.chrom, interval.start, interval.stop, str(idx))
+        return {
+            "inputs": np.array(sequence),
+            "metadata": metadata_dict
+        }
