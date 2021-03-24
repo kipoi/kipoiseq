@@ -169,7 +169,7 @@ class VariantIntervalQueryable:
                 if cond
             ), interval
 
-    def batch_iter(self, batch_size=10000):
+    def batch_iter(self, batch_size=10000) -> Iterable:
         """Iterates variatns and interval in query object.
 
         # Arguments
@@ -182,9 +182,11 @@ class VariantIntervalQueryable:
             i = i % batch_size
 
             if i == 0:
+                # 1-based variant to 0-based interval
                 interval = Interval(v.chrom, v.pos - 1, v.pos - 1)
 
             elif v.chrom != interval.chrom:
+                # if new chrom return current batch and create new batch
                 yield VariantIntervalQueryable(self.vcf, [(batch, interval)])
                 batch = list()
                 interval = Interval(v.chrom, v.pos - 1, v.pos - 1)
@@ -196,7 +198,7 @@ class VariantIntervalQueryable:
                 yield VariantIntervalQueryable(self.vcf, [(batch, interval)])
                 batch = list()
 
-        if batch:
+        if len(batch) > 0:
             yield VariantIntervalQueryable(self.vcf, [(batch, interval)])
 
     def to_vcf(self, path, remove_samples=False, clean_info=False):
@@ -210,13 +212,18 @@ class VariantIntervalQueryable:
         """
         from cyvcf2 import Writer
 
-        header = self.vcf.raw_header.split('\n')
-        columns = header[-2].strip().split('\t')
+        header = self.vcf.raw_header
 
+        # remove sample columns  from header
+        # 2th last column in the header is columns
+        # all the columns after 8th is for samples
         if remove_samples:
+            header = header.split('\n')
+            columns = header[-2].strip().split('\t')
             header[-2] = '\t'.join(columns[:8])
+            header = '\n'.join(header)
 
-        writer = Writer.from_string(path, '\n'.join(header))
+        writer = Writer.from_string(path, header)
 
         for v in self:
             variant = v.source
@@ -225,9 +232,12 @@ class VariantIntervalQueryable:
                 variant = str(variant).strip().split()
 
                 if remove_samples:
+                    # all the columns after 8th is for samples so remove them
                     variant = variant[:8]
 
                 if clean_info:
+                    # 7th column contains info fields
+                    # replace it with N/A
                     variant[7] = '.'
 
                 variant = writer.variant_from_string('\t'.join(variant))
