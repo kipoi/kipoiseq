@@ -48,16 +48,15 @@ def test_MultiSampleVCF_fetch_variant(multi_sample_vcf):
 def test_MultiSampleVCF_query_variants(multi_sample_vcf):
     vq = multi_sample_vcf.query_variants(intervals)
     variants = list(vq)
-    
+
     assert len(variants) == 5
     assert variants[0].pos == 4
     assert variants[1].pos == 5
-    
-    
+
     msvcf = MultiSampleVCF(test_with_multiple_variants)
     vq = msvcf.query_variants([Interval('chr1', 3, 10)])
     variants = list(vq)
-    
+
     assert len(variants) == 5
     assert variants[0].ref == 'T'
     assert variants[1].ref == 'T'
@@ -66,10 +65,10 @@ def test_MultiSampleVCF_query_variants(multi_sample_vcf):
     assert variants[1].alt == 'A'
     assert variants[2].alt == 'G'
     assert variants[4].alt == ''
-    
+
     vq = msvcf.query_variants([Interval('chr1', 11, 14)])
     variants = list(vq)
-    
+
     assert len(variants) == 1
     assert variants[0].ref == 'T'
     assert variants[0].alt == ''
@@ -154,3 +153,8 @@ def test_MultiSampleVCF_VariantQueryable_to_vcf(tmpdir, multi_sample_vcf):
 def test_batch_iter_vcf(multi_sample_vcf):
     batchs = list(multi_sample_vcf.batch_iter(10))
     assert sum(len(i) for i in batchs) == 3
+
+
+def test_MultiSampleVCF_query_all(multi_sample_vcf):
+    variants = list(multi_sample_vcf.query_all())
+    assert len(variants) == 3

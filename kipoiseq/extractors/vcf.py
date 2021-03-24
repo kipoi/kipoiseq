@@ -1,4 +1,5 @@
 import logging
+from typing import Tuple, Iterable, List, Union
 from itertools import islice
 from collections import defaultdict
 from kipoiseq.dataclasses import Variant, Interval
@@ -12,6 +13,14 @@ except ImportError:
 __all__ = [
     'MultiSampleVCF'
 ]
+
+
+def _batch_iter(variants: Iterable[Variant], batch_size=10000
+                ) -> Iterable[Iterable[Variant]]:
+    batch = list(islice(variants, batch_size))
+    while batch:
+        yield batch
+        batch = list(islice(variants, batch_size))
 
 
 class MultiSampleVCF(VCF):
@@ -40,21 +49,21 @@ class MultiSampleVCF(VCF):
             yield v
 
     @staticmethod
-    def _region(interval):
+    def _region(interval: Interval):
         return '%s:%d-%d' % (interval.chrom, interval.start + 1, interval.end)
 
-    def has_variant(self, variant, sample_id):
+    def has_variant(self, variant: Variant, sample_id: str) -> bool:
         gt_type = variant.source.gt_types[self.sample_mapping[sample_id]]
         return self._has_variant_gt(gt_type)
 
     @staticmethod
-    def _has_variant_gt(gt_type):
+    def _has_variant_gt(gt_type: int) -> bool:
         return gt_type != 0 and gt_type != 2
 
     def __next__(self):
         return Variant.from_cyvcf(super().__next__())
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[Variant]:
         while True:
             try:
                 cy_variant = super().__next__()
@@ -62,21 +71,18 @@ class MultiSampleVCF(VCF):
                 break
             yield from self._variants_from_cyvcf2(cy_variant)
 
-    def batch_iter(self, batch_size=10000):
-        """Iterates variatns in vcf file.
+    def batch_iter(self, batch_size=10000) -> Iterable[Iterable[Variant]]:
+        """Iterates variants in vcf file.
 
         # Arguments
             vcf_file: path of vcf file.
             batch_size: size of each batch.
         """
         variants = iter(self)
-        batch = list(islice(variants, batch_size))
+        yield from _batch_iter(variants, batch_size=batch_size)
 
-        while batch:
-            yield batch
-            batch = list(islice(variants, batch_size))
-
-    def query_variants(self, intervals, sample_id=None, progress=False):
+    def query_variants(self, intervals: List[Interval], sample_id=None,
+                       progress=False) -> VariantIntervalQueryable:
         """Fetch variants for given multi-intervals from vcf file
         for sample if sample id is given.
 
@@ -89,7 +95,8 @@ class MultiSampleVCF(VCF):
             fetched variatns.
 
         # Example
-            To fetch variants if only single variant present in interval.
+            To fetch variants if quality more than 10 and there is
+            a variant in interval
             ```
               >>> MultiSampleVCF(vcf_path) \
                     .query_variants(intervals) \
@@ -102,7 +109,23 @@ class MultiSampleVCF(VCF):
                  for i in intervals]
         return VariantIntervalQueryable(self, pairs, progress=progress)
 
-    def get_variant(self, variant):
+    def query_all(self, progress=False) -> VariantIntervalQueryable:
+        """Convert all variants into queryable object without interval so
+        interval filters will not work.
+
+        # Example
+            To fetch variants if quality more than 10
+            ```
+              >>> MultiSampleVCF(vcf_path) \
+                    .query_all() \
+                    .filter(lambda variant: variant.qual > 10) \
+                    .to_vcf(output_path)
+            ```
+        """
+        pairs = [(iter(self), None)]
+        return VariantIntervalQueryable(self, pairs, progress=progress)
+
+    def get_variant(self, variant: Union[Variant, str]) -> Variant:
         """Returns variant from vcf file. Lets you use vcf file as dict.
 
         # Arguments:
@@ -126,7 +149,8 @@ class MultiSampleVCF(VCF):
                 return v
         raise KeyError('Variant %s not found in vcf file.' % str(variant))
 
-    def get_variants(self, variants, regions=None, variant_gap=150):
+    def get_variants(self, variants: Iterable[Union[str, Variant]],
+                     regions=None, variant_gap=150) -> List[Variant]:
         """Returns list of variants from vcf file. Lets you use vcf file as dict.
 
         # Arguments:
@@ -153,7 +177,7 @@ class MultiSampleVCF(VCF):
 
         return [variant_map.get(v) for v in variants]
 
-    def _regions_from_variants(self, variants, variant_gap=150):
+    def _regions_from_variants(self, variants: List[Variant], variant_gap=150):
         regions = list()
 
         for chrom, vs in self._group_variants_by_chrom(variants).items():
@@ -171,7 +195,7 @@ class MultiSampleVCF(VCF):
 
         return regions
 
-    def _group_variants_by_chrom(self, variants):
+    def _group_variants_by_chrom(self, variants: List[Variant]):
         chroms = defaultdict(set)
 
         for v in variants:
@@ -179,7 +203,7 @@ class MultiSampleVCF(VCF):
 
         return dict(chroms)
 
-    def get_samples(self, variant):
+    def get_samples(self, variant: Variant) -> str:
         """Fetchs sample names which have given variants
 
         # Arguments
