@@ -127,7 +127,7 @@ def test_VariantQueryable_batch_iter():
 def test_VariantQueryable_to_vcf(tmp_path):
     vcf = MultiSampleVCF(vcf_file)
     variant_queryable = vcf.query_all()
-    variant_queryable.to_vcf(tmp_path / 'a.vcf',
+    variant_queryable.to_vcf(str(tmp_path / 'a.vcf'),
                              remove_samples=True, clean_info=True)
 
     vcf = MultiSampleVCF(tmp_path / 'a.vcf')
