@@ -14,6 +14,13 @@ __all__ = [
 ]
 
 
+def _batch_iter(variants, batch_size=10000):
+    batch = list(islice(variants, batch_size))
+    while batch:
+        yield batch
+        batch = list(islice(variants, batch_size))
+
+
 class MultiSampleVCF(VCF):
 
     def __init__(self, *args, **kwargs):
@@ -70,11 +77,7 @@ class MultiSampleVCF(VCF):
             batch_size: size of each batch.
         """
         variants = iter(self)
-        batch = list(islice(variants, batch_size))
-
-        while batch:
-            yield batch
-            batch = list(islice(variants, batch_size))
+        yield from _batch_iter(variants, batch_size=batch_size)
 
     def query_variants(self, intervals, sample_id=None, progress=False):
         """Fetch variants for given multi-intervals from vcf file
@@ -100,6 +103,22 @@ class MultiSampleVCF(VCF):
         """
         pairs = [(self.fetch_variants(i, sample_id=sample_id), i)
                  for i in intervals]
+        return VariantIntervalQueryable(self, pairs, progress=progress)
+
+    def query_all(self, progress=False):
+        """Convert all variants into queryable object without interval so
+        interval filters will not work.
+
+        # Example
+            To fetch variants if only single variant present in interval.
+            ```
+              >>> MultiSampleVCF(vcf_path) \
+                    .query_all() \
+                    .filter(lambda variant: variant.qual > 10) \
+                    .to_vcf(output_path)
+            ```
+        """
+        pairs = [(iter(self), None)]
         return VariantIntervalQueryable(self, pairs, progress=progress)
 
     def get_variant(self, variant):

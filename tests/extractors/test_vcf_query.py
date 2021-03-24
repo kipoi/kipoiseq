@@ -102,3 +102,33 @@ def test_VariantQueryable_filter_variant_query_2(variant_queryable):
 def test_VariantQueryable_filter_variant_query_3(variant_queryable):
     assert 3 == len(list(variant_queryable.filter(
         FilterVariantQuery() | FilterVariantQuery(filter='q10'))))
+
+
+def test_VariantQueryable_batch_iter():
+    vcf = MultiSampleVCF(vcf_file)
+
+    variant_queryable = vcf.query_all()
+    batches = list(variant_queryable.batch_iter(batch_size=1))
+    assert len(batches) == 3
+
+    vcf = MultiSampleVCF(vcf_file)
+    variant_queryable = vcf.query_all()
+    batches = list(variant_queryable.batch_iter(batch_size=2))
+    assert len(batches) == 2
+    assert len(batches[0].variant_intervals[0][0]) == 2
+    assert len(batches[1].variant_intervals[0][0]) == 1
+
+    vcf = MultiSampleVCF(vcf_file)
+    variant_queryable = vcf.query_all()
+    batches = list(variant_queryable.batch_iter(batch_size=10))
+    assert len(batches) == 1
+
+
+def test_VariantQueryable_to_vcf(tmp_path):
+    vcf = MultiSampleVCF(vcf_file)
+    variant_queryable = vcf.query_all()
+    variant_queryable.to_vcf(tmp_path / 'a.vcf',
+                             remove_samples=True, clean_info=True)
+
+    vcf = MultiSampleVCF(tmp_path / 'a.vcf')
+    assert len(vcf.samples) == 0

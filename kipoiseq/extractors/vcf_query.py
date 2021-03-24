@@ -1,4 +1,5 @@
 import abc
+from itertools import islice
 from typing import Tuple, Iterable, List
 from tqdm import tqdm
 from kipoiseq.dataclasses import Variant, Interval
@@ -163,19 +164,72 @@ class VariantIntervalQueryable:
         for variants, interval in self.variant_intervals:
             variants = list(variants)
             yield (
-                      v
-                      for v, cond in zip(variants, query(variants, interval))
-                      if cond
-                  ), interval
+                v
+                for v, cond in zip(variants, query(variants, interval))
+                if cond
+            ), interval
 
-    def to_vcf(self, path):
+    def batch_iter(self, batch_size=10000):
+        """Iterates variatns and interval in query object.
+
+        # Arguments
+            batch_size: size of each batch.
+        """
+        variants = iter(self)
+        batch = list()
+
+        for i, v in enumerate(variants):
+            i = i % batch_size
+
+            if i == 0:
+                interval = Interval(v.chrom, v.pos - 1, v.pos - 1)
+
+            elif v.chrom != interval.chrom:
+                yield VariantIntervalQueryable(self.vcf, [(batch, interval)])
+                batch = list()
+                interval = Interval(v.chrom, v.pos - 1, v.pos - 1)
+
+            interval._end += 1
+            batch.append(v)
+
+            if i + 1 == batch_size:
+                yield VariantIntervalQueryable(self.vcf, [(batch, interval)])
+                batch = list()
+
+        if batch:
+            yield VariantIntervalQueryable(self.vcf, [(batch, interval)])
+
+    def to_vcf(self, path, remove_samples=False, clean_info=False):
         """
         Parse query result as vcf file.
 
         Args:
           path: path of the file.
+          remove_samples: remove sample columns from vcf file
+          clean_info: clean info fields from vcf file
         """
         from cyvcf2 import Writer
-        writer = Writer(path, self.vcf)
+
+        header = self.vcf.raw_header.split('\n')
+        columns = header[-2].strip().split('\t')
+
+        if remove_samples:
+            header[-2] = '\t'.join(columns[:8])
+
+        writer = Writer.from_string(path, '\n'.join(header))
+
         for v in self:
-            writer.write_record(v.source)
+            variant = v.source
+
+            if remove_samples or clean_info:
+                variant = str(variant).strip().split()
+
+                if remove_samples:
+                    variant = variant[:8]
+
+                if clean_info:
+                    variant[7] = '.'
+
+                variant = writer.variant_from_string('\t'.join(variant))
+
+            writer.write_record(variant)
