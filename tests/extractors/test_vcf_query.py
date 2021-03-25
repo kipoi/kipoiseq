@@ -114,6 +114,7 @@ def test_VariantQueryable_batch_iter():
     vcf = MultiSampleVCF(vcf_file)
     variant_queryable = vcf.query_all()
     batches = list(variant_queryable.batch_iter(batch_size=2))
+
     assert len(batches) == 2
     assert len(batches[0].variant_intervals[0][0]) == 2
     assert len(batches[1].variant_intervals[0][0]) == 1
@@ -122,6 +123,10 @@ def test_VariantQueryable_batch_iter():
     variant_queryable = vcf.query_all()
     batches = list(variant_queryable.batch_iter(batch_size=10))
     assert len(batches) == 1
+
+    variants, interval = batches[0].variant_intervals[0]
+    assert interval == Interval('chr1', 3, 25)
+    assert len(variants) == 3
 
 
 def test_VariantQueryable_to_vcf(tmp_path):

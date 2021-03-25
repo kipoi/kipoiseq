@@ -178,23 +178,21 @@ class VariantIntervalQueryable:
         variants = iter(self)
         batch = list()
 
-        for i, v in enumerate(variants):
-            i = i % batch_size
-
-            if i == 0:
+        for v in variants:
+            if len(batch) == 0:
                 # 1-based variant to 0-based interval
-                interval = Interval(v.chrom, v.pos - 1, v.pos - 1)
+                interval = Interval(v.chrom, v.pos - 1, v.pos)
 
             elif v.chrom != interval.chrom:
                 # if new chrom return current batch and create new batch
                 yield VariantIntervalQueryable(self.vcf, [(batch, interval)])
                 batch = list()
-                interval = Interval(v.chrom, v.pos - 1, v.pos - 1)
+                interval = Interval(v.chrom, v.pos - 1, v.pos)
 
-            interval._end += 1
+            interval._end = v.pos
             batch.append(v)
 
-            if i + 1 == batch_size:
+            if len(batch) == batch_size:
                 yield VariantIntervalQueryable(self.vcf, [(batch, interval)])
                 batch = list()
 
