@@ -2,10 +2,10 @@ import numpy as np
 from six import string_types
 
 # alphabets:
-DNA = ["A", "C", "G", "T"]
-RNA = ["A", "C", "G", "U"]
-AMINO_ACIDS = ["A", "R", "N", "D", "B", "C", "E", "Q", "Z", "G", "H",
-               "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V"]
+DNA = ("A", "C", "G", "T")
+RNA = ("A", "C", "G", "U")
+AMINO_ACIDS = ("A", "R", "N", "D", "B", "C", "E", "Q", "Z", "G", "H",
+               "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V")
 
 alphabets = {"DNA": DNA,
              "RNA": RNA,
@@ -33,6 +33,7 @@ def parse_dtype(dtype):
         try:
             return eval(dtype)
         except Exception as e:
-            raise ValueError("Unable to parse dtype: {}. \nException: {}".format(dtype, e))
+            raise ValueError(
+                "Unable to parse dtype: {}. \nException: {}".format(dtype, e))
     else:
         return dtype

@@ -90,7 +90,7 @@ def tokenize(seq, alphabet=DNA, neutral_alphabet=["N"]):
         neutral_alphabet = [neutral_alphabet]
 
     nchar = len(alphabet[0])
-    for l in alphabet + neutral_alphabet:
+    for l in (*alphabet,  *neutral_alphabet):
         assert len(l) == nchar
     assert len(seq) % nchar == 0  # since we are using striding
 
