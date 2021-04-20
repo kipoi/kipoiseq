@@ -2,7 +2,7 @@ import pytest
 from conftest import example_intervals_bed, sample_5kb_fasta_file
 import pyranges as pr
 from kipoiseq import Interval
-from kipoiseq.extractors import VariantCombinator
+from kipoiseq.extractors import VariantCombinator, MultiSampleVCF
 
 
 @pytest.fixture
@@ -60,3 +60,14 @@ def test_VariantCombinator_iter(variant_combinator):
     df = pr.read_bed(example_intervals_bed).df
     num_snv = (df['End'] - df['Start']).sum() * 3
     assert len(variants) == num_snv
+
+
+def test_VariantCombinator_to_vcf(tmpdir, variant_combinator):
+    output_vcf_file = str(tmpdir / 'output.vcf')
+    variant_combinator.to_vcf(output_vcf_file)
+
+    vcf = MultiSampleVCF(output_vcf_file)
+
+    df = pr.read_bed(example_intervals_bed).df
+    num_snv = (df['End'] - df['Start']).sum() * 3
+    assert len(list(vcf)) == num_snv

@@ -80,3 +80,16 @@ class VariantCombinator:
             line = line.split('\t')
             interval = Interval(line[0], int(line[1]), int(line[2]))
             yield from self.combination_variants(interval, self.variant_type)
+
+    def to_vcf(self, path):
+        from cyvcf2 import Writer
+        header = '''##fileformat=VCFv4.2
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+'''
+        writer = Writer.from_string(path, header)
+
+        for v in self:
+            variant = writer.variant_from_string('\t'.join([
+                v.chrom, str(v.pos), '.', v.ref, v.alt, '.', '.', '.'
+            ]))
+            writer.write_record(variant)
