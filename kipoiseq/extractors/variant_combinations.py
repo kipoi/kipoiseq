@@ -15,7 +15,7 @@ class VariantCombinator:
 
         self.bed_file = bed_file
         self.fasta = fasta_file
-        self.fasta = FastaStringExtractor(fasta_file)
+        self.fasta = FastaStringExtractor(fasta_file, force_upper=True)
         self.variant_type = variant_type
         self.alphabet = alphabets[alphabet]
 
