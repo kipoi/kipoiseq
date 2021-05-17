@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from copy import deepcopy
+import pyranges as pr
 from kipoi.metadata import GenomicRanges
 from kipoi.data import Dataset, kipoi_dataloader
 from kipoi_conda.dependencies import Dependencies
@@ -10,6 +11,7 @@ from kipoi_utils.utils import default_kwargs
 from kipoiseq.extractors import FastaStringExtractor
 from kipoiseq.transforms.functional import resize_interval
 from kipoiseq.utils import to_scalar, parse_dtype
+from kipoiseq.dataclasses import Interval
 
 # general dependencies
 # bioconda::genomelake', TODO - add genomelake again once it gets released with pyfaidx to bioconda
@@ -381,3 +383,136 @@ class SeqIntervalDl(Dataset):
             output_schema.targets = None
 
         return output_schema
+    
+class AnchoredGTFDl(Dataset):
+    
+    _function_mapping = {
+        "tss": lambda x:  AnchoredGTFDl.anchor_to_feature_start(x, "gene", use_strand=True),
+        "start_codon": lambda x: AnchoredGTFDl.anchor_to_feature_start(x, "start_codon", use_strand=True),
+        "stop_codon": lambda x: AnchoredGTFDl.anchor_to_feature_end(x, "stop_codon", use_strand=True),
+        "polya": lambda x: AnchoredGTFDl.anchor_to_feature_end(x, "gene", use_strand=True)
+    }
+    
+    def __init__(self, gtf_file, fasta_file, 
+                 num_upstream, num_downstream,
+                 gtf_filter, anchor,
+                 transform,
+                 interval_attrs,
+                 use_strand=True):
+        """
+        This dataloader allows to extract fixed length sequences
+        Around pre defined anchor points.
+        
+        info:
+            doc: >
+                Dataloader for a combination of fasta and gtf files. The dataloader extracts fixed length regions
+                around anchor points. Anchor points are extracted from the gtf based on the anchor parameter.
+                The sequences corresponding to the region are then extracted from the fasta file and optionally 
+                trnasformed using a function given by the transform parameter.
+        args:
+            gtf_file:
+                doc: Path to a gtf file (str)
+            fasta_file:
+                doc: Reference genome FASTA file path (str)
+            num_upstream:
+                doc: Number of nt by which interval is extended upstream of the anchor point
+            num_downstream:
+                doc: Number of nt by which interval is extended downstream of the anchor point
+            gtf_filter:
+                doc: >
+                    Allows to filter the gtf before extracting the anchor points. Can be str, callable
+                    or None. If str, it is interpreted as argument to pandas .query(). If callable,
+                    it is interpreted as function that filters a pandas dataframe and returns the 
+                    filtered df.
+            anchor:
+                doc: >
+                    Defines the anchor points. Can be str or callable. If it is a callable, it is 
+                    treated as function that takes a pandas dataframe and returns a modified version
+                    of the dataframe where each row represents one anchor point, the position of
+                    which is stored in the column called anchor_pos. If it is a string, a predefined function
+                    is loaded. Currently available are tss (anchor is the start of a gene), start_codon 
+                    (anchor is the start of the start_codon), stop_codon (anchor is the position right after
+                    the stop_codon), polya (anchor is the position right after the end of a gene).
+            transform:
+                doc: Callable (or None) to transform the extracted sequence (e.g. one-hot)
+            interval_attrs:
+                doc: Metadata to extract from the gtf, e.g. ["gene_id", "Strand"]
+        """
+        
+        # Read and filter gtf
+        gtf = pr.read_gtf(gtf_file).df
+        if gtf_filter:
+            if isinstance(gtf_filter, str):
+                gtf = gtf.query(gtf_filter)
+            else:
+                gtf = gtf_filter(gtf)
+        # Extract anchor
+        if isinstance(anchor, str):
+            anchor = anchor.lower()
+            if anchor in self._function_mapping:
+                anchor = self._function_mapping[anchor]
+            else:
+                raise Exception("No valid anchorpoint was chosen")    
+        self._gtf_anchor = anchor(gtf)
+        
+        # Other parameters
+        self._use_strand = use_strand
+        self._fa = FastaStringExtractor(fasta_file, use_strand=self._use_strand)
+        self._transform = transform
+        if self._transform is None:
+            self._transform = lambda x: x
+        self._num_upstream = num_upstream
+        self._num_downstream = num_downstream
+        self._interval_attrs = interval_attrs
+
+    def _create_anchored_interval(self, row, num_upstream, num_downstream):
+
+        if self._use_strand == True and row.Strand == "-":
+            # negative strand
+            start = row.anchor_pos - num_downstream
+            end = row.anchor_pos + num_upstream
+        else:
+            # positive strand
+            start = row.anchor_pos - num_upstream
+            end = row.anchor_pos + num_downstream
+                        
+        interval = Interval(row.Chromosome, start, end, strand=row.Strand)
+        return interval
+                    
+    def __len__(self):
+        return len(self._gtf_anchor)
+
+    def __getitem__(self, idx):
+        row = self._gtf_anchor.iloc[idx]
+        interval = self._create_anchored_interval(row,
+                                             num_upstream=self._num_upstream, 
+                                             num_downstream=self._num_downstream)
+        sequence = self._fa.extract(interval)
+        sequence = self._transform(sequence)
+        metadata_dict = {k:row.get(k, '') for k in self._interval_attrs}
+        metadata_dict["ranges"] = GenomicRanges(interval.chrom, interval.start, interval.stop, str(idx))
+        return {
+            "inputs": np.array(sequence),
+            "metadata": metadata_dict
+        }
+    
+    @staticmethod
+    def anchor_to_feature_start(gtf, feature, use_strand):
+        gtf = gtf.query('Feature == @feature')
+        if use_strand:
+            gtf["anchor_pos"] = ((gtf.Start * (gtf.Strand == "+")) 
+                      + (gtf.End * (gtf.Strand == "-")))
+        else:
+            gtf["anchor_pos"] = gtf.Start
+        return gtf
+    
+    @staticmethod
+    def anchor_to_feature_end(gtf, feature, use_strand):
+        gtf = gtf.query('Feature == @feature')
+        if use_strand:
+            gtf["anchor_pos"] = ((gtf.End * (gtf.Strand == "+")) 
+                      + (gtf.Start * (gtf.Strand == "-")))
+        else:
+            gtf["anchor_pos"] = gtf.End
+        return gtf
+                    
