@@ -437,10 +437,12 @@ class AnchoredGTFDl(Dataset):
             doc: exon sequence with flanking intronic sequence
             associated_metadata: ranges
         metadata:
-            # gene_id:
-            #     type: string
-            # Strand: 
-            #     type: string
+            gene_id:
+                type: str
+                doc: gene id
+            Strand: 
+                type: str
+                doc: Strand
             ranges:
                 type: GenomicRanges
                 doc: ranges that the sequences were extracted
