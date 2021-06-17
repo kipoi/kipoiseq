@@ -17,6 +17,7 @@ requirements = [
     "gffutils",
     "kipoi-utils>=0.1.1",
     "kipoi-conda>=0.1.0",
+    "cython",
     "pyranges"
 ]
 
