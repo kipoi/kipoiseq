@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 from copy import deepcopy
-import pyranges as pr
 from kipoi.metadata import GenomicRanges
 from kipoi.data import Dataset, kipoi_dataloader
 from kipoi_conda.dependencies import Dependencies
@@ -9,19 +8,20 @@ from kipoiseq.transforms import ReorderedOneHot
 from kipoi.specs import Author
 from kipoi_utils.utils import default_kwargs
 from kipoiseq.extractors import FastaStringExtractor
-from kipoiseq.transforms.functional import resize_interval
+from kipoiseq.transforms.functional import resize_interval, one_hot_dna
 from kipoiseq.utils import to_scalar, parse_dtype
 from kipoiseq.dataclasses import Interval
 
 # general dependencies
 # bioconda::genomelake', TODO - add genomelake again once it gets released with pyfaidx to bioconda
-deps = Dependencies(conda=['bioconda::pybedtools', 'bioconda::pyfaidx', 'numpy', 'pandas'],
+deps = Dependencies(conda=['bioconda::pybedtools', 'bioconda::pyfaidx', 'bioconda::pyranges', 'numpy', 'pandas'],
                     pip=['kipoiseq'])
 package_authors = [Author(name='Ziga Avsec', github='avsecz'),
                    Author(name='Roman Kreuzhuber', github='krrome')]
+                 # Add Alex here?
 
 # Object exported on import *
-__all__ = ['SeqIntervalDl', 'StringSeqIntervalDl', 'BedDataset']
+__all__ = ['SeqIntervalDl', 'StringSeqIntervalDl', 'BedDataset', 'AnchoredGTFDl']
 
 
 class BedDataset(object):
@@ -383,9 +383,68 @@ class SeqIntervalDl(Dataset):
             output_schema.targets = None
 
         return output_schema
-    
+
+@kipoi_dataloader(override={"dependencies": deps, 'info.authors': package_authors})
 class AnchoredGTFDl(Dataset):
-    
+    """
+    info:
+        doc: >
+            Dataloader for a combination of fasta and gtf files. The dataloader extracts fixed length regions
+            around anchor points. Anchor points are extracted from the gtf based on the anchor parameter.
+            The sequences corresponding to the region are then extracted from the fasta file and optionally 
+            trnasformed using a function given by the transform parameter.
+    args:
+        gtf_file:
+            doc: Path to a gtf file (str)
+            example:
+                url: https://raw.githubusercontent.com/kipoi/models/master/MMSplice/tests/data/test.gtf
+                md5: b20607afe91ec20d6ee79ed95ab0e85b
+        fasta_file:
+            doc: Reference genome FASTA file path (str)
+            example:
+                url: https://raw.githubusercontent.com/kipoi/models/master/MMSplice/tests/data/hg19.nochr.chr17.fa
+                md5: e3f6630a8323c4306469fdfe8d8b9448
+        num_upstream:
+            doc: Number of nt by which interval is extended upstream of the anchor point
+        num_downstream:
+            doc: Number of nt by which interval is extended downstream of the anchor point
+        gtf_filter:
+            doc: >
+                Allows to filter the gtf before extracting the anchor points. Can be str, callable
+                or None. If str, it is interpreted as argument to pandas .query(). If callable,
+                it is interpreted as function that filters a pandas dataframe and returns the 
+                filtered df.
+        anchor:
+            doc: >
+                Defines the anchor points. Can be str or callable. If it is a callable, it is 
+                treated as function that takes a pandas dataframe and returns a modified version
+                of the dataframe where each row represents one anchor point, the position of
+                which is stored in the column called anchor_pos. If it is a string, a predefined function
+                is loaded. Currently available are tss (anchor is the start of a gene), start_codon 
+                (anchor is the start of the start_codon), stop_codon (anchor is the position right after
+                the stop_codon), polya (anchor is the position right after the end of a gene).
+        transform:
+            doc: Callable (or None) to transform the extracted sequence (e.g. one-hot)
+        interval_attrs:
+            doc: Metadata to extract from the gtf, e.g. ["gene_id", "Strand"]
+        use_strand:
+            doc: True or False
+    output_schema:
+        inputs:
+            name: seq
+            shape: (None, 4)
+            special_type: DNAStringSeq
+            doc: exon sequence with flanking intronic sequence
+            associated_metadata: ranges
+        metadata:
+            # gene_id:
+            #     type: string
+            # Strand: 
+            #     type: string
+            ranges:
+                type: GenomicRanges
+                doc: ranges that the sequences were extracted
+    """
     _function_mapping = {
         "tss": lambda x:  AnchoredGTFDl.anchor_to_feature_start(x, "gene", use_strand=True),
         "start_codon": lambda x: AnchoredGTFDl.anchor_to_feature_start(x, "start_codon", use_strand=True),
@@ -394,51 +453,14 @@ class AnchoredGTFDl(Dataset):
     }
     
     def __init__(self, gtf_file, fasta_file, 
-                 num_upstream, num_downstream,
-                 gtf_filter, anchor,
-                 transform,
-                 interval_attrs,
+                 num_upstream=7000, num_downstream=3500,
+                 gtf_filter='gene_type == "protein_coding"',
+                 anchor='tss',
+                 transform=one_hot_dna,
+                 interval_attrs=["gene_id", "Strand"],
                  use_strand=True):
-        """
-        This dataloader allows to extract fixed length sequences
-        Around pre defined anchor points.
-        
-        info:
-            doc: >
-                Dataloader for a combination of fasta and gtf files. The dataloader extracts fixed length regions
-                around anchor points. Anchor points are extracted from the gtf based on the anchor parameter.
-                The sequences corresponding to the region are then extracted from the fasta file and optionally 
-                trnasformed using a function given by the transform parameter.
-        args:
-            gtf_file:
-                doc: Path to a gtf file (str)
-            fasta_file:
-                doc: Reference genome FASTA file path (str)
-            num_upstream:
-                doc: Number of nt by which interval is extended upstream of the anchor point
-            num_downstream:
-                doc: Number of nt by which interval is extended downstream of the anchor point
-            gtf_filter:
-                doc: >
-                    Allows to filter the gtf before extracting the anchor points. Can be str, callable
-                    or None. If str, it is interpreted as argument to pandas .query(). If callable,
-                    it is interpreted as function that filters a pandas dataframe and returns the 
-                    filtered df.
-            anchor:
-                doc: >
-                    Defines the anchor points. Can be str or callable. If it is a callable, it is 
-                    treated as function that takes a pandas dataframe and returns a modified version
-                    of the dataframe where each row represents one anchor point, the position of
-                    which is stored in the column called anchor_pos. If it is a string, a predefined function
-                    is loaded. Currently available are tss (anchor is the start of a gene), start_codon 
-                    (anchor is the start of the start_codon), stop_codon (anchor is the position right after
-                    the stop_codon), polya (anchor is the position right after the end of a gene).
-            transform:
-                doc: Callable (or None) to transform the extracted sequence (e.g. one-hot)
-            interval_attrs:
-                doc: Metadata to extract from the gtf, e.g. ["gene_id", "Strand"]
-        """
-        
+        import pyranges as pr
+
         # Read and filter gtf
         gtf = pr.read_gtf(gtf_file).df
         if gtf_filter:
