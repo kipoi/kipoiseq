@@ -397,13 +397,13 @@ class AnchoredGTFDl(Dataset):
         gtf_file:
             doc: Path to a gtf file (str)
             example:
-                url: https://raw.githubusercontent.com/kipoi/models/master/MMSplice/tests/data/test.gtf
-                md5: b20607afe91ec20d6ee79ed95ab0e85b
+                url: https://zenodo.org/record/1466102/files/example_files-gencode.v24.annotation_chr22.gtf
+                md5: c0d1bf7738f6a307b425e4890621e7d9
         fasta_file:
             doc: Reference genome FASTA file path (str)
             example:
-                url: https://raw.githubusercontent.com/kipoi/models/master/MMSplice/tests/data/hg19.nochr.chr17.fa
-                md5: e3f6630a8323c4306469fdfe8d8b9448
+                url: https://zenodo.org/record/1466102/files/example_files-hg38_chr22.fa
+                md5: b0f5cdd4f75186f8a4d2e23378c57b5b
         num_upstream:
             doc: Number of nt by which interval is extended upstream of the anchor point
         num_downstream:
