@@ -406,8 +406,10 @@ class AnchoredGTFDl(Dataset):
                 md5: b0f5cdd4f75186f8a4d2e23378c57b5b
         num_upstream:
             doc: Number of nt by which interval is extended upstream of the anchor point
+            example: 7000
         num_downstream:
             doc: Number of nt by which interval is extended downstream of the anchor point
+            example: 3500
         gtf_filter:
             doc: >
                 Allows to filter the gtf before extracting the anchor points. Can be str, callable
@@ -455,7 +457,7 @@ class AnchoredGTFDl(Dataset):
     }
     
     def __init__(self, gtf_file, fasta_file, 
-                 num_upstream=7000, num_downstream=3500,
+                 num_upstream, num_downstream,
                  gtf_filter='gene_type == "protein_coding"',
                  anchor='tss',
                  transform=one_hot_dna,
