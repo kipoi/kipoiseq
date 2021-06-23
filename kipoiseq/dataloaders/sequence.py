@@ -384,7 +384,7 @@ class SeqIntervalDl(Dataset):
 
         return output_schema
 
-@kipoi_dataloader(override={"dependencies": deps, 'info.authors': Author(name='Alex Karollus', github='Karollus')})
+@kipoi_dataloader(override={"dependencies": deps, 'info.authors': [Author(name='Alex Karollus', github='Karollus')]})
 class AnchoredGTFDl(Dataset):
     """
     info:
