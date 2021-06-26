@@ -57,9 +57,10 @@ def test_VariantCombinator_combination_variants(variant_combinator):
 
 def test_VariantCombinator_iter(variant_combinator):
     variants = list(variant_combinator)
-    df = pr.read_bed(example_intervals_bed).df
+    df = pr.read_bed(example_intervals_bed).merge(strand=False).df
     num_snv = (df['End'] - df['Start']).sum() * 3
     assert len(variants) == num_snv
+    assert len(variants) == len(set(variants))
 
 
 def test_VariantCombinator_to_vcf(tmpdir, variant_combinator):
@@ -68,6 +69,6 @@ def test_VariantCombinator_to_vcf(tmpdir, variant_combinator):
 
     vcf = MultiSampleVCF(output_vcf_file)
 
-    df = pr.read_bed(example_intervals_bed).df
+    df = pr.read_bed(example_intervals_bed).merge(strand=False).df
     num_snv = (df['End'] - df['Start']).sum() * 3
     assert len(list(vcf)) == num_snv

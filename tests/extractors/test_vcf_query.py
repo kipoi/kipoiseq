@@ -152,6 +152,23 @@ def test_VariantQueryable_to_sample_csv(tmp_path):
     df_expected = pd.DataFrame({
         'variant': ['chr1:4:T>C', 'chr1:25:AACG>GA'],
         'sample': ['NA00003', 'NA00002'],
+        'genotype': [3, 3]
+    })
+    pd.testing.assert_frame_equal(df, df_expected)
+
+
+def test_VariantQueryable_to_sample_csv_fields(tmp_path):
+    vcf = MultiSampleVCF(vcf_file)
+
+    variant_queryable = vcf.query_all()
+
+    path = str(tmp_path / 'sample.csv')
+    variant_queryable.to_sample_csv(path, ['GT', 'HQ'])
+
+    df = pd.read_csv(path)
+    df_expected = pd.DataFrame({
+        'variant': ['chr1:4:T>C', 'chr1:25:AACG>GA'],
+        'sample': ['NA00003', 'NA00002'],
         'genotype': [3, 3],
         'GT': ['1/1', '1/1'],
         'HQ': ['51,51', '10,10']

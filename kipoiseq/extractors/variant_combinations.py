@@ -3,6 +3,7 @@ from itertools import product
 from kipoiseq import Interval, Variant
 from kipoiseq.utils import alphabets
 from kipoiseq.extractors import FastaStringExtractor
+from kipoiseq.extractors.vcf_matching import pyranges_to_intervals
 
 
 class VariantCombinator:
@@ -49,7 +50,6 @@ class VariantCombinator:
 
     def combination_variants_deletion(self, interval, length=1) -> Iterable[Variant]:
         """Returns all the possible variants in the regions.
-
           interval: interval of variants
           length: deletions up to length
         """
@@ -76,9 +76,12 @@ class VariantCombinator:
                 interval, length=del_length)
 
     def __iter__(self) -> Iterable[Variant]:
-        for line in open(self.bed_file):
-            line = line.split('\t')
-            interval = Interval(line[0], int(line[1]), int(line[2]))
+        import pyranges as pr
+
+        gr = pr.read_bed(self.bed_file)
+        gr = gr.merge(strand=False)
+
+        for interval in pyranges_to_intervals(gr):
             yield from self.combination_variants(interval, self.variant_type)
 
     def to_vcf(self, path):
