@@ -79,7 +79,7 @@ class VariantCombinator:
         import pyranges as pr
 
         gr = pr.read_bed(self.bed_file)
-        gr = gr.merge(strand=False)
+        gr = gr.merge(strand=False).sort()
 
         for interval in pyranges_to_intervals(gr):
             yield from self.combination_variants(interval, self.variant_type)
