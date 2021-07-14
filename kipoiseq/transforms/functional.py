@@ -7,12 +7,6 @@ from copy import deepcopy
 import numpy as np
 from six import string_types
 
-try:
-    # use the fast genomelake's one-hot-encode if it's installed
-    from genomelake.util import one_hot_encode_sequence
-except ImportError:
-    one_hot_encode_sequence = None
-
 
 # sequence -> array
 
@@ -113,28 +107,24 @@ def token2one_hot(tokens, alphabet_size=4, neutral_value=.25, dtype=None):
         arr[tokens_range[tokens < 0], :] = neutral_value
     return arr
 
-
-def one_hot(seq, alphabet=DNA, neutral_alphabet=['N'], neutral_value=.25, dtype=None):
+# Reference: https://github.com/deepmind/deepmind-research/blob/fa8c9be4bb0cfd0b8492203eb2a9f31ef995633c/enformer/enformer.py#L306-L318
+def one_hot_dna(sequence: str,
+                   alphabet: str = 'ACGT',
+                   neutral_alphabet: str = 'N',
+                   neutral_value: Any = 0,
+                   dtype=np.float32) -> np.ndarray:
+  """One-hot encode sequence."""
+  
     if not isinstance(seq, str):
         raise ValueError("seq needs to be a string")
-    return token2one_hot(tokenize(seq, alphabet, neutral_alphabet), len(alphabet), neutral_value, dtype=dtype)
-
-
-def one_hot_dna(seq, dtype=None):
-    """One-hot encode DNA sequence
-    """
-    if not isinstance(seq, str):
-        raise ValueError("seq needs to be a string")
-
-    if one_hot_encode_sequence is not None:
-        # genomelake's one_hot_encode_sequence could be imported
-        out = np.zeros((len(seq), 4), dtype=np.float32)
-        one_hot_encode_sequence(seq, out)
-        return out.astype(dtype)
-    else:
-        return one_hot(seq, alphabet=DNA, neutral_alphabet=['N'], neutral_value=.25, dtype=dtype)
-
-
+    def to_uint8(string):
+        return np.frombuffer(string.encode('ascii'), dtype=np.uint8)
+    hash_table = np.zeros((np.iinfo(np.uint8).max, len(alphabet)), dtype=dtype)
+    hash_table[to_uint8(alphabet)] = np.eye(len(alphabet), dtype=dtype)
+    hash_table[to_uint8(neutral_alphabet)] = neutral_value
+    hash_table = hash_table.astype(dtype)
+    return hash_table[to_uint8(sequence)]
+  
 # sequence trimming
 
 
