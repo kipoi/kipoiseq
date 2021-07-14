@@ -107,16 +107,21 @@ def token2one_hot(tokens, alphabet_size=4, neutral_value=.25, dtype=None):
         arr[tokens_range[tokens < 0], :] = neutral_value
     return arr
 
+
+def one_hot(seq, alphabet=DNA, neutral_alphabet=['N'], neutral_value=.25, dtype=None):
+    if not isinstance(seq, str):
+        raise ValueError("seq needs to be a string")
+    return token2one_hot(tokenize(seq, alphabet, neutral_alphabet), len(alphabet), neutral_value, dtype=dtype)
+
 # Reference: https://github.com/deepmind/deepmind-research/blob/fa8c9be4bb0cfd0b8492203eb2a9f31ef995633c/enformer/enformer.py#L306-L318
 def one_hot_dna(sequence: str,
                    alphabet: str = 'ACGT',
                    neutral_alphabet: str = 'N',
                    neutral_value: Any = 0,
                    dtype=np.float32) -> np.ndarray:
-  """One-hot encode sequence."""
-  
-    if not isinstance(seq, str):
-        raise ValueError("seq needs to be a string")
+    """One-hot encode sequence."""
+    if not isinstance(sequence, str):
+        raise ValueError("sequence needs to be a string")
     def to_uint8(string):
         return np.frombuffer(string.encode('ascii'), dtype=np.uint8)
     hash_table = np.zeros((np.iinfo(np.uint8).max, len(alphabet)), dtype=dtype)
