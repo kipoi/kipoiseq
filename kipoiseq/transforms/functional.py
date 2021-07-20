@@ -125,13 +125,13 @@ def one_hot_dna(sequence: str,
         raise ValueError("sequence needs to be a string")
     def to_uint8(string):
         return np.frombuffer(string.encode('ascii'), dtype=np.uint8)
-    print(alphabet)
+    
     hash_table = np.zeros((np.iinfo(np.uint8).max, len(alphabet)), dtype=dtype)
     hash_table[to_uint8(''.join(alphabet))] = np.eye(len(alphabet), dtype=dtype)
     hash_table[to_uint8(''.join(neutral_alphabet))] = neutral_value
     hash_table = hash_table.astype(dtype)
     return hash_table[to_uint8(sequence)]
-  
+
 # sequence trimming
 
 

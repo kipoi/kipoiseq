@@ -111,7 +111,11 @@ class OneHot(object):
 
     def __call__(self, seq):
         if self.alphabet == DNA and self.neutral_alphabet == ['N'] and self.neutral_value == 0.25:
-            return F.one_hot_dna(seq, self.dtype)
+            return F.one_hot_dna(seq, 
+                                alphabet=self.alphabet, 
+                                neutral_alphabet=self.neutral_alphabet, 
+                                neutral_value=self.neutral_value, 
+                                dtype=self.dtype)
         else:
             return F.one_hot(seq,
                              alphabet=self.alphabet,
