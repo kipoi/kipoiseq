@@ -115,22 +115,22 @@ def one_hot(seq, alphabet=DNA, neutral_alphabet=['N'], neutral_value=.25, dtype=
     return token2one_hot(tokenize(seq, alphabet, neutral_alphabet), len(alphabet), neutral_value, dtype=dtype)
 
 # Reference: https://github.com/deepmind/deepmind-research/blob/fa8c9be4bb0cfd0b8492203eb2a9f31ef995633c/enformer/enformer.py#L306-L318
-def one_hot_dna(sequence: str,
-                   alphabet: list = DNA,
-                   neutral_alphabet: str = ['N'],
-                   neutral_value: Any = 0.25,
-                   dtype=np.float32) -> np.ndarray:
+def one_hot_dna(seq: str,
+                alphabet: list = DNA,
+                neutral_alphabet: str = 'N',
+                neutral_value: Any = 0.25,
+                dtype=np.float32) -> np.ndarray:
     """One-hot encode sequence."""
-    if not isinstance(sequence, str):
+    if not isinstance(seq, str):
         raise ValueError("sequence needs to be a string")
     def to_uint8(string):
         return np.frombuffer(string.encode('ascii'), dtype=np.uint8)
     
     hash_table = np.zeros((np.iinfo(np.uint8).max, len(alphabet)), dtype=dtype)
     hash_table[to_uint8(''.join(alphabet))] = np.eye(len(alphabet), dtype=dtype)
-    hash_table[to_uint8(''.join(neutral_alphabet))] = neutral_value
+    hash_table[to_uint8(neutral_alphabet)] = neutral_value
     hash_table = hash_table.astype(dtype)
-    return hash_table[to_uint8(sequence)]
+    return hash_table[to_uint8(seq)]
 
 # sequence trimming
 
