@@ -128,7 +128,7 @@ def one_hot_dna(seq: str,
     
     hash_table = np.zeros((np.iinfo(np.uint8).max, len(alphabet)), dtype=dtype)
     hash_table[to_uint8(''.join(alphabet))] = np.eye(len(alphabet), dtype=dtype)
-    hash_table[to_uint8(neutral_alphabet)] = neutral_value
+    hash_table[to_uint8(''.join(neutral_alphabet))] = neutral_value
     hash_table = hash_table.astype(dtype)
     return hash_table[to_uint8(seq)]
 
