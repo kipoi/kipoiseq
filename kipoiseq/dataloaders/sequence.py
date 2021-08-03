@@ -12,8 +12,6 @@ from kipoiseq.transforms.functional import resize_interval, one_hot_dna
 from kipoiseq.utils import to_scalar, parse_dtype
 from kipoiseq.dataclasses import Interval
 
-# general dependencies
-# bioconda::genomelake', TODO - add genomelake again once it gets released with pyfaidx to bioconda
 deps = Dependencies(conda=['bioconda::pybedtools', 'bioconda::pyfaidx', 'bioconda::pyranges', 'numpy', 'pandas'],
                     pip=['kipoiseq'])
 package_authors = [Author(name='Ziga Avsec', github='avsecz'),

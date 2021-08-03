@@ -28,7 +28,6 @@ variables:
       name: Install pip dependencies
       command: |
         source activate kipoi-dev
-        pip install genomelake --no-deps
         pip install pyfaidx
   install_conda_deps: &install_conda_deps
     run:
@@ -38,7 +37,7 @@ variables:
         apt-get update -y
         apt-get install build-essential -y
         conda install -y cython
-        conda install -y -c bioconda cyvcf2 pybedtools genomelake pyfaidx biopython
+        conda install -y -c bioconda cyvcf2 pybedtools pyfaidx biopython
   install_kipoi: &install_kipoi
     run:
       name: Install Kipoi

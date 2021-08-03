@@ -1,6 +1,5 @@
 cyvcf2==0.20.0
 deprecation==2.1.0
-genomelake==0.1.4
 gffutils==0.10.1
 kipoi==0.6.25
 kipoi_conda==0.2.2

@@ -7,8 +7,6 @@ import gffutils
 from pyfaidx import Fasta
 import pickle
 
-# general dependencies
-# bioconda::genomelake', TODO - add genomelake again once it gets released with pyfaidx to bioconda
 deps = Dependencies(conda=['bioconda::pyfaidx', 'numpy', 'pandas'],
                     pip=['kipoiseq', 'kipoi'])
 package_authors = [Author(name='Jun Cheng', github='s6juncheng')]
