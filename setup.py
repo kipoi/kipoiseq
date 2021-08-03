@@ -5,7 +5,6 @@ from setuptools import setup, find_packages
 
 requirements = [
     "kipoi>=0.5.5",
-    # "genomelake",
     "pyfaidx",
     "numpy",
     "pandas",
@@ -35,7 +34,6 @@ test_requirements = [
     "cython",
     "cyvcf2",
     "pyranges>=0.0.71",
-    # "genomelake",
     "keras",
     "tensorflow",
     "pybedtools",
