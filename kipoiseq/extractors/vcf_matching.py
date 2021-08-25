@@ -1,7 +1,8 @@
-from typing import List
+import os
+from typing import List, Union, Iterable, Iterator
 import pandas as pd
 from kipoiseq.dataclasses import Variant, Interval
-from kipoiseq.extractors import MultiSampleVCF
+from kipoiseq.variant_source import VariantFetcher
 
 try:
     from pyranges import PyRanges
@@ -82,6 +83,48 @@ def intervals_to_pyranges(intervals):
     )
 
 
+class PyrangesVariantFetcher(VariantFetcher):
+
+    def __init__(self, variants: List[Variant]):
+        self.variants = variants
+        self._variants_pr = None
+
+    @property
+    def variants_pr(self):
+        # convert to PyRanges on demand
+        if self._variants_pr is None:
+            self._variants_pr = variants_to_pyranges(self.variants)
+        return self._variants_pr
+
+    def fetch_variants(self, interval: Union[Interval, Iterable[Interval]]) -> Iterator[Variant]:
+        if isinstance(interval, Interval):
+            interval = [interval]
+        # convert interval(s) to PyRanges object
+        interval_pr: PyRanges = intervals_to_pyranges(interval)
+        # join with variants
+        pr_join = interval_pr.join(self.variants_pr, suffix='_variant')
+
+        yield from pr_join.df["variant"]
+
+    def __iter__(self) -> Iterator[Variant]:
+        yield from self.variants
+
+
+class VariantFetcherProxy(VariantFetcher):
+
+    def __init__(self, variant_fetcher: VariantFetcher):
+        self.variant_fetcher = variant_fetcher
+
+    def fetch_variants(self, interval: Union[Interval, Iterable[Interval]]) -> Iterator[Variant]:
+        yield from self.variant_fetcher.fetch_variants(interval)
+
+    def batch_iter(self, batch_size=10000) -> Iterator[List[Variant]]:
+        yield from self.variant_fetcher.batch_iter(batch_size)
+
+    def __iter__(self) -> Iterator[Variant]:
+        yield from self.variant_fetcher
+
+
 class BaseVariantMatcher:
     """
     Base variant intervals matcher
@@ -89,7 +132,9 @@ class BaseVariantMatcher:
 
     def __init__(
             self,
-            vcf_file: str,
+            vcf_file: str = None,
+            variants: List[Variant] = None,
+            variant_fetcher: VariantFetcher = None,
             gtf_path: str = None,
             bed_path: str = None,
             pranges: PyRanges = None,
@@ -101,7 +146,8 @@ class BaseVariantMatcher:
         """
 
         Args:
-          vcf_file: path of vcf file
+          vcf_file: (optional) path of vcf file
+          variants: (optional) readily processed variants
           gtf_path: (optional) path of gtf file contains features
           bed_path: (optional) path of bed file
           pranges: (optional) pyranges object
@@ -110,11 +156,36 @@ class BaseVariantMatcher:
             pyranges object. This argument is not valid with intervals.
             Currently unused
         """
-        self.vcf = MultiSampleVCF(vcf_file, lazy=vcf_lazy)
+        self.variant_fetcher = self._read_variants(vcf_file, variants, variant_fetcher, vcf_lazy)
         self.interval_attrs = interval_attrs
         self.pr = self._read_intervals(gtf_path, bed_path, pranges,
                                        intervals, interval_attrs, duplicate_attr=True)
         self.variant_batch_size = variant_batch_size
+
+    @staticmethod
+    def _read_variants(
+            vcf_file=None,
+            variants=None,
+            variant_fetcher=None,
+            vcf_lazy: bool = True,
+    ):
+        if vcf_file is not None:
+            from kipoiseq.extractors import MultiSampleVCF
+            vcf = MultiSampleVCF(vcf_file, lazy=vcf_lazy)
+
+            if os.environ.get('PYTEST_RUNNING', '') == 'true':
+                # Ensure that none of the methods actually uses MultiSampleVCF methods by accident
+                vcf = VariantFetcherProxy(vcf)
+
+            return vcf
+        elif variant_fetcher is not None:
+            assert isinstance(variant_fetcher, VariantFetcher), \
+                "Wrong type of variant fetcher: %s" % type(variant_fetcher)
+            return variant_fetcher
+        elif variants is not None:
+            return PyrangesVariantFetcher(variants)
+        else:
+            raise ValueError("No source of variants was specified!")
 
     @staticmethod
     def _read_intervals(gtf_path=None, bed_path=None, pranges=None,
@@ -172,7 +243,7 @@ class SingleVariantMatcher(BaseVariantMatcher):
         Args:
           batch_size: size of each batch.
         """
-        for batch in self.vcf.batch_iter(batch_size):
+        for batch in self.variant_fetcher.batch_iter(batch_size):
             yield variants_to_pyranges(batch)
 
     def iter_pyranges(self) -> PyRanges:
@@ -210,25 +281,9 @@ class SingleVariantMatcher(BaseVariantMatcher):
 
 class MultiVariantsMatcher(BaseVariantMatcher):
 
-    def __init__(
-            self,
-            vcf_file,
-            gtf_path=None,
-            pranges=None,
-            intervals=None,
-            interval_attrs=None,
-            vcf_lazy=True,
-            variant_batch_size=10000
-    ):
-        super().__init__(
-            vcf_file,
-            gtf_path=gtf_path,
-            pranges=pranges,
-            intervals=intervals,
-            interval_attrs=interval_attrs,
-            vcf_lazy=vcf_lazy,
-            variant_batch_size=variant_batch_size
-        )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
         if hasattr(self.pr, 'intervals'):
             self.intervals = self.pr.intervals
         else:
@@ -236,4 +291,4 @@ class MultiVariantsMatcher(BaseVariantMatcher):
 
     def __iter__(self):
         for i in self.intervals:
-            yield i, self.vcf.fetch_variants(i)
+            yield i, self.variant_fetcher.fetch_variants(i)

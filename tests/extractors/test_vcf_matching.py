@@ -4,7 +4,7 @@ import pyranges
 from kipoiseq.dataclasses import Interval, Variant
 from kipoiseq.extractors.vcf import MultiSampleVCF
 from kipoiseq.extractors.vcf_matching import variants_to_pyranges, \
-    pyranges_to_intervals,  intervals_to_pyranges, BaseVariantMatcher, \
+    pyranges_to_intervals, intervals_to_pyranges, BaseVariantMatcher, \
     SingleVariantMatcher, MultiVariantsMatcher
 
 intervals = [
@@ -112,8 +112,7 @@ def test_BaseVariantMatcher__read_intervals():
 def test_SingleVariantMatcher__iter__():
     inters = intervals + [Interval('chr1', 5, 50)]
 
-    matcher = SingleVariantMatcher(
-        vcf_file, intervals=inters)
+    matcher = SingleVariantMatcher(vcf_file, intervals=inters)
     pairs = list(matcher)
 
     assert (inters[0], variants[0]) in pairs
@@ -134,6 +133,15 @@ def test_SingleVariantMatcher__iter__():
     assert (inters[2], variants[2]) in pairs
     assert len(pairs) == 5
 
+    matcher = SingleVariantMatcher(variants=variants, pranges=pr)
+    pairs = list(matcher)
+
+    assert (inters[0], variants[0]) in pairs
+    assert (inters[0], variants[1]) in pairs
+    assert (inters[1], variants[2]) in pairs
+    assert (inters[2], variants[1]) in pairs
+    assert (inters[2], variants[2]) in pairs
+    assert len(pairs) == 5
 
 def test_MultiVariantMatcher__iter__():
     matcher = MultiVariantsMatcher(vcf_file, intervals=intervals)
@@ -145,6 +153,14 @@ def test_MultiVariantMatcher__iter__():
     assert list(pairs[1][1]) == [variants[2]]
 
     matcher = MultiVariantsMatcher(vcf_file, pranges=pr)
+    pairs = list(matcher)
+
+    assert pairs[0][0] == intervals[0]
+    assert list(pairs[0][1]) == [variants[0], variants[1]]
+    assert pairs[1][0] == intervals[1]
+    assert list(pairs[1][1]) == [variants[2]]
+
+    matcher = MultiVariantsMatcher(variants=variants, pranges=pr)
     pairs = list(matcher)
 
     assert pairs[0][0] == intervals[0]
