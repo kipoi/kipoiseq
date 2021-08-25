@@ -34,10 +34,10 @@ test_requirements = [
     "cython",
     "cyvcf2",
     "pyranges>=0.0.71",
-    "keras",
-    "tensorflow",
+    # "keras",
+    # "tensorflow",
     "pybedtools",
-    "concise"
+    # "concise"
 ]
 
 setup(
