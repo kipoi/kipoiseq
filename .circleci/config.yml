@@ -34,8 +34,8 @@ variables:
       name: Install conda dependencies
       command: |
         source activate kipoi-dev
-        apt-get update -y
-        apt-get install build-essential -y
+        apt update -y
+        apt install build-essential -y
         conda install -y cython
         conda install -y -c bioconda cyvcf2 pybedtools pyfaidx biopython
   install_kipoi: &install_kipoi
@@ -117,7 +117,7 @@ variables:
 jobs:
   test-py36:
     docker:
-      - image: continuumio/miniconda3:4.7.10
+      - image: continuumio/miniconda3:4.10.3
     working_directory: ~/repo
     steps:
       - checkout
@@ -135,7 +135,7 @@ jobs:
 
   build-deploy-docs:
     docker:
-      - image: continuumio/miniconda3:4.7.10
+      - image: continuumio/miniconda3:4.10.3
     working_directory: ~/repo
     steps:
       - add_ssh_keys:
@@ -168,7 +168,7 @@ jobs:
 
   test-deploy-pypi:
     docker:
-      - image: continuumio/miniconda3:4.7.10
+      - image: continuumio/miniconda3:4.10.3
     working_directory: ~/repo
     steps:
       - checkout
@@ -197,7 +197,7 @@ jobs:
 
   productive-deploy-pypi:
     docker:
-      - image: continuumio/miniconda3:4.7.10
+      - image: continuumio/miniconda3:4.10.3
     working_directory: ~/repo
     steps:
       - checkout
