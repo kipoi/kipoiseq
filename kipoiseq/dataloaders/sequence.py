@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import pyranges as pr
 from copy import deepcopy
 from kipoi.metadata import GenomicRanges
 from kipoi.data import Dataset, kipoi_dataloader
@@ -459,7 +460,6 @@ class AnchoredGTFDl(Dataset):
                  transform=one_hot_dna,
                  interval_attrs=["gene_id", "Strand"],
                  use_strand=True):
-        import pyranges as pr
 
         # Read and filter gtf
         gtf = pr.read_gtf(gtf_file).df
