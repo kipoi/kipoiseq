@@ -34,7 +34,7 @@ variables:
       name: Install conda dependencies
       command: |
         source activate kipoi-dev
-        apt-get update -y
+        apt-get --allow-releaseinfo-change update -y  
         apt-get install build-essential -y
         conda install -y cython
         conda install -y -c bioconda cyvcf2 pybedtools pyfaidx biopython
