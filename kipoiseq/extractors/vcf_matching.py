@@ -31,7 +31,7 @@ def variants_to_pyranges(variants: List[Variant]) -> PyRanges:
         (
             v.chrom,
             v.start,
-            v.start + max(len(v.ref), len(v.alt)),
+            v.end,
             v
         )
         for v in variants
@@ -271,7 +271,7 @@ class SingleVariantMatcher(BaseVariantMatcher):
                 for _, row in df.iterrows():
                     yield row
 
-    def __iter__(self):
+    def __iter__(self) -> (Interval, Variant):
         """
         Iterate interval and variant object.
         """
