@@ -85,6 +85,12 @@ class Variant:
         """
         return self.pos - 1
 
+    @property
+    def end(self):
+        """1-based variant end position
+        """
+        return self.start + len(self.ref)
+
     @classmethod
     def from_cyvcf(cls, obj):
         if len(obj.ALT) > 1:
