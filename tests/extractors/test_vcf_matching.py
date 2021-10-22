@@ -137,9 +137,8 @@ def test_SingleVariantMatcher__iter__():
     assert (inters[0], variants[0]) in pairs
     assert (inters[0], variants[1]) in pairs
     assert (inters[1], variants[2]) in pairs
-    assert (inters[2], variants[1]) in pairs
     assert (inters[2], variants[2]) in pairs
-    assert len(pairs) == 5
+    assert len(pairs) == 4
 
 def test_MultiVariantMatcher__iter__():
     matcher = MultiVariantsMatcher(vcf_file, intervals=intervals)
