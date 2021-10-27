@@ -110,21 +110,6 @@ class PyrangesVariantFetcher(VariantFetcher):
         yield from self.variants
 
 
-class VariantFetcherProxy(VariantFetcher):
-
-    def __init__(self, variant_fetcher: VariantFetcher):
-        self.variant_fetcher = variant_fetcher
-
-    def fetch_variants(self, interval: Union[Interval, Iterable[Interval]]) -> Iterator[Variant]:
-        yield from self.variant_fetcher.fetch_variants(interval)
-
-    def batch_iter(self, batch_size=10000) -> Iterator[List[Variant]]:
-        yield from self.variant_fetcher.batch_iter(batch_size)
-
-    def __iter__(self) -> Iterator[Variant]:
-        yield from self.variant_fetcher
-
-
 class BaseVariantMatcher:
     """
     Base variant intervals matcher
@@ -168,16 +153,10 @@ class BaseVariantMatcher:
             variants=None,
             variant_fetcher=None,
             vcf_lazy: bool = True,
-    ):
+    ) -> VariantFetcher:
         if vcf_file is not None:
             from kipoiseq.extractors import MultiSampleVCF
-            vcf = MultiSampleVCF(vcf_file, lazy=vcf_lazy)
-
-            if os.environ.get('PYTEST_RUNNING', '') == 'true':
-                # Ensure that none of the methods actually uses MultiSampleVCF methods by accident
-                vcf = VariantFetcherProxy(vcf)
-
-            return vcf
+            return MultiSampleVCF(vcf_file, lazy=vcf_lazy)
         elif variant_fetcher is not None:
             assert isinstance(variant_fetcher, VariantFetcher), \
                 "Wrong type of variant fetcher: %s" % type(variant_fetcher)

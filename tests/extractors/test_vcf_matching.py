@@ -1,3 +1,4 @@
+from typing import Union, Iterable, Iterator, List
 import pytest
 from conftest import vcf_file, gtf_file, example_intervals_bed
 import pyranges
@@ -5,7 +6,7 @@ from kipoiseq.dataclasses import Interval, Variant
 from kipoiseq.extractors.vcf import MultiSampleVCF
 from kipoiseq.extractors.vcf_matching import variants_to_pyranges, \
     pyranges_to_intervals, intervals_to_pyranges, BaseVariantMatcher, \
-    SingleVariantMatcher, MultiVariantsMatcher
+    SingleVariantMatcher, MultiVariantsMatcher, VariantFetcher
 
 intervals = [
     Interval('chr1', 1, 10, strand='+'),
@@ -24,6 +25,36 @@ pr = pyranges.PyRanges(
     ends=[10, 30, 50],
     strands=['+', '-', '.']
 )
+
+
+class VariantFetcherProxy(VariantFetcher):
+
+    def __init__(self, variant_fetcher: VariantFetcher):
+        self.variant_fetcher = variant_fetcher
+
+    def fetch_variants(self, interval: Union[Interval, Iterable[Interval]]) -> Iterator[Variant]:
+        yield from self.variant_fetcher.fetch_variants(interval)
+
+    def batch_iter(self, batch_size=10000) -> Iterator[List[Variant]]:
+        yield from self.variant_fetcher.batch_iter(batch_size)
+
+    def __iter__(self) -> Iterator[Variant]:
+        yield from self.variant_fetcher
+
+
+# make sure that kipoiseq only uses the VariantFetcher API
+read_variants_fn = BaseVariantMatcher._read_variants
+
+
+@staticmethod
+def proxy_fn(*args, **kwargs):
+    vf = VariantFetcherProxy(
+        read_variants_fn(*args, **kwargs)
+    )
+    return vf
+
+
+BaseVariantMatcher._read_variants = proxy_fn
 
 
 def test_variants_to_pyranges():
@@ -139,6 +170,7 @@ def test_SingleVariantMatcher__iter__():
     assert (inters[1], variants[2]) in pairs
     assert (inters[2], variants[2]) in pairs
     assert len(pairs) == 4
+
 
 def test_MultiVariantMatcher__iter__():
     matcher = MultiVariantsMatcher(vcf_file, intervals=intervals)
