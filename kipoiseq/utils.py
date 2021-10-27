@@ -1,7 +1,12 @@
+from itertools import islice
+from typing import Iterable, TypeVar
+
 import numpy as np
 from six import string_types
 
 # alphabets:
+from kipoiseq import Variant
+
 DNA = ["A", "C", "G", "T"]
 RNA = ["A", "C", "G", "U"]
 AMINO_ACIDS = ["A", "R", "N", "D", "B", "C", "E", "Q", "Z", "G", "H",
@@ -36,3 +41,18 @@ def parse_dtype(dtype):
             raise ValueError("Unable to parse dtype: {}. \nException: {}".format(dtype, e))
     else:
         return dtype
+
+
+T = TypeVar('T')
+
+
+def batch_iter(items: Iterable[T], batch_size: int) -> Iterable[Iterable[T]]:
+    # ensure this is an iterator
+    item_iter = iter(items)
+    while True:
+        # create next `batch_size` number of items;
+        batch = list(islice(item_iter, batch_size))
+        if len(batch) == 0:
+            break
+
+        yield batch
