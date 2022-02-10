@@ -1,9 +1,12 @@
+import abc
 import logging
-from typing import Tuple, Iterable, List, Union
+from typing import Tuple, Iterable, List, Union, Iterator
 from itertools import islice
 from collections import defaultdict
 from kipoiseq.dataclasses import Variant, Interval
+from kipoiseq.variant_source import VariantFetcher
 from kipoiseq.extractors.vcf_query import VariantIntervalQueryable
+from kipoiseq.utils import batch_iter
 
 try:
     from cyvcf2 import VCF
@@ -15,19 +18,11 @@ __all__ = [
 ]
 
 
-def _batch_iter(variants: Iterable[Variant], batch_size=10000
-                ) -> Iterable[Iterable[Variant]]:
-    batch = list(islice(variants, batch_size))
-    while batch:
-        yield batch
-        batch = list(islice(variants, batch_size))
-
-
-class MultiSampleVCF(VCF):
+class MultiSampleVCF(VariantFetcher, VCF):
 
     def __init__(self, *args, **kwargs):
         from cyvcf2 import VCF
-        super(MultiSampleVCF, self).__init__(*args, **kwargs, strict_gt=True)
+        VCF.__init__(self, *args, **kwargs, strict_gt=True)
         self.sample_mapping = dict(zip(self.samples, range(len(self.samples))))
 
     def fetch_variants(self, interval, sample_id=None):
@@ -79,7 +74,7 @@ class MultiSampleVCF(VCF):
             batch_size: size of each batch.
         """
         variants = iter(self)
-        yield from _batch_iter(variants, batch_size=batch_size)
+        yield from batch_iter(variants, batch_size=batch_size)
 
     def query_variants(self, intervals: List[Interval], sample_id=None,
                        progress=False) -> VariantIntervalQueryable:

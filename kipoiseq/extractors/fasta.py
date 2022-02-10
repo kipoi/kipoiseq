@@ -69,7 +69,6 @@ class FastaStringExtractor(BaseExtractor):
 #     """
 
 #     def __init__(self, bigwig_file):
-#         from genomelake.extractors import BigwigExtractor
 
 #         self.bigwig_file = bigwig_file
 #         self.batch_extractor = BigwigExtractor(self.bigwig_file)

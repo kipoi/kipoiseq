@@ -5,7 +5,6 @@ from setuptools import setup, find_packages
 
 requirements = [
     "kipoi>=0.5.5",
-    # "genomelake",
     "pyfaidx",
     "numpy",
     "pandas",
@@ -16,7 +15,8 @@ requirements = [
     # "h5py",
     "gffutils",
     "kipoi-utils>=0.1.1",
-    "kipoi-conda>=0.1.0"
+    "kipoi-conda>=0.1.0",
+    "pyranges"
 ]
 
 test_requirements = [
@@ -34,16 +34,15 @@ test_requirements = [
     "cython",
     "cyvcf2",
     "pyranges>=0.0.71",
-    # "genomelake",
-    "keras",
-    "tensorflow",
+    # "keras",
+    # "tensorflow",
     "pybedtools",
-    "concise"
+    # "concise"
 ]
 
 setup(
     name='kipoiseq',
-    version='0.5.2',
+    version='0.7.1',
     description="kipoiseq: sequence-based data-loaders for Kipoi",
     author="Kipoi team",
     author_email='avsec@in.tum.de',
