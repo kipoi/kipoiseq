@@ -6,3 +6,4 @@ from .vcf_seq import *
 from .vcf_matching import *
 from .multi_interval import *
 from .protein import *
+from .variant_combinations import *

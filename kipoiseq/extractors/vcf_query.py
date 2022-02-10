@@ -1,3 +1,4 @@
+import csv
 import abc
 from itertools import islice
 from typing import Tuple, Iterable, List
@@ -241,3 +242,40 @@ class VariantIntervalQueryable:
                 variant = writer.variant_from_string('\t'.join(variant))
 
             writer.write_record(variant)
+
+    def to_sample_csv(self, path, format_fields=None):
+        """
+        Extract samples and FORMAT from vcf then save as csv file.
+        """
+        format_fields = format_fields or list()
+        writer = None
+
+        with open(path, 'w') as f:
+
+            for variant in self:
+                variant_fields = str(variant.source).strip().split('\t')
+
+                if writer is None:
+                    # FORMAT field
+                    fieldnames = ['variant', 'sample',
+                                  'genotype'] + format_fields
+                    format_fields = set(format_fields)
+                    writer = csv.DictWriter(f, fieldnames=fieldnames)
+                    writer.writeheader()
+                    samples = self.vcf.samples
+
+                values = dict(zip(samples, map(
+                    lambda x: x.split(':'), variant_fields[9:])))
+                fields = variant_fields[8].split(':')
+
+                for sample, gt in self.vcf.get_samples(variant).items():
+                    row = dict()
+                    row['variant'] = str(variant)
+                    row['sample'] = sample
+                    row['genotype'] = gt
+
+                    for k, v in zip(fields, values[sample]):
+                        if k in format_fields:
+                            row[k] = v
+
+                    writer.writerow(row)
