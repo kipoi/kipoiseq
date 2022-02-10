@@ -15,6 +15,7 @@ def fasta_file():
 def intervals_file():
     return "tests/data/sample_intervals.bed"
 
+
 @pytest.fixture
 def intervals_file_strand():
     return "tests/data/sample_interval_strand.bed"
@@ -25,8 +26,9 @@ def intervals_file_strand():
 
 def test_min_props():
     # minimal set of properties that need to be specified on the object
-    min_set_props = ["output_schema", "type", "defined_as", "info", "args", "dependencies", "postprocessing",
-                     "source", "source_dir"]
+    min_set_props = ["output_schema", "type", "defined_as", "info", "args",
+                     "dependencies", "source", "source_dir"]
+    # TODO: "postprocessing" is this part of min_set_props?
 
     for Dl in [StringSeqIntervalDl, SeqIntervalDl]:
         props = dir(Dl)
@@ -56,10 +58,13 @@ def test_fasta_based_dataset(intervals_file, fasta_file):
     vals = dl.load_all()
     assert vals['inputs'][0] == 'GT'
 
+
 def test_use_strand(intervals_file_strand, fasta_file):
-    dl = StringSeqIntervalDl(intervals_file_strand, fasta_file, use_strand=True)
+    dl = StringSeqIntervalDl(intervals_file_strand,
+                             fasta_file, use_strand=True)
     vals = dl.load_all()
     assert vals['inputs'][0] == 'AC'
+
 
 def test_seq_dataset(intervals_file, fasta_file):
     dl = SeqIntervalDl(intervals_file, fasta_file)
