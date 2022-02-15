@@ -141,7 +141,8 @@ class BaseVariantMatcher:
             pyranges object. This argument is not valid with intervals.
             Currently unused
         """
-        self.variant_fetcher = self._read_variants(vcf_file, variants, variant_fetcher, vcf_lazy)
+        self.variant_fetcher = self._read_variants(
+            vcf_file, variants, variant_fetcher, vcf_lazy)
         self.interval_attrs = interval_attrs
         self.pr = self._read_intervals(gtf_path, bed_path, pranges,
                                        intervals, interval_attrs, duplicate_attr=True)
@@ -175,7 +176,8 @@ class BaseVariantMatcher:
                              '`intervals` or should given as input.')
         if gtf_path:
             import pyranges
-            pranges = pyranges.read_gtf(gtf_path, duplicate_attr=duplicate_attr)
+            pranges = pyranges.read_gtf(
+                gtf_path, duplicate_attr=duplicate_attr)
 
         elif bed_path:
             import pyranges
@@ -187,7 +189,6 @@ class BaseVariantMatcher:
                     '`interval_attrs` is not valid with `intervals`')
 
             pranges = intervals_to_pyranges(intervals)
-            pranges.intervals = intervals
 
         return pranges
 
@@ -235,9 +236,8 @@ class SingleVariantMatcher(BaseVariantMatcher):
         """
         for pr_variants in self._read_vcf_pyranges():
             pr_join = self.pr.join(pr_variants, suffix='_variant')
-            if not hasattr(pr_join, 'intervals'):
-                pr_join.intervals = list(pyranges_to_intervals(
-                    pr_join, interval_attrs=self.interval_attrs))
+            pr_join.intervals = list(pyranges_to_intervals(
+                pr_join, interval_attrs=self.interval_attrs))
             yield pr_join
 
     def iter_rows(self):

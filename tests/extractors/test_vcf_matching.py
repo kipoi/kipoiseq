@@ -10,7 +10,8 @@ from kipoiseq.extractors.vcf_matching import variants_to_pyranges, \
 
 intervals = [
     Interval('chr1', 1, 10, strand='+'),
-    Interval('chr1', 23, 30, strand='-')
+    Interval('chr1', 23, 30, strand='-'),
+    Interval('chr10', 1, 30, strand='+')
 ]
 
 variants = [
@@ -20,10 +21,10 @@ variants = [
 ]
 
 pr = pyranges.PyRanges(
-    chromosomes='chr1',
-    starts=[1, 23, 5],
-    ends=[10, 30, 50],
-    strands=['+', '-', '.']
+    chromosomes=['chr1', 'chr1', 'chr1', 'chr10'],
+    starts=[1, 23, 5, 1],
+    ends=[10, 30, 50, 30],
+    strands=['+', '-', '.', '+']
 )
 
 
@@ -96,11 +97,11 @@ def test_pyranges_to_intervals():
 def test_intervals_to_pyranges():
     pr = intervals_to_pyranges(intervals)
 
-    assert pr.df.shape[0] == 2
-    assert pr.df.Chromosome.tolist() == ['chr1', 'chr1']
-    assert pr.df.Start.tolist() == [1, 23]
-    assert pr.df.End.tolist() == [10, 30]
-    assert pr.df.Strand.tolist() == ['+', '-']
+    assert pr.df.shape[0] == 3
+    assert pr.df.Chromosome.tolist() == ['chr1', 'chr1', 'chr10']
+    assert pr.df.Start.tolist() == [1, 23, 1]
+    assert pr.df.End.tolist() == [10, 30, 30]
+    assert pr.df.Strand.tolist() == ['+', '-', '+']
 
 
 def test_BaseVariantMatcher__read_intervals():
@@ -133,25 +134,14 @@ def test_BaseVariantMatcher__read_intervals():
     # assert len(pr.intervals.tolist()) == 5
 
     pr = BaseVariantMatcher._read_intervals(intervals=intervals)
-    assert pr.df.Chromosome.tolist() == ['chr1', 'chr1']
-    assert pr.df.Start.tolist() == [1, 23]
-    assert pr.df.End.tolist() == [10, 30]
-    assert pr.df.Strand.tolist() == ['+', '-']
-    assert len(pr.intervals.tolist()) == 2
+    assert pr.df.Chromosome.tolist() == ['chr1', 'chr1', 'chr10']
+    assert pr.df.Start.tolist() == [1, 23, 1]
+    assert pr.df.End.tolist() == [10, 30, 30]
+    assert pr.df.Strand.tolist() == ['+', '-', '+']
 
 
 def test_SingleVariantMatcher__iter__():
     inters = intervals + [Interval('chr1', 5, 50)]
-
-    matcher = SingleVariantMatcher(vcf_file, intervals=inters)
-    pairs = list(matcher)
-
-    assert (inters[0], variants[0]) in pairs
-    assert (inters[0], variants[1]) in pairs
-    assert (inters[1], variants[2]) in pairs
-    assert (inters[2], variants[2]) in pairs
-
-    assert len(pairs) == 4
 
     matcher = SingleVariantMatcher(vcf_file, pranges=pr)
     pairs = list(matcher)
@@ -159,7 +149,7 @@ def test_SingleVariantMatcher__iter__():
     assert (inters[0], variants[0]) in pairs
     assert (inters[0], variants[1]) in pairs
     assert (inters[1], variants[2]) in pairs
-    assert (inters[2], variants[2]) in pairs
+    assert (inters[3], variants[2]) in pairs
     assert len(pairs) == 4
 
     matcher = SingleVariantMatcher(variants=variants, pranges=pr)
@@ -168,7 +158,15 @@ def test_SingleVariantMatcher__iter__():
     assert (inters[0], variants[0]) in pairs
     assert (inters[0], variants[1]) in pairs
     assert (inters[1], variants[2]) in pairs
-    assert (inters[2], variants[2]) in pairs
+    assert (inters[3], variants[2]) in pairs
+    assert len(pairs) == 4
+
+    matcher = SingleVariantMatcher(vcf_file, intervals=inters)
+    pairs = list(matcher)
+    assert (inters[0], variants[0]) in pairs
+    assert (inters[0], variants[1]) in pairs
+    assert (inters[1], variants[2]) in pairs
+    assert (inters[3], variants[2]) in pairs
     assert len(pairs) == 4
 
 
