@@ -16,6 +16,7 @@ requirements = [
     "gffutils",
     "kipoi-utils>=0.1.1",
     "kipoi-conda>=0.1.0",
+    "sorted-nearest<=0.0.33",
     "pyranges"
 ]
 
