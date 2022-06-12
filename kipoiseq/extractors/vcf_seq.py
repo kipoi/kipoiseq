@@ -58,21 +58,25 @@ class IntervalSeqBuilder(list):
 
 class VariantSeqExtractor(BaseExtractor):
 
-    def __init__(self, fasta_file: str = None, reference_sequence: BaseExtractor = None):
+    def __init__(self, fasta_file: str = None, reference_sequence: BaseExtractor = None, use_strand=True):
         """
         Sequence extractor which allows to obtain the alternative sequence,
         given some interval and variants inside this interval.
 
         Args:
-          fasta_file: path to the fasta file (can be gzipped)
-          reference_sequence: extractor returning the reference sequence given some interval
+            fasta_file: path to the fasta file (can be gzipped)
+            reference_sequence: extractor returning the reference sequence given some interval
+            use_strand (bool): if True, the extracted sequence
+                is reverse complemented in case interval.strand == "-"
         """
+        self._use_strand = use_strand
+
         if fasta_file is not None:
             if reference_sequence is not None:
                 raise ValueError(
                     "either fasta_file or ref_seq_extractor have to be specified")
             self._ref_seq_extractor = FastaStringExtractor(
-                fasta_file, use_strand=True)
+                fasta_file, use_strand=False)
         else:
             if reference_sequence is None:
                 raise ValueError(
@@ -96,22 +100,25 @@ class VariantSeqExtractor(BaseExtractor):
         """
         return self._ref_seq_extractor
 
-    def extract(self, interval, variants, anchor, fixed_len=True, **kwargs):
+    def extract(self, interval, variants, anchor, fixed_len=True, use_strand=None, **kwargs):
         """
 
         Args:
-          interval: pybedtools.Interval Region of interest from
-            which to query the sequence. 0-based
-          variants: List[cyvcf2.Variant]: variants overlapping the `interval`.
-            can also be indels. 1-based
-          anchor: absolution position w.r.t. the interval start. (0-based).
-            E.g. for an interval of `chr1:10-20` the anchor of 10 denotes
-            the point chr1:10 in the 0-based coordinate system.
-          fixed_len: if True, the return sequence will have the same length
-            as the `interval` (e.g. `interval.end - interval.start`)
+            interval: pybedtools.Interval Region of interest from
+                which to query the sequence. 0-based
+            variants: List[cyvcf2.Variant]: variants overlapping the `interval`.
+                can also be indels. 1-based
+            anchor: absolution position w.r.t. the interval start. (0-based).
+                E.g. for an interval of `chr1:10-20` the anchor of 10 denotes
+                the point chr1:10 in the 0-based coordinate system.
+            fixed_len: if True, the return sequence will have the same length
+                as the `interval` (e.g. `interval.end - interval.start`)
+            use_strand (bool, optional): if True, the extracted sequence
+                is reverse complemented in case interval.strand == "-".
+                Overrides `self.use_strand`
 
         Returns:
-          A single sequence (`str`) with all the variants applied.
+            A single sequence (`str`) with all the variants applied.
         """
         # Preprocessing
         anchor = max(min(anchor, interval.end), interval.start)
@@ -174,7 +181,10 @@ class VariantSeqExtractor(BaseExtractor):
 
         seq = down_str + up_str
 
-        if interval.strand == '-':
+        if use_strand is None:
+            use_strand = self.use_strand()
+        if use_strand and interval.strand == '-':
+            # reverse-complement
             seq = complement(seq)[::-1]
 
         return seq
@@ -256,7 +266,8 @@ class VariantSeqExtractor(BaseExtractor):
         return up_sb
 
     def _fetch(self, interval, istart, iend):
-        seq = self._ref_seq_extractor.extract(
+        # fetch interval, ignore strand
+        seq = self.ref_seq_extractor.extract(
             Interval(interval.chrom, istart, iend))
         seq = Sequence(name=interval.chrom, seq=seq, start=istart, end=iend)
         return seq
