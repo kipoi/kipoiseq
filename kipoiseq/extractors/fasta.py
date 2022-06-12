@@ -26,12 +26,15 @@ class FastaStringExtractor(BaseExtractor):
         self.fasta = Fasta(self.fasta_file)
         self.force_upper = force_upper
 
-    def extract(self, interval: Interval, **kwargs) -> str:
+    def extract(self, interval: Interval, use_strand=None, **kwargs) -> str:
         """
         Returns the FASTA sequence in some given interval as string
 
         Args:
             interval: the interval to query
+            use_strand (bool, optional): if True, the extracted sequence
+                is reverse complemented in case interval.strand == "-".
+                Overrides `self.use_strand`
             **kwargs:
 
         Returns:
@@ -39,7 +42,9 @@ class FastaStringExtractor(BaseExtractor):
 
         """
         # reverse-complement seq the negative strand
-        rc = self.use_strand and interval.strand == "-"
+        if use_strand is None:
+            use_strand = self.use_strand
+        rc = use_strand and interval.strand == "-"
 
         # pyfaidx wants a 1-based interval
         seq = str(self.fasta.get_seq(
