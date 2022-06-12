@@ -182,7 +182,7 @@ class VariantSeqExtractor(BaseExtractor):
         seq = down_str + up_str
 
         if use_strand is None:
-            use_strand = self.use_strand()
+            use_strand = self.use_strand
         if use_strand and interval.strand == '-':
             # reverse-complement
             seq = complement(seq)[::-1]
