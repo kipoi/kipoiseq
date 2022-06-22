@@ -5,7 +5,7 @@ kipoi==0.6.25
 kipoi_conda==0.2.2
 kipoi_utils==0.3.8
 kipoi_veff==0.3.1
-numpy==1.18.3
+numpy==1.22.0
 pandas==1.0.3
 pybedtools==0.8.1
 pyfaidx==0.5.8
