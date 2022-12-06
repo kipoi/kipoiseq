@@ -53,7 +53,7 @@ class MultiSampleVCF(VariantFetcher, VCF):
 
     @staticmethod
     def _has_variant_gt(gt_type: int) -> bool:
-        return gt_type != 0 and gt_type != 2
+        return gt_type != 0 and gt_type != 3
 
     def __next__(self):
         return Variant.from_cyvcf(super().__next__())
