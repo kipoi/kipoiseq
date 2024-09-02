@@ -104,7 +104,6 @@ class VariantSeqExtractor(BaseExtractor):
     def extract(self, interval, variants, anchor, fixed_len=True, use_strand=None, chrom_len=math.inf,
                 is_padding=False, **kwargs):
         """
-
         Args:
             interval: pybedtools.Interval Region of interest from
                 which to query the sequence. 0-based
