@@ -37,7 +37,7 @@ variables:
         apt-get --allow-releaseinfo-change update -y  
         apt-get install build-essential -y
         conda install -y cython
-        conda install -y -c bioconda cyvcf2 pybedtools 'pysam<0.11.2.2' pyfaidx biopython
+        conda install -y -c bioconda cyvcf2 pybedtools pysam=0.10 pyfaidx biopython
   install_kipoi: &install_kipoi
     run:
       name: Install Kipoi
