@@ -11,6 +11,7 @@ from kipoiseq.extractors import (
 
 from kipoiseq import __version__
 from deprecation import deprecated
+import math
 
 __all__ = [
     'VariantSeqExtractor',
@@ -100,9 +101,9 @@ class VariantSeqExtractor(BaseExtractor):
         """
         return self._ref_seq_extractor
 
-    def extract(self, interval, variants, anchor, fixed_len=True, use_strand=None, **kwargs):
+    def extract(self, interval, variants, anchor, fixed_len=True, use_strand=None, chrom_len=math.inf,
+                is_padding=False, **kwargs):
         """
-
         Args:
             interval: pybedtools.Interval Region of interest from
                 which to query the sequence. 0-based
@@ -116,6 +117,8 @@ class VariantSeqExtractor(BaseExtractor):
             use_strand (bool, optional): if True, the extracted sequence
                 is reverse complemented in case interval.strand == "-".
                 Overrides `self.use_strand`
+            chrom_len: length of the chromosome. If chrom_len == math.inf, the length of the chromosome is not checked.
+            is_padding: if True, the sequence is padded with 'N's if sequence can't extend to the fixed length,
 
         Returns:
             A single sequence (`str`) with all the variants applied.
@@ -156,6 +159,9 @@ class VariantSeqExtractor(BaseExtractor):
         else:
             istart, iend = interval.start, interval.end
 
+        istart = max(istart, 0)
+        iend = min(iend, chrom_len - 1)
+
         # 4. Iterate from the anchor point outwards. At each
         # register the interval from which to take the reference sequence
         # as well as the interval for the variant
@@ -177,7 +183,7 @@ class VariantSeqExtractor(BaseExtractor):
 
         if fixed_len:
             down_str, up_str = self._cut_to_fix_len(
-                down_str, up_str, interval, anchor)
+                down_str, up_str, interval, anchor, is_padding=is_padding)
 
         seq = down_str + up_str
 
@@ -273,11 +279,27 @@ class VariantSeqExtractor(BaseExtractor):
         return seq
 
     @staticmethod
-    def _cut_to_fix_len(down_str, up_str, interval, anchor):
+    def _cut_to_fix_len(down_str, up_str, interval, anchor, is_padding=False):
         down_len = anchor - interval.start
+        down_diff = len(down_str) - down_len
+        if down_diff > 0:
+            down_str = down_str[-down_len:]
+        elif down_diff < 0:
+            if is_padding:
+                down_str = 'N' * abs(down_diff) + down_str
+            else:
+                raise ValueError(f"padding should be set to True, if the sequence can't extend to the fixed length")
+
         up_len = interval.end - anchor
-        down_str = down_str[-down_len:] if down_len else ''
-        up_str = up_str[: up_len] if up_len else ''
+        up_diff = len(up_str) - up_len
+        if up_diff > 0:
+            up_str = up_str[: up_len]
+        elif up_diff < 0:
+            if is_padding:
+                up_str = up_str + 'N' * abs(up_diff)
+            else:
+                raise ValueError(f"padding should be set to True, if the sequence can't extend to the fixed length")
+
         return down_str, up_str
 
 

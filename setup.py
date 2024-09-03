@@ -32,11 +32,12 @@ test_requirements = [
     "coveralls",
     "scikit-learn",
     "cython",
-    "cyvcf2",
+    "cyvcf2>=0.11.0",
     "pyranges>=0.0.71",
     # "keras",
     # "tensorflow",
     "pybedtools",
+    "pysam!=0.11"
     # "concise"
 ]
 

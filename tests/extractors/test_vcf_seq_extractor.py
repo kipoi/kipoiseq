@@ -88,6 +88,12 @@ def test__split_overlapping(variant_seq_extractor):
 def test_extract(variant_seq_extractor):
     variants = [Variant.from_cyvcf(v) for v in VCF(vcf_file)]
 
+    interval = Interval('chr1', 0, 30)
+
+    seq = variant_seq_extractor.extract(interval, variants, anchor=28, fixed_len=True, is_padding=True)
+    assert len(seq) == interval.end - interval.start
+    assert seq == 'NACGCGAACGTAACGTAACGTAACGTGATA'
+
     interval = Interval('chr1', 2, 9)
 
     seq = variant_seq_extractor.extract(interval, variants, anchor=5)
