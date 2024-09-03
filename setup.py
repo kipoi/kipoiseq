@@ -37,7 +37,7 @@ test_requirements = [
     # "keras",
     # "tensorflow",
     "pybedtools",
-    "pysam>0.11, <0.11"
+    "pysam!=0.11"
     # "concise"
 ]
 
