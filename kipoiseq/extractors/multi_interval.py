@@ -125,7 +125,6 @@ class BaseMultiIntervalFetcher(metaclass=abc.ABCMeta):
     #     for i in self.keys():
     #         yield self.get_intervals(i)
 
-
 class GenericMultiIntervalSeqExtractor(BaseMultiIntervalSeqExtractor):
 
     def __init__(self, extractor: BaseExtractor, interval_fetcher: BaseMultiIntervalFetcher, use_strand=True):
